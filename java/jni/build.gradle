@@ -1,0 +1,44 @@
+/*
+ * The Gradle build file for deshaw-pjrmi.
+ */
+
+plugins {
+    id 'cpp-library'
+}
+
+/*
+ * Configuration from the outside world.
+ */
+def JAVA_HOME = System.properties['java.home']
+
+tasks.withType(CppCompile) {
+    // Need to explicitly mention dependency on :java project
+    // It can't be included in library.dependencies block since it doesn't
+    // expose a configuration containing generated headers.
+    // TODO(krishan): there's probably a cleaner way to do this.
+    dependsOn project(":java").compileJava
+}
+
+library {
+    // Set the target operating system and architecture for this library
+    targetMachines.add(machines.linux.x86_64)
+
+    // The library name is libpjrmijni.so
+    baseName = 'pjrmijni'
+
+    binaries.configureEach {
+        // Configure the CppCompile task used to compile this binary. For more information, see:
+        // https://docs.gradle.org/current/dsl/org.gradle.language.cpp.tasks.CppCompile.html
+        def compileTask = compileTask.get()
+        compileTask.includes files([
+            JAVA_HOME + "/include",
+            JAVA_HOME + "/include/linux",
+            project(":java").buildDir.absolutePath + "/generated/sources/headers/java/main"
+        ])
+        compileTask.compilerArgs = ['-std=c++11']
+    }
+
+    dependencies {
+        implementation project(":cpp")
+    }
+}

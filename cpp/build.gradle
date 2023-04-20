@@ -1,0 +1,32 @@
+plugins {
+    // Apply the cpp-library plugin to add support for building C++ libraries
+    id 'cpp-library'
+
+    // Apply the cpp-unit-test plugin to add support for building and running C++ test executables
+    id 'cpp-unit-test'
+}
+
+def PJRMI_VERSION = pjrmiVersion
+
+version = PJRMI_VERSION
+
+library {
+    // Set the target operating system and architecture for this library
+    targetMachines.add(machines.linux.x86_64)
+
+    // The library name is libpjrmi.so
+    baseName = 'pjrmi'
+}
+
+model {
+    toolChains {
+        gcc(Gcc) {
+            eachPlatform {
+                // This would be used by compile and test tasks.
+                cppCompiler.withArguments { args ->
+                    args << '-std=c++11'
+                }
+            }
+        }
+    }
+}

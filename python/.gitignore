@@ -1,0 +1,5 @@
+/.hypothesis
+/build
+__pycache__
+/pjrmi/lib
+/pjrmi/extension*.so

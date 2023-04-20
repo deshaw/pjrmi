@@ -1,0 +1,60 @@
+/*
+ * The Gradle build file for deshaw-pjrmi.
+ */
+
+plugins {
+    id 'java-library'
+}
+
+// Quieten JavaDoc warnings for missing tags. There are some classes which we
+// specifically have imperfect JavaDoc for and the warnings don't really help.
+javadoc {
+    options.addStringOption('Xdoclint:all,-missing', '-quiet')
+}
+
+/*
+ * Configuration from the outside world.
+ */
+def SNAPPY = 'org.xerial.snappy:snappy-java:' + snappyVersion
+
+jar {
+    // Just the raw 'pjrmi.jar' name, unversioned. This is deployed as a
+    // resource for the Python package and is therefore scoped by that.
+    archiveBaseName = 'pjrmi'
+
+    // Make fat-jar to make python packaging easier.
+    from {
+        configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+compileJava {
+    options.compilerArgs << '-parameters'
+}
+
+repositories {
+    mavenCentral()
+}
+
+test {
+    // We need the Python build for the tests since we call into it from Java,
+    // and we need the JNI library since we use that too.
+    dependsOn project(":python")  .getTasks().getByPath(":python:buildExt")
+    dependsOn project(":java:jni").getTasks().getByPath(":java:jni:build")
+
+    // Ensure that we pick up the versions of the code from this tree, and not
+    // from any installation.
+    environment    "LD_LIBRARY_PATH",   "$rootDir/cpp/build/lib/main/debug"
+    environment    "PYTHONPATH",        "$rootDir/python"
+    systemProperty "java.library.path", "$rootDir/java/jni/build/lib/main/debug"
+
+    useJUnitPlatform()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
+
+    // compileOnly because we're creating a fat-jar with all the compile-time
+    // dependencies.
+    compileOnly SNAPPY
+}

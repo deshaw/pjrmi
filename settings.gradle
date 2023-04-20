@@ -1,0 +1,11 @@
+rootProject.name = 'pjrmi'
+
+include(':cpp')
+include(':java:jni')
+include(':java')
+include(':python')
+
+def localSettings = file("local.settings.gradle")
+if (localSettings.exists()) {
+  apply(from: localSettings)
+}

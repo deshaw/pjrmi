@@ -1,0 +1,133 @@
+// Define custom configurations to manage dependencies on other projects.
+// Appropriate tasks from projects declared in the `dependencies` block would be
+// automatically executed when the configuration is resolved (in `copyArtifacts`).
+configurations {
+    // For shared libraries.
+    libs {
+        // Help Gradle resolve dependencies since there are multiple variants
+        // available for shared libraries.
+        attributes {
+            // Select runtime variant.
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.NATIVE_RUNTIME))
+            // Select release variant.
+            attribute(CppBinary.OPTIMIZED_ATTRIBUTE, true)
+        }
+    }
+    // For jar dependencies.
+    jars
+}
+
+// Declare dependencies.
+dependencies {
+    // Contains libpjrmijni.so
+    libs project(":java:jni")
+    // Contains libpjrmi.so
+    libs project(":cpp")
+    // Contains pjrmi.jar
+    jars project(":java")
+}
+
+// Copy artifacts to be included in the python package.
+task copyArtifacts(type: Copy) {
+    destinationDir = file("$projectDir/pjrmi")
+    into("lib/") {
+        from configurations.libs
+        from configurations.jars
+    }
+}
+
+// Generate _config.py containing build information.
+task genConfigFile()  {
+    def configFile = "$projectDir/pjrmi/_config.py"
+    outputs.files(configFile)
+    // Re-generate when pjrmiVersion property changes.
+    inputs.property('version', pjrmiVersion)
+    doLast {
+        file(configFile).text = """\
+\"""
+Configuration for PJRmi.
+
+This file is auto-generated. Do not edit.
+\"""
+PJRMI_VERSION = "${pjrmiVersion}"
+"""
+    }
+}
+
+task buildExt() {
+    dependsOn copyArtifacts
+    dependsOn genConfigFile
+    doLast {
+        exec {
+            environment "PJRMI_VERSION", pjrmiVersion
+            environment "JAVA_HOME", System.properties['java.home']
+            environment "INCLUDE_PATH", project(":cpp").library.publicHeaderDirs.singleFile
+            environment "LIB_DIRS", [
+                project(":cpp").buildDir.absolutePath + "/lib/main/debug",
+                project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
+            ].join(":")
+            commandLine "./setup.py", "build_ext", "--inplace"
+        }
+    }
+}
+
+task develop() {
+    dependsOn buildExt
+    doLast {
+        exec {
+            environment "PJRMI_VERSION", pjrmiVersion
+            environment "JAVA_HOME", System.properties['java.home']
+            commandLine "pip3", "install", "--user", "-e", projectDir
+        }
+    }
+}
+
+
+task wheel() {
+    dependsOn buildExt
+    doLast {
+        exec {
+            environment "PJRMI_VERSION", pjrmiVersion
+            environment "JAVA_HOME", System.properties['java.home']
+            environment "INCLUDE_PATH", project(":cpp").library.publicHeaderDirs.singleFile
+            environment "LIB_DIRS", [
+                project(":cpp").buildDir.absolutePath + "/lib/main/debug",
+                project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
+            ].join(":")
+            commandLine "pip3", "wheel", "."
+        }
+    }
+}
+
+task test() {
+    dependsOn buildExt
+    doLast {
+        // Run the tests
+        def testFiles = files([
+            "tests/pjrmi_tests.py",
+            "tests/java_python_unpickle.py"
+        ])
+
+        testFiles.each { testFile ->
+            exec {
+                workingDir projectDir
+                environment "PYTHONPATH", projectDir
+                commandLine "python3", "-m", "pytest", testFile
+            }
+        }
+    }
+}
+
+// Wrapper build task to build the Python wheel file for distribution
+// and execute the tests.
+task build() {
+    dependsOn wheel, test
+}
+
+task clean(type: Delete) {
+    delete "$projectDir/build"
+    delete "$projectDir/pjrmi/lib"
+    delete "$projectDir/pjrmi/_config.py"
+    delete "$projectDir/pjrmi/__pycache__"
+    delete fileTree(dir: "$projectDir/pjrmi/", include: "*.so")
+}

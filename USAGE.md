@@ -9,7 +9,7 @@ versions in the below examples should be adjusted where appropriate.
 
 On Ubuntu you will want some of the following packages:
 ```bash
-sudo apt install build-essential g++ openjdk-11-jdk-headless python3-numpy py3c-dev python3-pip python3-snappy python3-dev libpython3-dev python3-pytest 
+sudo apt install build-essential g++ openjdk-11-jdk-headless python3-numpy py3c-dev python3-pip python3-snappy python3-dev libpython3-dev python3-pytest python3-plumbum
 ```
 
 On RHEL8 you will want some of the following packages:

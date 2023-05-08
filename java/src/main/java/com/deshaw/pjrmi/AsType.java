@@ -30,6 +30,21 @@ public class AsType
     {
     }
 
+    /**
+     * A function for converting a value to an {@link Object}. If the given
+     * value is already an {@link Object} instance then this is just a casting
+     * operation. If the given value is a primitive then this is a boxing
+     * operation.
+     *
+     * @param v The value to convert.
+     *
+     * @return the {@link Object} version of the value.
+     */
+    public static Object asObject(final Object v)
+    {
+        return v;
+    }
+
     // [[[cog
     //     import cog
     //     PRIMITIVE_NUMBERS = ('byte', 'short', 'int', 'long', 'float', 'double')

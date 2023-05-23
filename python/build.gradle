@@ -94,6 +94,19 @@ task wheel() {
                 project(":cpp").buildDir.absolutePath + "/lib/main/debug",
                 project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
             ].join(":")
+            commandLine "python", "setup.py", "bdist_wheel"
+        }
+    }
+}
+
+task thin_wheel() {
+    doLast {
+        exec {
+            environment "PJRMI_VERSION", pjrmiVersion
+            environment "JAVA_HOME", System.properties['java.home']
+            environment "LIB_DIRS", [
+                project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
+            ].join(":")
             commandLine "pip3", "wheel", "."
         }
     }

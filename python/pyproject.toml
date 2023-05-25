@@ -5,22 +5,20 @@ build-backend = "hatchling.build"
 [tool.hatch.build]
 include = [
     "pjrmi/*.py",
-  ]
-artifacts = [
-    "pjrmi/lib/*.jar",
-  ]
+]
+artifacts = [ "pjrmi/lib/*.jar",
+]
 
 [project]
 name = "pjrmi"
 
-# Using https://peps.python.org/pep-0639/
-# which is still in draft
+# Using https://peps.python.org/pep-0639/ which is still in draft
 license = {text = "BSD-3-Clause"}
 description = "PJRmi, RMI between Python and Java"
-#authors = [{name = "D.E.Shaw"}]
-#maintainers = [
-#    {name = "D.E.Sahw", email="someone@deshaw.com"},
-#]
+authors = [{name = "D. E. Shaw & Co LP"}]
+maintainers = [
+    {"D. E. Shaw & Co LP", email="pjrmi@deshaw.com"},
+]
 requires-python = ">=3.6"
 readme = "README.md"
 classifiers = [
@@ -30,7 +28,9 @@ classifiers = [
     'License :: OSI Approved :: BSD License',
     'Programming Language :: Java',
     'Programming Language :: Python',
-    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',

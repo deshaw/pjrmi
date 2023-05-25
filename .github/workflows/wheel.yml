@@ -25,6 +25,10 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: build thin wheel
+        # This will build a single python-only wheel. In order to build a wheel
+        # including the c-extension, rework this job to use cibuildwheel on all
+        # the desired runners (the `runs-on` line above)
+        # https://cibuildwheel.readthedocs.io/en/stable/
         run: |
           ./gradlew :python:thin_wheel
     

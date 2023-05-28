@@ -1,6 +1,6 @@
 [build-system]
 # Use hatch https://hatch.pypa.io/latest/ as a build backend to build a thin
-# (no c-extension) wheel. To change this to setuptools, comment out the
+# (no C-extension) wheel. To change this to setuptools, comment out the
 # build-backend line and add "setuptools", "wheel" to the required packages.
 requires = ["hatchling"]
 build-backend = "hatchling.build"

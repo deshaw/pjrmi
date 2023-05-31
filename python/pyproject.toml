@@ -20,7 +20,7 @@ license = {text = "BSD-3-Clause"}
 description = "PJRmi, RMI between Python and Java"
 authors = [{name = "D. E. Shaw & Co LP"}]
 maintainers = [
-    {"D. E. Shaw & Co LP", email="pjrmi@deshaw.com"},
+    {name="D. E. Shaw & Co LP", email="pjrmi@deshaw.com"},
 ]
 requires-python = ">=3.6"
 readme = "README.md"

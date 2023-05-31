@@ -24,19 +24,40 @@ The easiest way to try out PJRmi is by `pip`-installing it locally, this can be
 done with the following command:
 
 ```bash
-$ ./gradlew :python:develop
+$ ./gradlew develop
 $ python -c 'import pjrmi;print(pjrmi.PJRMI_VERSION)' // Smoke test
 ```
+
+This may fail if the PJRmi wheel is already installed globally. If that is the
+case then see below about using the wheel explicitly.
+
 
 ## Build wheel
 
 To build Python wheel, run:
 
 ```bash
-$ ./gradlew :python:wheel
+$ ./gradlew wheel
 ```
 The resultant .whl file can be found in the `.../python` top-level directory.
 
+### Using the wheel locally
+
+You can unzip and use the wheel explicitly in a local directory if, say,
+`pip`-installing it doesn't work for you:
+
+```bash
+$ ./gradlew wheel
+[...]
+  Created wheel for pjrmi: filename=pjrmi-blah-blah.whl size=123456 sha256=1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+[...]
+$ mkdir /tmp/mypythonlib
+$ cd /tmp/mypythonlib
+$ unzip /path/to/pjrmi/python/pjrmi-blah-blah.whl 
+[...]
+$ PYTHONPATH=/tmp/mypythonlib python -c 'import pjrmi;print(pjrmi.PJRMI_VERSION)'
+1.23.4
+```
 
 ## Examples
 

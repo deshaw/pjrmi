@@ -102,9 +102,9 @@ stand-alone test server example in `com.deshaw.PJRmi.main` simply does this:
 
 Most of the time Java objects are returned as they are but, in this example,
 `foo` will be a special subclass of a Python string; so if we want the Java
-String we need to pull it out. Java Objects are generally returned as they
-objects, only Strings and primitive types (`int`, `double`, `boolean`, ...) have
-special boxed handling.
+String we need to pull it out. Java Objects are generally returned as objects,
+only Strings and primitive types (`int`, `double`, `boolean`, ...) have special
+boxed handling.
 
     >>> foo = c.object_for_name('Foo')
     >>> foo
@@ -464,8 +464,8 @@ invoke:
 
     >>> Thread = c.class_for_name('java.lang.Thread')
     >>> class PythonRunnable(pjrmi.JavaProxyBase):
-        def run(self):
-            print("I ran!")
+    ...    def run(self):
+    ...        print("I ran!")
     >>> runnable = PythonRunnable()
     >>> runnable.run()
     I ran!

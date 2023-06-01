@@ -102,6 +102,7 @@ task wheel() {
 
 task thin_wheel() {
     // Use pyproject.toml to build a pure-python wheel including the "*.jar" file
+    dependsOn copyArtifacts
     dependsOn genConfigFile
     doLast {
         exec {

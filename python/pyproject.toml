@@ -14,9 +14,13 @@ artifacts = [ "pjrmi/lib/*.jar",
 
 [project]
 name = "pjrmi"
+dependencies = [
+    snappy
+]
 
 # Using https://peps.python.org/pep-0639/ which is still in draft
 license = {text = "BSD-3-Clause"}
+
 description = "PJRmi, RMI between Python and Java"
 authors = [{name = "D. E. Shaw & Co LP"}]
 maintainers = [

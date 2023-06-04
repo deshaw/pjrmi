@@ -36,4 +36,4 @@ jobs:
         # See https://github.com/actions/upload-artifact#readme
         with:
           name: wheel
-          path: ./python/*.whl
+          path: ./python/pjrmi*.whl

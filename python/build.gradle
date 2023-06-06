@@ -84,6 +84,7 @@ task develop() {
 
 
 task wheel() {
+    // Use setuptools to build a wheel including the c-extension module
     dependsOn buildExt
     doLast {
         exec {
@@ -92,6 +93,22 @@ task wheel() {
             environment "INCLUDE_PATH", project(":cpp").library.publicHeaderDirs.singleFile
             environment "LIB_DIRS", [
                 project(":cpp").buildDir.absolutePath + "/lib/main/debug",
+                project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
+            ].join(":")
+            commandLine "python3", "setup.py", "bdist_wheel"
+        }
+    }
+}
+
+task thin_wheel() {
+    // Use pyproject.toml to build a pure-python wheel including the "*.jar" file
+    dependsOn copyArtifacts
+    dependsOn genConfigFile
+    doLast {
+        exec {
+            environment "PJRMI_VERSION", pjrmiVersion
+            environment "JAVA_HOME", System.properties['java.home']
+            environment "LIB_DIRS", [
                 project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
             ].join(":")
             commandLine "pip3", "wheel", "."

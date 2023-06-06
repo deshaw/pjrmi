@@ -1,0 +1,60 @@
+[build-system]
+# Use hatch https://hatch.pypa.io/latest/ as a build backend to build a thin
+# (no C-extension) wheel. To change this to setuptools, comment out the
+# build-backend line and add "setuptools", "wheel" to the required packages.
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = [
+    "pjrmi/*.py",
+]
+artifacts = [ "pjrmi/lib/*.jar",
+]
+
+[project]
+name = "pjrmi"
+dependencies = [
+    "snappy",
+]
+
+# Using https://peps.python.org/pep-0639/ which is still in draft
+license = {text = "BSD-3-Clause"}
+
+description = "PJRmi, RMI between Python and Java"
+authors = [{name = "D. E. Shaw & Co LP"}]
+maintainers = [
+    {name="D. E. Shaw & Co LP", email="pjrmi@deshaw.com"},
+]
+requires-python = ">=3.6"
+readme = "README.md"
+classifiers = [
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Science/Research',
+    'Intended Audience :: Developers',
+    'License :: OSI Approved :: BSD License',
+    'Programming Language :: Java',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3 :: Only',
+    'Topic :: Software Development',
+    'Topic :: Scientific/Engineering',
+    'Operating System :: Microsoft :: Windows',
+    'Operating System :: POSIX',
+    'Operating System :: Unix',
+    'Operating System :: MacOS',
+]
+dynamic = ["version"]
+
+[project.urls]
+"Source code" = "https://github.com/deshaw/pjrmi"
+
+[tool.hatch.version]
+path = "pjrmi/_config.py"
+pattern = "PJRMI_VERSION = \"(?P<version>.+)\""
+

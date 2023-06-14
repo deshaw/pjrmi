@@ -23,14 +23,16 @@ When compared with one another, Java and Python's type systems fall into the
 similar; both have a very object-based philosphy, with certain primitive types
 being a little special. However, it's their differences which are most pertinent
 to PJRmi:
-  1. Natively, Python only has `int` and `float` as numeric values; Java has
-     multiple types for integers and floating point values. Python only has
-     strings; Java has characters and strings as distinct types.
+  1. Natively, Python only has `int`, `float`, and `complex` as numeric values;
+     Java has
+     multiple types for integers and floating point values. Python has bytes
+     strings, and read-write bytearays; Java has characters and strings as
+     distinct types.
   1. Java has both object type and primitive type versions of basic types
      (integers, floating point values, booleans); Python only has objects.
   1. Java has method overloading by parameter; Python requires all method names
      to be unique. (Python also has keyword arguments to functions.)
-  1. Python has runtime-/duck-typing; Java is statically, and strictly, typed.
+  1. Python has runtime-/duck-typing; Java is statically and strictly typed.
 
 We'll examine each of these in turn.
 
@@ -44,8 +46,8 @@ much of a problem to PJRmi; you can always check to see if the value you have
 been given can be converted to the argument type.
 
 However, if you have a function which takes an `Object` and you are passing in a
-Python `int` then the conversion is ambiguous. PJRmi takes the "less is more
-approach" here and will convert the Python value to the smallest representable
+Python `int` then the conversion is ambiguous. PJRmi takes a value-based approach
+ and will convert the Python value to the smallest representable
 type. I.e. if you have `10` you'll get a `Byte`, `1000` a `Short`, `100000` an
 `Integer`, and `10000000000` a `Long`.
 
@@ -72,8 +74,8 @@ There exist a few workarounds to this:
   1. The [AsType](java/src/main/java/com/deshaw/pjrmi/AsType.java) utility class
      provides a bunch of identity methods which will naturally convert to the
      desired type.
-The latter two solutions require a method call however, and so a round-trip call
-into the Java side from the Python side, and will therefore be slower than using
+The latter two solutions require a method call. A round-trip call
+into the Java side from the Python side will therefore be slower than using
 numpy's types to provide the type information.
 
 
@@ -224,8 +226,8 @@ Under the hood PJRmi performs the resolution by determining "relative
 specificities". Each Java method has an associated topological ordering relative
 to all its other overloaded forms. That ordering is determined by the
 [MethodUtil](java/src/main/java/com/deshaw/pjrmi/MethodUtil.java) class in the
-PJRmi Java code. Handling boxing and `null`s correctly made it especially
-entertaining to write.
+PJRmi Java code. Edge cases around boxing and `null`s  were difficult to make
+work correctly.
 
 
 ### Proxy classes and lambdas
@@ -233,7 +235,7 @@ entertaining to write.
 One of the really great features of Python is duck-typing; you don't need to
 worry about types too much. Provided that the object you give a function
 basically looks like what the function expects, things basically work. Java is a
-little pickier. Imagine that you have two distinct but semantically identical
+more strict. Imagine that you have two distinct but semantically identical
 types, `Foo` and `Bar`, each with just a single method `baz()`. In Java, you
 still can't give a `Foo` instance to a function which expects `Bar` one.
 
@@ -250,7 +252,7 @@ for example, we can use a Python class to duck-type a Java `Runnable`:
     I ran!
 
 Under the hood this is implemented using the `java.lang.reflect.Proxy` class on
-the Java side (which, alas, only works for interfaces). When the Java side
+the Java side (which unfortunately only works for interfaces). When the Java side
 invokes the object's methods it will issue a callback, back into the Python
 side, and return whatever result it got back to the Java side.
 
@@ -277,13 +279,13 @@ being created on the fly if the pool of workers in exhausted.
 ## Communication system
 
 At the very heart of PJRmi is the need for two different systems to talk to one
-another. From the outset, the intention was for the modes of communication to
+another. From the outset, the intent was for the modes of communication to
 have no functional differences; the only difference between talking to a
 sub-process vs to a peer on a remote host should be latency.
 
 ### Protocol
 
-PJRmi has its own, special purpose binary protocol. This is variously documented
+PJRmi has its own, special purpose, binary protocol. This is documented
 by the specific functions which marshall/unmarshall the calls on each side.
 
 Any modications to the protocol are considered to be breaking changes and will
@@ -316,8 +318,8 @@ provides this functionality.
 The second form of access control is the allow-list of Java classes which a
 Python client may be permitted to access. If a Python client cannot access a
 certain class in the Java server then they are unable to invoke methods of that
-class. If this access control is enabled in the server then code injection is
-disabled, for obvious reasons.
+class. If this access control is enabled in the server then vulnerabilites due
+to code injection are mitigated, for obvious reasons.
 
 ### Argument passing optimizations
 
@@ -371,7 +373,7 @@ a way which is only bounded by the memory and threading resources of the host
 machines.
 
 This is implemented using worker threads in both the Java and Python processes.
-However, while there exist multiple actual threads in action during a callback,
+However, while there are multiple actual threads in action during a callback,
 there is only one _logical_ thread in play. Similar to how one function calling
 another, within either Java or Python, only happens in a single thread, the
 callbacks only operate within a single logic thread of operation. That this
@@ -394,7 +396,7 @@ locks. These are provided by the `LockManager`.
 The [LockManager](java/src/main/java/com/deshaw/util/concurrent/LockManager.java)
 class handles all the locking semantics for PJRmi. A lock can be obtained on the
 Java side by calling the `LockManager`'s various `getBlahLockFor(String name)`
-methods; the `LockManager` instance is obtained via the `PJRmi.getLockManager()`
+methods. The `LockManager` instance is obtained via the `PJRmi.getLockManager()`
 method, provided that the PJRmi instance is constructed with one. Both exclusive
 and shared locks are supported on the Java side.
 
@@ -403,7 +405,7 @@ PJRmi client. (Only exclusive locks are supported on the Python side.)
 
 When a lock is acquired, the `LockManager` will first check to ensure that
 deadlock will not happen as a result. If deadlock will occur then a
-`DeadlockException` is thrown, and the caller needs to deal with it.
+`DeadlockException` is thrown, and the caller needs to resolve the contention.
 
 Note that, semantically, two Python clients are merely two threads in the Java
 process. As such, it's possible for one Python client to deadlock with another
@@ -411,12 +413,13 @@ Python client. If that happens, the `DeadlockException` will be thrown in one of
 those clients.
 
 Deadlock detection is handled by looking for loops in a dependency graph. This
-is explained in glorious detail, complete with ASCII diagrams, in the
-`LockManager.lockWalksTo()` method's code. Please enjoy reading all about it
-there.
+is explained in detail, complete with ASCII diagrams, in the
+`LockManager.lockWalksTo()` method's code. Please refer to that documentation
+for more information.
 
-The `LockManager` code is surprisingly performant, given what it's doing. Famous
-last words and all that, but the bottom line is that you should use locks if you
+The `LockManager` code is surprisingly performant, given what it's doing.
+<can you point to a benchmark>?
+The bottom line is that you should use locks if you
 need them and should not worry too much about things being slow.
 
 
@@ -425,11 +428,11 @@ need them and should not worry too much about things being slow.
 A general rule of thumb employed in PJRmi is that we try to ensure that as few
 assumptions as possible are made. This includes ones regarding future use; as
 such there is little or no specialised logic in the code. Sticking with this
-ethos has helped to avoid making breaking changes in the code (aside from
+principle has helped to avoid making breaking changes in the code (aside from
 changes in the protocol).
 
 The trickiest part of PJRmi is handling the conflicting idioms in Java and
-Python, and doing it in a way which is "nice". Java method capture was a good
+Python in a way which reduces the complexity. Java method capture was a good
 example of this; it took a long time before we had a good solution for this.
 When we did eventually get one, however, it was nice that it also solved some
 other problems as a side effect (e.g. method overloading disambiguation).

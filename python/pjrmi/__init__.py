@@ -911,7 +911,7 @@ class PJRmi:
                 self._VALUE_FORMAT_REFERENCE
             return value.get(int(timeout_secs),
                              TimeUnit.SECONDS,
-                             return_format=return_format)
+                             __pjrmi_return_format__=return_format)
 
         elif isinstance(value, tuple):
             return tuple(self.collect(v,
@@ -3984,9 +3984,9 @@ public class TestInjectSource {
             log_debug = LOG.isEnabledFor(logging.DEBUG)
 
             # Read the keyword arguments
-            return_format = kwargs.pop('return_format',
+            return_format = kwargs.pop('__pjrmi_return_format__',
                                        self._VALUE_FORMAT_REFERENCE)
-            sync_mode     = kwargs.pop('sync_mode',
+            sync_mode     = kwargs.pop('__pjrmi_sync_mode__',
                                        self.SYNC_MODE_SYNCHRONOUS)
 
             if len(kwargs) != 0:
@@ -6502,14 +6502,15 @@ class _JavaMethod:
     overloaded and no disambiguation is needed.
 
     As well as the Java arguments, optional kwargs may be passed in::
-     o The ``return_format`` specifies how the result of a Java method call is
-       passed back to the Python side. The default is as a Java object, or
-       primitive type, but it may be optionally converted to a Python type where
-       possible.
-     o The ``sync_mode`` defines whether the call is being done synchronously or
-       asynchronously; the former will return a result directly, the latter
-       returns a Java ``Future`` which will later return the result. The result
-       of a ``Future`` can be obtained using the ``collect()`` method.
+     o The ``__pjrmi_return_format__`` specifies how the result of a Java method
+       call is passed back to the Python side. The default is as a Java object,
+       or primitive type, but it may be optionally converted to a Python type
+       where possible.
+     o The ``__pjrmi_sync_mode__`` defines whether the call is being done
+       synchronously or asynchronously; the former will return a result
+       directly, the latter returns a Java ``Future`` which will later return
+       the result. The result of a ``Future`` can be obtained using the
+       ``collect()`` method.
     """
     _NO_ARGS = tuple()
 

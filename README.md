@@ -233,7 +233,7 @@ thread and the asynchronous call with return a Java `Future` to eventually reap
 the result:
 
     >>> Thread = c.class_for_name('java.lang.Thread')
-    >>> l = tuple(Thread.sleep(10000, sync_mode=c.SYNC_MODE_JAVA_THREAD) for i in range(10))
+    >>> l = tuple(Thread.sleep(10000, __pjrmi_sync_mode__=c.SYNC_MODE_JAVA_THREAD) for i in range(10))
     >>> c.collect(l)
     # You wait, time passes...
     (None, None, None, None, None, None, None, None, None, None)

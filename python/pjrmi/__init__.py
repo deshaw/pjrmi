@@ -443,6 +443,18 @@ class PJRmi:
             self._java_lang_Double. _type_id : _JavaDouble
         }
 
+        # We can now map the handlers for _handle_arbitrary_item
+        self._handle_arbitrary_item_handlers = {
+            self._java_lang_boolean._type_id : self._read_boolean,
+            self._java_lang_byte._type_id    : self._read_int8,
+            self._java_lang_char._type_id    : self._read_char,
+            self._java_lang_double._type_id  : self._read_double,
+            self._java_lang_float._type_id   : self._read_float,
+            self._java_lang_int._type_id     : self._read_int32,
+            self._java_lang_long._type_id    : self._read_int64,
+            self._java_lang_short._type_id   : self._read_int16,
+        }
+
         # Other utility classes. Defined after we have set up the boxes since
         # their deserialisation might depend on those boxes.
         self._java_lang_AutoCloseable               = self.class_for_name('java.lang.AutoCloseable')
@@ -1293,15 +1305,24 @@ public class TestInjectSource {
         # This either happens locally, if we don't have a Receiver thread, or in
         # the Receiver thread if we do.
 
-        # Keep trying until we get something to give back
+        # Keep trying until we get something to give back. Because this is a
+        # core function the below code is written to avoid excessive operations,
+        # which is why it's overly verbose.
         while True:
             # Need to read something off the wire. We want 17 bytes in the
             # header, which we'll unpack below.
-            result = b''
-            while len(result) < 17:
+            result = None
+            while True:
+                if result is None:
+                    to_read = 17
+                else:
+                    to_read = 17 - len(result)
+                    if to_read <= 0:
+                        break
+
                 # Read in the data on the connection; this will block
                 # until it's read something
-                chunk = self._transport.recv(17 - len(result))
+                chunk = self._transport.recv(to_read)
 
                 # If the result is empty that's Python telling us the
                 # we've hit the EOF and the connection is dead
@@ -1310,16 +1331,29 @@ public class TestInjectSource {
                     raise EOFError("Connection to Java is closed")
 
                 # Add on the bit we read
-                result += chunk
+                if result is None:
+                    result  = chunk
+                else:
+                    result += chunk
 
             # See what we got back. Unpack this all in one go so as to avoid the
             # overhead of calling _read_foo() multiple times.
             (msg_type, thread_id, request_id, payload_size) = struct.unpack('!cqii', result)
 
             # Read the payload
-            payload = b''
-            while len(payload) < payload_size:
-                payload += self._transport.recv(payload_size - len(payload))
+            payload = None
+            while True:
+                if payload is None:
+                    to_read = payload_size
+                else:
+                    to_read = payload_size - len(payload)
+                    if to_read <= 0:
+                        break
+                recvd = self._transport.recv(to_read)
+                if payload is None:
+                    payload  = recvd
+                else:
+                    payload += recvd
             assert(len(payload) == payload_size)
 
             # See if it happened to be a callback
@@ -1340,7 +1374,9 @@ public class TestInjectSource {
 
         # Get back the result associated with the given request ID. We keep
         # trying until we get something.
-        LOG.debug("Waiting for response to request %d", want_request_id)
+        log_debug = LOG.isEnabledFor(logging.DEBUG)
+        if log_debug:
+            LOG.debug("Waiting for response to request %d", want_request_id)
         incoming = None
         while incoming is None:
             # If we stop being connected while this is happening then we bail
@@ -1395,11 +1431,12 @@ public class TestInjectSource {
                     if request_id != want_request_id:
                         # We didn't expect this message so save it for another
                         # thread to pick up from the map
-                        LOG.debug(
-                            "Got an unexpected response of %d of type '%s'; "
-                            "deferring it",
-                            request_id, msg_type
-                        )
+                        if log_debug:
+                            LOG.debug(
+                                "Got an unexpected response of %d of type '%s'; "
+                                "deferring it",
+                                request_id, msg_type
+                            )
                         self._recvd[request_id] = incoming
 
                         # That wasn't for us so we null out what we got and go
@@ -1415,7 +1452,8 @@ public class TestInjectSource {
 
         # We had the result read by another thread, use that
         (msg_type, request_id, payload) = incoming
-        LOG.debug("Got response of type <%s> to request %d", msg_type, request_id)
+        if log_debug:
+            LOG.debug("Got response of type <%s> to request %d", msg_type, request_id)
 
         # Handle the message
         handler = self._handlers.get(msg_type, self._unhandled_message_type)
@@ -1619,22 +1657,9 @@ public class TestInjectSource {
 
         # Handle all the types we know about, primitives are sent back
         # as raw bits which we can convert
-        if type_id == self._java_lang_boolean._type_id:
-            (value, idx) = self._read_boolean(payload, idx)
-        elif type_id == self._java_lang_byte._type_id:
-            (value, idx) = self._read_int8(payload, idx)
-        elif type_id == self._java_lang_char._type_id:
-            (value, idx) = self._read_char(payload, idx)
-        elif type_id == self._java_lang_double._type_id:
-            (value, idx) = self._read_double(payload, idx)
-        elif type_id == self._java_lang_float._type_id:
-            (value, idx) = self._read_float(payload, idx)
-        elif type_id == self._java_lang_int._type_id:
-            (value, idx) = self._read_int32(payload, idx)
-        elif type_id == self._java_lang_long._type_id:
-            (value, idx) = self._read_int64(payload, idx)
-        elif type_id == self._java_lang_short._type_id:
-            (value, idx) = self._read_int16(payload, idx)
+        handler = self._handle_arbitrary_item_handlers.get(type_id)
+        if handler is not None:
+            value = handler(payload, idx)[0]
         else:
             # For Objects we simply read the handle (and any raw value) and
             # create them
@@ -2381,7 +2406,7 @@ public class TestInjectSource {
 
         if type(string) != bytes:
             string = string.encode('ascii')
-        return (b"%s%s" % (self._format_int32(len(string)), string))
+        return self._format_int32(len(string)) + string
 
 
     def _format_utf16(self, string):
@@ -2393,7 +2418,7 @@ public class TestInjectSource {
 
         # Encode the string as UTF, this will include the byte-order-marker
         payload = string.encode('utf_16')
-        return (b"%s%s" % (self._format_int32(len(payload)), payload))
+        return self._format_int32(len(payload)) + payload
 
 
     def _format_float(self, value):
@@ -3777,9 +3802,9 @@ public class TestInjectSource {
         # hierachy. That's a wish-list item for now...
 
         # Figure out the list of types which we inherit from
-        supertypes = list()
+        supertypes = set()
         for supertype_id in supertype_ids:
-            supertypes.append(self._get_class(supertype_id))
+            supertypes.add(self._get_class(supertype_id))
         setattr(klass, "_bases", supertypes)
 
         # Create the instance-of method
@@ -3787,7 +3812,8 @@ public class TestInjectSource {
             """
             Whether this class is an instance of the given class
             """
-            if k == self._java_lang_Object or klass == k or k in self_._bases:
+            # Pointer comparisons for speed
+            if k is klass or k is self._java_lang_Object or k in self_._bases:
                 return True
             else:
                 for base in self_._bases:

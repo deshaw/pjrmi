@@ -628,6 +628,22 @@ Captured methods can also be used to handle overloading ambiguities:
 
 ## Technical notes
 
+### C Extensions
+
+Extended functionality is provided via C extensions, in both the Java and Python
+code:
+- **In-process JVM:** This launches a Java VM within the Python process itself.
+  While this currently works it is highly dependent on the Python and Java VMs
+  playing nicely with one-another, so it could break tomorrow. Not recommended.
+- **SHM arg passing:** This is an optimization whereby `/dev/shm` is used to
+  pass array arguments using `memcpy()`; it therefore only works when the Java
+  and Python processes are on the same host. It is not required for general use.
+
+The build of PJRmi which is available in [PyPI](https://pypi.org/project/pjrmi/)
+only contains the platform-independent Python code and Java JARs; it does not
+come with the C extensions.
+
+
 ### Threading Model
 
 The PJRmi service runs as a separate thread inside the Java process. As such you

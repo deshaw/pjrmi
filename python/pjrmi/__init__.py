@@ -5315,6 +5315,8 @@ def connect_to_inprocess_jvm(classpath=(), java_args=(), application_args=(),
     and Python VM playing nicely with one another in the same process. They do
     today but...
 
+    This connection type requires the C extension in order to function.
+
     :param classpath: A sequence of strings defining the Java classpath.
     :param java_args: A sequence of arguments to pass to the Java command.
     :param impl:      The `PJRmi` implementation to use.
@@ -5361,14 +5363,14 @@ def connect_to_child_jvm(main_class='com.deshaw.pjrmi.UnixFifoProvider',
     :param classpath:           A sequence of strings defining the Java classpath.
     :param java_args:           A sequence of arguments to pass to the Java command.
     :param application_args:    A sequence of arguments to pass to the PRJmi application.
-    :param timeout:             How Long to wait for the child process to connect.
+    :param timeout:             How long to wait for the child process to connect.
     :param stdin:               the stdin file, or None to delete the handle.
     :param stdout:              The stdout file, or None to delete the handle.
     :param stderr:              The stderr file, or None to delete the handle.
     :param interactive_mode:    Whether the session is interactive, if so then we try to
                                 make it more friendly to that.
     :param use_shm_arg_passing: Whether to enable passing of some values by SHM
-                                copying.
+                                copying. This requires the C extension to function.
     :param impl:                The `PJRmi` implementation to use.
     """
 

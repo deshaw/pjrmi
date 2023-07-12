@@ -209,7 +209,7 @@ You can then use the result to create new instances:
 Note that these classes are fully populated with methods and so forth, as such
 tab-completion works on them and reflection-generated docstrings exist also:
 
-    >>> ArrayList.[TAB]
+    >>> ArrayList.<tab>
     ArrayList.add             ArrayList.containsAll     ArrayList.hashCode        ArrayList.listIterator    ArrayList.removeAll       ArrayList.toArray
     ArrayList.addAll          ArrayList.ensureCapacity  ArrayList.indexOf         ArrayList.mro             ArrayList.retainAll       ArrayList.toString
     ArrayList.clear           ArrayList.equals          ArrayList.isEmpty         ArrayList.notify          ArrayList.set             ArrayList.trimToSize

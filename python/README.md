@@ -135,7 +135,7 @@ boxed handling.
     >>> foo = c.object_for_name('Foo')
     >>> foo
     u'Foo'
-    >>> foo = foo.java_string
+    >>> foo = foo.java_object
     >>> foo
     <pjrmi.java.lang.String at 0x39e7c10>
     >>> foo.<tab>

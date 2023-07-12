@@ -75,12 +75,38 @@ Here is an example of the last of these.
 
 Now `c` is a `PJRmi` instance and can be used to request information from the
 server. There are basically two ways to get information: you can get a reference
-to a Java object, or a reference to a Java class.
+to a Java object, or a reference to a Java class. See also the various other
+`connect_to_blah()` methods in the Python interface.
 
-See also the various `connect_to_blah()` methods in the Python interface.
+With that connection we can get a class definition, create an instance of it
+and call methods on that instance:
+
+    >>> ArrayList = c.javaclass.java.util.ArrayList
+    >>> a = ArrayList([1,2,3])
+    >>> a.size()
+    3
+    >>> a.toString()
+    '[1, 2, 3]'
+    >>> a.get(1)
+    2
+    >>> a.hashCode()
+    30817
+    >>> a.contains(1)
+    True
+
+And you can treat the Java objects much like Python ones:
+
+    >>> str(a)
+    '[1, 2, 3]'
+    >>> hash(a)
+    30817
+    >>> sum(a)
+    6
+    >>> 1 in a
+    True
 
 
-## By Object
+## Accessing Existing Object Instances
 
     >>> foo = c.object_for_name('Foo')
 
@@ -159,7 +185,7 @@ documentation.
     'Foo'
 
 
-## By Class
+## Using Classes To Create New Object Instances
 
 Two different ways to get a handle on a Java class as a Python one:
 

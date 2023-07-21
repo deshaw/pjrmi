@@ -639,7 +639,34 @@ public abstract class PJRmi
     @Target(value={ElementType.METHOD})
     public @interface GenericReturnType
     {
-        // Nothing else.
+        // Nothing else
+    }
+
+    /**
+     * An annotation used to denote that a method should only be called via
+     * explicit binding, not dynamic. This means it is skipped if the binding is
+     * ambiguous.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(value={ElementType.CONSTRUCTOR,ElementType.METHOD})
+    public @interface ExplicitBinding
+    {
+        // Nothing else
+    }
+
+    /**
+     * An annotation used to denote that a method takes a {@code kwargs} {@link
+     * Map} as its last argument.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(value={ElementType.CONSTRUCTOR,ElementType.METHOD})
+    public @interface Kwargs
+    {
+        /**
+         * The list of accepted {@code kwarg} keys, if they are to be a limited
+         * set. If not defined then any key is accepted.
+         */
+        public String value() default "";
     }
 
     /**
@@ -1176,6 +1203,9 @@ public abstract class PJRmi
                 }
                 final boolean isDeprecated =
                     (ctor.getAnnotation(Deprecated.class) != null);
+                final boolean isExplicit =
+                    (ctor.getAnnotation(ExplicitBinding.class) != null);
+                final Kwargs kwargs = ctor.getAnnotation(Kwargs.class);
 
                 // Now we can create it
                 desc =
@@ -1185,10 +1215,12 @@ public abstract class PJRmi
                         false, // static
                         isDeprecated,
                         false, // default
+                        isExplicit,
                         this,  // return type
                         false, // generic
                         argTypes,
-                        parameterNames
+                        parameterNames,
+                        kwargs
                     );
 
                 // And remember it
@@ -1277,8 +1309,18 @@ public abstract class PJRmi
                         isGenericReturnType = true;
                     }
                 }
+
+                // Whether the method is marked as deprecated
                 final boolean isDeprecated =
                     (method.getAnnotation(Deprecated.class) != null);
+
+                // Whether we only do explicit binding
+                final boolean isExplicit =
+                    (method.getAnnotation(ExplicitBinding.class) != null);
+
+                // Whether the instrument has been tagged as taking keyword
+                // arguments
+                final Kwargs kwargs = method.getAnnotation(Kwargs.class);
 
                 // Now we can create it
                 desc =
@@ -1288,10 +1330,12 @@ public abstract class PJRmi
                         isStatic,
                         isDeprecated,
                         method.isDefault(),
+                        isExplicit,
                         myTypeMapping.getDescription(method.getReturnType()),
                         isGenericReturnType,
                         argumentTypes,
-                        parameterNames
+                        parameterNames,
+                        kwargs
                     );
 
                 // And remember it
@@ -2251,8 +2295,8 @@ public abstract class PJRmi
     {
         IS_STATIC    ((short)(1 << 0)),
         IS_DEPRECATED((short)(1 << 1)),
-        UNUSED_02    ((short)(1 << 2)),
-        UNUSED_03    ((short)(1 << 3)),
+        IS_EXPLICIT  ((short)(1 << 2)),
+        HAS_KWARGS   ((short)(1 << 3)),
         UNUSED_04    ((short)(1 << 4)),
         UNUSED_05    ((short)(1 << 5)),
         UNUSED_06    ((short)(1 << 6)),
@@ -2582,6 +2626,31 @@ public abstract class PJRmi
         private final String myString;
 
         /**
+         * The keyword arguments to accept, if they are to be limited.
+         */
+        private final String[] myAcceptedKwargs;
+
+        /**
+         * Get any kwargs name array from a {@link Kwargs} instance.
+         */
+        private static String[] splitKwargs(final Kwargs kwargs)
+        {
+            if (kwargs         == null ||
+                kwargs.value() == null ||
+                kwargs.value().isEmpty())
+            {
+                return null;
+            }
+
+            final String[] split  = kwargs.value().split(",");
+            final String[] result = new String[split.length];
+            for (int i=0; i < split.length; i++) {
+                result[i] = split[i].trim();
+            }
+            return result;
+        }
+
+        /**
          * CTOR.
          */
         public MethodDescription(final int               index,
@@ -2589,10 +2658,12 @@ public abstract class PJRmi
                                  final boolean           isStatic,
                                  final boolean           isDeprecated,
                                  final boolean           isDefault,
+                                 final boolean           isExplicit,
                                  final TypeDescription   returnType,
                                  final boolean           isGenericReturnType,
                                  final TypeDescription[] arguments,
-                                 final String[]          parameterNames)
+                                 final String[]          parameterNames,
+                                 final Kwargs            kwargs)
         {
             myIndex               = index;
             myName                = name;
@@ -2600,10 +2671,14 @@ public abstract class PJRmi
             myIsGenericReturnType = isGenericReturnType;
             myArguments           = arguments;
             myParameterNames      = parameterNames;
+            myAcceptedKwargs      = splitKwargs(kwargs);
+
+            final boolean hasKwargs = (myAcceptedKwargs != null);
 
             myFlags = (short)((isStatic     ? MethodFlags.IS_STATIC    .value : 0) |
                               (isDeprecated ? MethodFlags.IS_DEPRECATED.value : 0) |
-                              (isDefault    ? MethodFlags.IS_DEFAULT   .value : 0));
+                              (isDefault    ? MethodFlags.IS_DEFAULT   .value : 0) |
+                              (hasKwargs    ? MethodFlags.HAS_KWARGS   .value : 0));
 
             // Create the string representation to save work later
             StringBuilder sb = new StringBuilder();
@@ -2673,6 +2748,14 @@ public abstract class PJRmi
         }
 
         /**
+         * Whether this method accepts keyword arguments.
+         */
+        public boolean hasKwargs()
+        {
+            return (MethodFlags.HAS_KWARGS.value & myFlags) != 0;
+        }
+
+        /**
          * Get the return type.
          */
         public TypeDescription getReturnType()
@@ -2711,6 +2794,29 @@ public abstract class PJRmi
         public String getParameterName(short index)
         {
             return myParameterNames[index];
+        }
+
+        /**
+         * Get the number of accepted keyword arguments, if we are limiting them.
+         */
+        public short getNumAcceptedKwargs()
+        {
+            return (myAcceptedKwargs != null)
+                ? (short)Math.min(myAcceptedKwargs.length, Short.MAX_VALUE)
+                : 0;
+        }
+
+        /**
+         * Get the nth accepted keyword argument name.
+         */
+        public String getAcceptedKwargName(short index)
+        {
+            if (myAcceptedKwargs == null) {
+                throw new IndexOutOfBoundsException(index);
+            }
+            else {
+                return myAcceptedKwargs[index];
+            }
         }
 
         /**
@@ -8017,6 +8123,10 @@ public abstract class PJRmi
          *      int32    : Argument type ID
          *      int32    : Parameter name length
          *      byte[]   : Parameter name
+         *    int16    : Number of accepted kwargs
+         *    Kwarg[]  :
+         *      int32    : Kwarg name length
+         *      byte[]   : Kwarg name
          *    byte[]   : Relative specificities
          *  int32    : Number of methods
          *  Method[] :
@@ -8029,6 +8139,10 @@ public abstract class PJRmi
          *      int32    : Argument type ID
          *      int32    : Parameter name length
          *      byte[]   : Parameter name
+         *    int16    : Number of accepted kwargs
+         *    Kwarg[]  :
+         *      int32    : Kwarg name length
+         *      byte[]   : Kwarg name
          *    byte[]   : Relative specificities
          */
         private void writeTypeDesc(final TypeDescription           desc,
@@ -8089,6 +8203,13 @@ public abstract class PJRmi
                         bados.dataOut.writeBytes(parameterName);
                     }
 
+                    bados.dataOut.writeShort(ctor.getNumAcceptedKwargs());
+                    for (short j=0; j < ctor.getNumAcceptedKwargs(); j++) {
+                        final String kwargName = ctor.getAcceptedKwargName(j);
+                        bados.dataOut.writeInt(kwargName.length());
+                        bados.dataOut.writeBytes(kwargName);
+                    }
+
                     bados.dataOut.writeInt(desc.getNumConstructors());
                     for (int j=0; j < desc.getNumConstructors(); j++) {
                         bados.dataOut.write(
@@ -8115,6 +8236,13 @@ public abstract class PJRmi
                         bados.dataOut.writeInt(method.getArgument(j).getTypeId());
                         bados.dataOut.writeInt(parameterName.length());
                         bados.dataOut.writeBytes(parameterName);
+                    }
+
+                    bados.dataOut.writeShort(method.getNumAcceptedKwargs());
+                    for (short j=0; j < method.getNumAcceptedKwargs(); j++) {
+                        final String kwargName = method.getAcceptedKwargName(j);
+                        bados.dataOut.writeInt(kwargName.length());
+                        bados.dataOut.writeBytes(kwargName);
                     }
 
                     bados.dataOut.writeInt(desc.getNumMethods());
@@ -8645,7 +8773,7 @@ public abstract class PJRmi
      * {@code pjrmiVersion} values in {@code gradle.properties}. Typically the
      * minor version number should change whenever the wire format changes.
      */
-    private static final String HELLO = "PJRMI_1.11";
+    private static final String HELLO = "PJRMI_1.12";
 
     /**
      * The request ID to use for callbacks (which are unsolicited from Python's

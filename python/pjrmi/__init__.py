@@ -80,7 +80,7 @@ class PJRmi:
     # one in the Java code. The major and minor version numbers should match the
     # `pjrmiVersion` values in `gradle.properties`. Typically the minor version
     # number should change whenever the wire format changes.
-    _HELLO = b"PJRMI_1.11"
+    _HELLO = b"PJRMI_1.12"
 
     # Flags denoting server info
     _FLAG_USE_WORKERS = 1
@@ -164,6 +164,8 @@ class PJRmi:
     # MethodFlags (corresponds to values in PJRmi.MethodFlags)
     _METHOD_FLAGS_IS_STATIC     = 1 << 0
     _METHOD_FLAGS_IS_DEPRECATED = 1 << 1
+    _METHOD_FLAGS_IS_EXPLICIT   = 1 << 2
+    _METHOD_FLAGS_HAS_KWARGS    = 1 << 3
     _METHOD_FLAGS_IS_DEFAULT    = 1 << 8
 
     # Types of method invocation
@@ -1508,6 +1510,10 @@ public class TestInjectSource {
         #      int32    : Argument type ID
         #      int32    : Parameter name length
         #      byte[]   : Parameter name
+        #    int16    : Number of accepted kwargs
+        #    Kwarg[]  :
+        #      int32    : Kwarg name length
+        #      byte[]   : Kwarg name
         #    byte[]   : Relative specificities
         #  int32    : Number of methods
         #  Method[] :
@@ -1520,6 +1526,10 @@ public class TestInjectSource {
         #      int32    : Argument type ID
         #      int32    : Parameter name length
         #      byte[]   : Parameter name
+        #    int16    : Number of accepted kwargs
+        #    Kwarg[]  :
+        #      int32    : Kwarg name length
+        #      byte[]   : Kwarg name
         #    byte[]   : Relative specificities (len is num-methods)
         (type_id, idx) = self._read_int32(payload, 0)
         if type_id >= 0:
@@ -1567,25 +1577,35 @@ public class TestInjectSource {
                 (num_arguments, idx) = self._read_int16(payload, idx)
                 argument_types       = list()
                 parameter_names      = list()
-                for argument_idx in range(num_arguments):
+                for _ in range(num_arguments):
                     (argument_type,  idx) = self._read_int32(payload, idx)
                     (parameter_name, idx) = self._read_ascii(payload, idx)
-                    argument_types.append(argument_type)
+                    argument_types .append(argument_type)
                     parameter_names.append(parameter_name)
+                (num_kwargs, idx) = self._read_int16(payload, idx)
+                kwarg_names       = set()
+                for _ in range(num_kwargs):
+                    (kwarg_name, idx) = self._read_ascii(payload, idx)
+                    kwarg_names.add(kwarg_name)
                 (specificities, idx) = self._read_int8_array(payload, idx)
 
                 # Don't need to check static or default flags, CTORs can be
                 # neither of these
                 is_deprecated = ((ctor_flags & self._METHOD_FLAGS_IS_DEPRECATED) != 0)
+                is_explicit   = ((ctor_flags & self._METHOD_FLAGS_IS_EXPLICIT  ) != 0)
+                has_kwargs    = ((ctor_flags & self._METHOD_FLAGS_HAS_KWARGS   ) != 0)
 
                 # Now add the info
                 ctors.append({'name'                   : 'new',
-                              'is_static'              : False,
-                              'is_deprecated'          : is_deprecated,
                               'is_default'             : False,
+                              'is_deprecated'          : is_deprecated,
+                              'is_explicit'            : is_explicit,
+                              'is_static'              : False,
+                              'has_kwargs'             : has_kwargs,
                               'index'                  : ctor_idx,
                               'argument_type_ids'      : argument_types,
                               'parameter_names'        : parameter_names,
+                              'kwarg_names'            : kwarg_names,
                               'relative_specificities' : specificities})
 
             # Now read all the methods, we store this in a by-name dict.
@@ -1600,16 +1620,23 @@ public class TestInjectSource {
                 (num_arguments,      idx) = self._read_int16(payload, idx)
                 argument_types            = list()
                 parameter_names           = list()
-                for argument_idx in range(num_arguments):
+                for _ in range(num_arguments):
                     (argument_type,  idx) = self._read_int32(payload, idx)
                     (parameter_name, idx) = self._read_ascii(payload, idx)
-                    argument_types.append(argument_type)
+                    argument_types .append(argument_type)
                     parameter_names.append(parameter_name)
+                (num_kwargs, idx) = self._read_int16(payload, idx)
+                kwarg_names       = set()
+                for _ in range(num_kwargs):
+                    (kwarg_name, idx) = self._read_ascii(payload, idx)
+                    kwarg_names.add(kwarg_name)
                 (specificities, idx) = self._read_int8_array(payload, idx)
 
                 is_static     = ((method_flags & self._METHOD_FLAGS_IS_STATIC    ) != 0)
                 is_deprecated = ((method_flags & self._METHOD_FLAGS_IS_DEPRECATED) != 0)
                 is_default    = ((method_flags & self._METHOD_FLAGS_IS_DEFAULT   ) != 0)
+                is_explicit   = ((method_flags & self._METHOD_FLAGS_IS_EXPLICIT  ) != 0)
+                has_kwargs    = ((method_flags & self._METHOD_FLAGS_HAS_KWARGS   ) != 0)
 
                 # Similar to fields, handle method names which happen to be
                 # reserved words in Python by appending a "_". Hopefully that
@@ -1626,13 +1653,16 @@ public class TestInjectSource {
 
                 # Now add the method info
                 methods.append({'name'                   : method_name,
-                                'is_static'              : is_static,
-                                'is_deprecated'          : is_deprecated,
                                 'is_default'             : is_default,
+                                'is_deprecated'          : is_deprecated,
+                                'is_explicit'            : is_explicit,
+                                'is_static'              : is_static,
+                                'has_kwargs'             : has_kwargs,
                                 'index'                  : method_idx,
                                 'return_type_id'         : method_return_type,
                                 'argument_type_ids'      : argument_types,
                                 'parameter_names'        : parameter_names,
+                                'kwarg_names'            : kwarg_names,
                                 'relative_specificities' : specificities})
 
             # Finally we can create the object details
@@ -4027,6 +4057,10 @@ public class TestInjectSource {
             if log_debug:
                 LOG.debug("Attempting to bind for %s", method_name)
 
+            # Save the original calling arguments since we might mutate them
+            # below
+            call_args = args
+
             # Look for the right method to invoke. We'll look for the one with
             # the right number of arguments. If we fail to format the arguments
             # then we assume that we got the wrong version of it. For any
@@ -4034,11 +4068,52 @@ public class TestInjectSource {
             # newly added method is more tightly-binding than those in the list
             # then we purge the others. If we end up with one method in the list
             # then we're happy, else we have an ambiguous match.
-            num_args     = len(args)
-            exceptions   = list()
-            matches      = list() # list(tuple(method, args))
-            strict_types = num_args in strict_types_for_num_args
+            exceptions = list()
+            matches    = list() # list(tuple(<method>, <args>))
             for method in methods:
+                # Always ignore methods which require explicit binding
+                if method['is_explicit']:
+                    if log_debug:
+                        LOG.debug("Skipping explicit method")
+                    continue
+
+                # Reset 'args' since we might have touched them
+                args = call_args
+
+                # See if the method accepts keyword arguments. If so then we
+                # need to be a little clever about how we handle the PJRmi
+                # kwargs.
+                unexpected_kwargs = None
+                if not method['has_kwargs']:
+                    # Any kwargs are unexpected for this method
+                    if kwargs:
+                        unexpected_kwargs = set(kwargs)
+                else:
+                    # First see if we have a list of accepted kwargs
+                    unexpected_kwargs = set(kwargs) - method['kwarg_names']
+
+                    # This method is expecting the kwargs so we pass them in as
+                    # the last argument
+                    args = args + (kwargs,)
+
+                # If we had unexpected keyword arguments then we should fail to
+                # bind
+                if unexpected_kwargs:
+                    msg = "Got%s unexpected keyword argument%s: %s" % (
+                        ' an' if len(unexpected_kwargs) == 1 else '',
+                        ''    if len(unexpected_kwargs) == 1 else 's',
+                        ', '.join(unexpected_kwargs)
+                    )
+                    exceptions.append(msg)
+                    if log_debug:
+                        LOG.debug("Failed to bind kwargs for %s method: %s",
+                                  method_name, msg)
+                    continue
+
+                # Now we know how many arguments we have
+                num_args     = len(args)
+                strict_types = num_args in strict_types_for_num_args
+
                 # See if we had the right number of arguments
                 argument_type_ids = method['argument_type_ids']
                 want_args = len(argument_type_ids)
@@ -4201,6 +4276,12 @@ public class TestInjectSource {
             # If we bound to a method then 'matches' will contain it. If there
             # is only one match then we're golden.
             if len(matches) == 1:
+                # Validate the PJRmi kwargs
+                if return_format not in self._ACCEPTED_VALUE_FORMATS:
+                    raise ValueError('Unhandled return format: ' + return_format)
+                if sync_mode     not in self._ACCEPTED_SYNC_MODES:
+                    raise ValueError('Unhandled sync mode: ' + sync_mode)
+
                 # Pull out the details so we can call it, or raise any exception
                 (method, java_args, exception) = matches[0]
 
@@ -4322,15 +4403,71 @@ public class TestInjectSource {
 
         # Define the method
         def __new__(*args, **kwargs):
-            # Pop off the first argument (klass)
-            args = args[1:]
+            # This is surprisingly expensive to call (4us), so we cache it for
+            # the duration of this method, since we call it a lot below
+            log_debug = LOG.isEnabledFor(logging.DEBUG)
+
+            if log_debug:
+                LOG.debug("Attempting to bind for constructor")
+
+            # Pop off the first argument (klass) and save the calling arguments
+            call_args   = args[1:]
+            call_kwargs = kwargs
 
             # Look for the right method to invoke
-            num_args     = len(args)
-            exceptions   = list()
-            matches      = list() # list(tuple(ctor, args))
-            strict_types = num_args in strict_types_for_num_args
+            exceptions = list()
+            matches    = list() # list(tuple(ctor, args))
             for ctor in ctors:
+                # Always ignore methods which require explicit binding
+                if ctor['is_explicit']:
+                    if log_debug:
+                        LOG.debug("Skipping explicit constructor")
+                    continue
+
+                # First thing to do is to reset back to the call arguments,
+                # since we might have touched these in a previous loop. Don't
+                # bother to create a new kwargs dict if it was empty anyhow.
+                args   = call_args
+                kwargs = dict(call_kwargs) if call_kwargs else call_kwargs
+
+                # See if the method accepts keyword arguments. If so then we
+                # need to be a little clever about how we handle the PJRmi
+                # kwargs.
+                unexpected_kwargs = None
+                if not ctor['has_kwargs']:
+                    # Anything given is not expected since the CTOR doesn't
+                    # accept kwargs
+                    if kwargs:
+                        unexpected_kwargs = set(kwargs)
+
+                else:
+                    # This method accepts kwargs so we add kwargs to the list of
+                    # arguments
+                    args = args + (kwargs,)
+
+                    # Simply compute the difference between what's accepted and
+                    # what's given, if we have a limiting set
+                    kwarg_names = ctor['kwarg_names']
+                    if kwarg_names:
+                        unexpected_kwargs = set(kwargs) - kwarg_names
+
+                # If we got unexpected kwargs then we should fail to bind
+                if unexpected_kwargs:
+                    msg = "Got%s unexpected keyword argument%s: %s" % (
+                        ' an' if len(unexpected_kwargs) == 1 else '',
+                        ''    if len(unexpected_kwargs) == 1 else 's',
+                        ', '.join(unexpected_kwargs)
+                    )
+                    exceptions.append(msg)
+                    if log_debug:
+                        LOG.debug("Failed to bind kwargs for %s constructor: %s",
+                                  klass._classname, msg)
+                    continue
+
+                # Now we know how many arguments we have
+                num_args     = len(args)
+                strict_types = num_args in strict_types_for_num_args
+
                 # See if we had the right number of arguments
                 argument_type_ids = ctor['argument_type_ids']
                 want_args = len(argument_type_ids)
@@ -4365,8 +4502,9 @@ public class TestInjectSource {
 
                     except (TypeError, ValueError) as e:
                         exceptions.append(str(e))
-                        LOG.debug("Failed to bind variable for %s constructor: %s",
-                                  klass._classname, e)
+                        if log_debug:
+                            LOG.debug("Failed to bind variable for %s constructor: %s",
+                                      klass._classname, e)
                         continue
 
                     # Did we match anything already?
@@ -6539,6 +6677,9 @@ class _JavaMethod:
        directly, the latter returns a Java ``Future`` which will later return
        the result. The result of a ``Future`` can be obtained using the
        ``collect()`` method.
+
+    Any additional kwargs will be passed in a dict as the final argument to the
+    method call.
     """
     _NO_ARGS = tuple()
 
@@ -6623,8 +6764,10 @@ class _JavaMethodAccessor(property):
 class _JavaObject:
     """
     A representation of a Java object instance. We will dynamically create
-    subclasses of this object which reflect the Java classes. This is mostly a
-    stub class.
+    subclasses of this object which reflect the Java classes.
+
+    This is a stub class. The constructor documentation is associated with the
+    class's `new` method.
     """
 
     def __del__(self):

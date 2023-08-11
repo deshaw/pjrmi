@@ -1307,24 +1307,15 @@ public class TestInjectSource {
         # This either happens locally, if we don't have a Receiver thread, or in
         # the Receiver thread if we do.
 
-        # Keep trying until we get something to give back. Because this is a
-        # core function the below code is written to avoid excessive operations,
-        # which is why it's overly verbose.
+        # Keep trying until we get something to give back
         while True:
             # Need to read something off the wire. We want 17 bytes in the
             # header, which we'll unpack below.
-            result = None
-            while True:
-                if result is None:
-                    to_read = 17
-                else:
-                    to_read = 17 - len(result)
-                    if to_read <= 0:
-                        break
-
+            result = b''
+            while len(result) < 17:
                 # Read in the data on the connection; this will block
                 # until it's read something
-                chunk = self._transport.recv(to_read)
+                chunk = self._transport.recv(17 - len(result))
 
                 # If the result is empty that's Python telling us the
                 # we've hit the EOF and the connection is dead
@@ -1333,29 +1324,16 @@ public class TestInjectSource {
                     raise EOFError("Connection to Java is closed")
 
                 # Add on the bit we read
-                if result is None:
-                    result  = chunk
-                else:
-                    result += chunk
+                result += chunk
 
             # See what we got back. Unpack this all in one go so as to avoid the
             # overhead of calling _read_foo() multiple times.
             (msg_type, thread_id, request_id, payload_size) = struct.unpack('!cqii', result)
 
             # Read the payload
-            payload = None
-            while True:
-                if payload is None:
-                    to_read = payload_size
-                else:
-                    to_read = payload_size - len(payload)
-                    if to_read <= 0:
-                        break
-                recvd = self._transport.recv(to_read)
-                if payload is None:
-                    payload  = recvd
-                else:
-                    payload += recvd
+            payload = b''
+            while len(payload) < payload_size:
+                payload += self._transport.recv(payload_size - len(payload))
             assert(len(payload) == payload_size)
 
             # See if it happened to be a callback
@@ -5526,7 +5504,7 @@ def connect_to_child_jvm(main_class='com.deshaw.pjrmi.UnixFifoProvider',
     :param java_executable:     The preferred ``java`` executable to use, if any.
     :param classpath:           A sequence of strings defining the Java classpath.
     :param java_args:           A sequence of arguments to pass to the Java command.
-    :param application_args:    A sequence of arguments to pass to the PRJmi application.
+    :param application_args:    A sequence of arguments to pass to the PJRmi application.
     :param timeout:             How long to wait for the child process to connect.
     :param stdin:               the stdin file, or None to delete the handle.
     :param stdout:              The stdout file, or None to delete the handle.

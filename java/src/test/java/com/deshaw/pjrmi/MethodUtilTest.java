@@ -74,6 +74,15 @@ public class MethodUtilTest
         public static final Method v_h_i;
         public static final Method v_h_I;
 
+        public static final Method v_j_L_d;
+        public static final Method v_j_L_D;
+        public static final Method v_j_L_O;
+        public static final Method v_j_L_A;
+        public static final Method v_j_LL_d;
+        public static final Method v_j_LL_O;
+        public static final Method v_j_L_d_i;
+        public static final Method v_j_L_O_i;
+
         static {
             try {
                 o_f_aa = Methods.class.getMethod("f", A.class, A.class);
@@ -116,6 +125,17 @@ public class MethodUtilTest
 
                 v_h_i = Methods.class.getMethod("h", int    .class);
                 v_h_I = Methods.class.getMethod("h", Integer.class);
+
+                v_j_L_d   = Methods.class.getMethod("j", double[]  .class);
+                v_j_L_D   = Methods.class.getMethod("j", Double[]  .class);
+                v_j_L_O   = Methods.class.getMethod("j", Object[]  .class);
+                v_j_L_A   = Methods.class.getMethod("j", A     []  .class);
+                v_j_LL_d  = Methods.class.getMethod("j", double[][].class);
+                v_j_LL_O  = Methods.class.getMethod("j", Object[][].class);
+                v_j_L_d_i = Methods.class.getMethod("j", double[]  .class,
+                                                         int       .class);
+                v_j_L_O_i = Methods.class.getMethod("j", Object[]  .class,
+                                                         int       .class);
             }
             catch (Exception e) {
                 throw new RuntimeException(e);
@@ -143,6 +163,15 @@ public class MethodUtilTest
 
             assertNotNull(v_h_i);
             assertNotNull(v_h_I);
+
+            assertNotNull(v_j_L_d);
+            assertNotNull(v_j_L_D);
+            assertNotNull(v_j_L_O);
+            assertNotNull(v_j_L_A);
+            assertNotNull(v_j_LL_d);
+            assertNotNull(v_j_LL_O);
+            assertNotNull(v_j_L_d_i);
+            assertNotNull(v_j_L_O_i);
         }
 
         // Least to most specific
@@ -174,6 +203,16 @@ public class MethodUtilTest
         // These are effectively equal for the purposes of specificity
         public void h(int     x) { }
         public void h(Integer x) { }
+
+        // An array of primitives should bind tighter than an array of Objects
+        public void j(double[]   x)        { }
+        public void j(Double[]   x)        { }
+        public void j(Object[]   x)        { }
+        public void j(A[]        x)        { }
+        public void j(double[][] x)        { }
+        public void j(Object[][] x)        { }
+        public void j(double[]   x, int i) { }
+        public void j(Object[]   x, int i) { }
     }
 
     /**
@@ -260,5 +299,31 @@ public class MethodUtilTest
         assertTrue(compareBySpecificity(Methods.v_g_n, Methods.v_g_d)  > 0);
         assertTrue(compareBySpecificity(Methods.v_h_I, Methods.v_h_i) == 0);
         assertTrue(compareBySpecificity(Methods.v_h_i, Methods.v_h_I) == 0);
+
+        // Now compare methods taking arrays. These are a little tricky but we
+        // essentially want to make sure that the Python side can't bind to two
+        // different methods (taking arrays) where one is obviously more
+        // specific than the other. This differs from Java semantics since you
+        // can't lazily cast arrays in such a manner.
+        assertTrue(compareBySpecificity(Methods.v_j_L_d,   Methods.v_j_L_d  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_D,   Methods.v_j_L_D  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_A,   Methods.v_j_L_A  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_O,   Methods.v_j_L_O  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_d,   Methods.v_j_L_D  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_D,   Methods.v_j_L_d  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_D,   Methods.v_j_L_A  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_d,   Methods.v_j_L_A  )  < 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_d,   Methods.v_j_L_O  )  < 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_O,   Methods.v_j_L_d  )  > 0);
+        assertTrue(compareBySpecificity(Methods.v_j_LL_d,  Methods.v_j_LL_d ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_d,   Methods.v_j_LL_d ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_LL_d,  Methods.v_j_L_d  ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_LL_O,  Methods.v_j_LL_O ) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_LL_d,  Methods.v_j_LL_O )  < 0);
+        assertTrue(compareBySpecificity(Methods.v_j_LL_O,  Methods.v_j_LL_d )  > 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_d_i, Methods.v_j_L_d_i) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_O_i, Methods.v_j_L_O_i) == 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_d_i, Methods.v_j_L_O_i)  < 0);
+        assertTrue(compareBySpecificity(Methods.v_j_L_O_i, Methods.v_j_L_d_i)  > 0);
     }
 }

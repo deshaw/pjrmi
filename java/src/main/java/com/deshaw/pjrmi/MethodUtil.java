@@ -305,6 +305,16 @@ public class MethodUtil
         //   f(b,    d);     <-- unique and unambiguous
         // So, in all cases, no specificity ordering exists.
         //
+        // An extra quirk here is that the Python side of PJRmi will allow
+        // assignment-by-argument passing to array types. I.e. a list of Python
+        // floats can be rendered as a Java double[] or an Object[]. That means
+        // that overloaded methods which take such array types can both bind to
+        // the given Python argument. We dictate that similar binding semantics
+        // exist for the arrays, based on their element types. I.e. in the above
+        // example the double[] version of the method is more specific than the
+        // Object[] one, since you can assign doubles to Objects, but not
+        // Objects to doubles.
+        //
         // Finally, note that it's possible for the arguments to _exactly_ match
         // if one class overrides a method in another class but has a more
         // specific return type. As such, we need to know if that happens too
@@ -318,6 +328,8 @@ public class MethodUtil
                 // Same class is not more or less specific
             }
             else if (isAssignableFrom(c1, c2)) {
+                // c2 is more specific than c1 since we can assign a c2 value to
+                // a c1 one. (E.g. c1 is a long and c2 is a short.)
                 if (cmp < 0) {
                     // We have one argument which is more specific and one
                     // argument which is less specific; therefore neither method
@@ -333,12 +345,38 @@ public class MethodUtil
                 }
             }
             else if (isAssignableFrom(c2, c1)) {
+                // c1 is more specific
                 if (cmp > 0) {
                     // The same one-more/one-less case, like above.
                     return 0;
                 }
                 else {
                     // Remember the direction, like above.
+                    cmp   = -1;
+                    match = false;
+                }
+            }
+            else if (c1.isArray() && c2.isArray() &&
+                     isArrayMoreSpecific(c2, c1)) // <-- note order
+            {
+                // c2 is an array which is more specific than c1. See the
+                // similar case above for comments.
+                if (cmp < 0) {
+                    return 0;
+                }
+                else {
+                    cmp   = 1;
+                    match = false;
+                }
+            }
+            else if (c1.isArray() && c2.isArray() &&
+                     isArrayMoreSpecific(c1, c2)) // <-- note order
+            {
+                // c1 is an array which is more specific than c2
+                if (cmp > 0) {
+                    return 0;
+                }
+                else {
                     cmp   = -1;
                     match = false;
                 }
@@ -597,6 +635,50 @@ public class MethodUtil
         }
         else {
             throw new IllegalStateException("Unreachable statement");
+        }
+    }
+
+    /**
+     * Whether the array represented by class {@code c1} is more specific than
+     * the array represented by {@code c2}.
+     *
+     * <p>This code assumes that the arguments are non-{@code null} and that
+     * they represent arrays; no checking will be done.
+     */
+    private static boolean isArrayMoreSpecific(final Class<?> c1, final Class<?> c2)
+    {
+        // Determine the element types
+        final Class<?> t1 = c1.getComponentType();
+        final Class<?> t2 = c2.getComponentType();
+
+        // If these are multi-dimensional array types then the elements will
+        // themselves be arrays
+        if (t1.isArray() && t2.isArray()) {
+            // We just recurse down, this will all depend on the ultimate
+            // element types
+            return isArrayMoreSpecific(t1, t2);
+        }
+        else if (t1.isPrimitive() && !t2.isPrimitive() && !t2.isArray() &&
+                 !isAssignableFrom(t1, t2))
+        {
+            // If c1 is primitive and c2 is any form of non-array Object which
+            // we can't assign to it (i.e. not its boxing type) then it must be
+            // more specific. We have the !t2.isArray() check above because, if
+            // t2 is an array, then t1 isn't more specific than it (and it's not
+            // less specific either), so we want to conform to the semantics of
+            // this function.
+            return true;
+        }
+        else {
+            // At this point c1 will be more specific if we can assign its
+            // elements into c2, but not the other way around. Note the reversed
+            // ordering: if c1 is an array of ints and c2 is an array of longs
+            // then c1 is more specific since we can assign all the elements of
+            // c1 to c2 but not the other way around; c2 is more general. This
+            // can only be true if we can't assign in both directions (i.e. one
+            // is not the boxed type of the other).
+            return isAssignableFrom(t2, t1) &&
+                  !isAssignableFrom(t1, t2);
         }
     }
 }

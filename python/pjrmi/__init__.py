@@ -6180,6 +6180,17 @@ class UnixFifoTransport:
         if stderr != '/dev/stderr':
             add_file_action(stderr, 2, file_actions)
 
+        # Grumble if the arguments which we want to be item sequences are not
+        # since the user likely didn't intend it
+        for (name, arg) in (('application_args', application_args),
+                            ('classpath',        classpath),
+                            ('java_args',        java_args)):
+            if type(arg) not in (list, tuple):
+                LOG.warning(
+                    "Argument %s was not a list or tuple; this may cause problems",
+                    name
+                )
+
         # Build the command which we're going to run and launch the process
         application_args = ((main_class,
                              self._to_fifoname,

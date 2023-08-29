@@ -71,6 +71,32 @@ public class PJRmiTest
     }
 
     /**
+     * Test GC under the minion.
+     */
+    @Test
+    public void testMinionGC()
+        throws Throwable
+    {
+        // Make a function which will create a large number of Objects, and
+        // Strings, and let the Java side know that they have been GC'd. This
+        // checks that EMPTY_ACK messages are correctly handled in the minion.
+        //
+        // The underlying Python code handles GC collections on a 100ms cycle
+        // and batches them in 100s right now. Using a 1000 objects and a 0.1ms
+        // sleep should be enough to trigger the issue, and give us some wiggle
+        // room.
+        PYTHON.exec("import gc\n");
+        PYTHON.exec("def to_string(o):\n" +
+                    "    return 'toString=' + o.toString()\n");
+        for (int i=0; i < 1000; i++) {
+            PYTHON.invoke("to_string", String.class, new Object());
+            PYTHON.invoke("gc.collect");
+            try { Thread.sleep(0, 100); }
+            catch (InterruptedException e) { /* Nothing */ }
+        }
+    }
+
+    /**
      * Test PythonObject.
      */
     @Test

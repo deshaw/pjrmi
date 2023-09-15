@@ -14,19 +14,36 @@ public class DType
      */
     public enum Type
     {
-        // The type numbers can be found by looking at the Python dtype.num
-        /** A bool.    */ BOOLEAN("bool",                1,  0),
-        /** A bytes.   */ CHAR   ("bytes",               1, 18),
-        /** A int8.    */ INT8   ("int8",    Byte.   BYTES,  1),
-        /** A int16.   */ INT16  ("int16",   Short.  BYTES,  3),
-        /** A int32.   */ INT32  ("int32",   Integer.BYTES,  5),
-        /** A int64.   */ INT64  ("int64",   Long.   BYTES,  7),
-        /** A float32. */ FLOAT32("float32", Float.  BYTES, 11),
-        /** A float64. */ FLOAT64("float64", Double. BYTES, 12);
+        // The type numbers can be found by looking at the Python dtype.num. The
+        // Character as a bytes isn't quite right, but it's close enough for now.
+        /** A bool.    */ BOOLEAN("bool",    boolean.class, Boolean  .class,             1,  0),
+        /** A bytes.   */ CHAR   ("bytes",   char   .class, Character.class,             1, 18),
+        /** A int8.    */ INT8   ("int8",    byte   .class, Byte     .class, Byte.   BYTES,  1),
+        /** A int16.   */ INT16  ("int16",   short  .class, Short    .class, Short.  BYTES,  3),
+        /** A int32.   */ INT32  ("int32",   int    .class, Integer  .class, Integer.BYTES,  5),
+        /** A int64.   */ INT64  ("int64",   long   .class, Long     .class, Long.   BYTES,  7),
+        /** A float32. */ FLOAT32("float32", float  .class, Float    .class, Float.  BYTES, 11),
+        /** A float64. */ FLOAT64("float64", double .class, Double   .class, Double. BYTES, 12);
 
-        /** See numpy. */ public final String name;
-        /** See numpy. */ public final byte   alignment;
-        /** See numpy. */ public final byte   num;
+        // name() is a enum method so we use 'dtypename' as the member name
+        /** See numpy. */ public final String   dtypename;
+        /** See numpy. */ public final byte     alignment;
+        /** See numpy. */ public final byte     num;
+        /** Primitive. */ public final Class<?> primitiveClass;
+        /** Object.    */ public final Class<?> objectClass;
+
+        /**
+         * Get the Type for the given dtype name, if any.
+         */
+        public static Type byName(final String name)
+        {
+            for (Type type : values()) {
+                if (type.dtypename.equals(name)) {
+                    return type;
+                }
+            }
+            return null;
+        }
 
         /**
          * Constructor.
@@ -35,11 +52,13 @@ public class DType
          * @param alignment The memory alignment.
          * @param num       The numpy number.
          */
-        private Type(String name, int alignment, int num)
+        private Type(String name, Class<?> pCls, Class<?> oCls, int alignment, int num)
         {
-            this.name      = name;
-            this.alignment = (byte)alignment;
-            this.num       = (byte)num;
+            this.dtypename      = name;
+            this.alignment      = (byte)alignment;
+            this.num            = (byte)num;
+            this.primitiveClass = pCls;
+            this.objectClass    = oCls;
         }
     }
 
@@ -231,7 +250,7 @@ public class DType
         itemsize        = mySize;
         kind            = myTypeChar;
         metadata        = null;
-        name            = myType.name;
+        name            = myType.dtypename;
         names           = null;
         ndim            = 0;
         num             = myType.num;

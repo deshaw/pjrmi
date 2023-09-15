@@ -25,7 +25,7 @@ being a little special. However, it's their differences which are most pertinent
 to PJRmi:
   1. Natively, Python only has `int`, `float`, and `complex` as numeric values;
      Java has
-     multiple types for integers and floating point values. Python has bytes
+     multiple types for integers and floating point values. Python has bytes,
      strings, and read-write bytearays; Java has characters and strings as
      distinct types.
   1. Java has both object type and primitive type versions of basic types
@@ -417,15 +417,14 @@ is explained in detail, complete with ASCII diagrams, in the
 `LockManager.lockWalksTo()` method's code. Please refer to that documentation
 for more information.
 
-The `LockManager` code is surprisingly performant, given what it's doing.
-<can you point to a benchmark>?
-The bottom line is that you should use locks if you
-need them and should not worry too much about things being slow.
+The `LockManager` code is surprisingly performant, given what it's doing. The
+bottom line is that you should use locks if you need them and should not worry
+too much about things being slow.
 
 
 ## Other considerations...
 
-A general rule of thumb employed in PJRmi is that we try to ensure that as few
+A general rule of thumb employed in PJRmi is that it tries to ensure that as few
 assumptions as possible are made. This includes ones regarding future use; as
 such there is little or no specialised logic in the code. Sticking with this
 principle has helped to avoid making breaking changes in the code (aside from
@@ -433,6 +432,6 @@ changes in the protocol).
 
 The trickiest part of PJRmi is handling the conflicting idioms in Java and
 Python in a way which reduces the complexity. Java method capture was a good
-example of this; it took a long time before we had a good solution for this.
+example here and it took a long time before we had a good solution for this.
 When we did eventually get one, however, it was nice that it also solved some
 other problems as a side effect (e.g. method overloading disambiguation).

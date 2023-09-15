@@ -43,6 +43,9 @@ repositories {
 }
 
 test {
+    // These tests need space
+    maxHeapSize = "4g"
+
     // We need the Python build for the tests since we call into it from Java,
     // and we need the JNI library since we use that too.
     dependsOn project(":python")  .getTasks().getByPath(":python:buildExt")
@@ -63,4 +66,62 @@ dependencies {
     // compileOnly because we're creating a fat-jar with all the compile-time
     // dependencies.
     compileOnly SNAPPY
+}
+
+// ============================================================================
+/* Add the Vector API incubator module when a certain build parameter (defined
+ * below) is passed. Otherwise, exclude the vectorized files that include this
+ * module from the build.
+ */
+
+ext {
+    // The user-given parameter that is used to decide whether to include
+    // vectorized classes when building.
+    INCLUDE_VECTORIZED = 'includeVectorized'
+}
+
+java {
+    if (project.hasProperty(INCLUDE_VECTORIZED)) {
+        // PJRmi is specifically Java11 so as not to force users to later
+        // versions. However, as of 20230906, the Vector API incubator module
+        // is only available in Java17.
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            if (project.hasProperty(INCLUDE_VECTORIZED)) {
+                // Include the Vector API incubator module when building
+                compileJava {
+                    options.compilerArgs.addAll(['--enable-preview', '--add-modules', 'jdk.incubator.vector'])
+                }
+                compileTestJava {
+                    options.compilerArgs += ['--add-modules', 'jdk.incubator.vector']
+                }
+                tasks.withType(Test) {
+                    jvmArgs += ["--enable-preview", "--add-modules", "jdk.incubator.vector"]
+                }
+                tasks.withType(JavaExec) {
+                    jvmArgs += ["--enable-preview", "--add-modules", "jdk.incubator.vector"]
+                }
+            }
+            else {
+                // Remove tests for vectorized modules
+                exclude '**/Vectorized*.java'
+            }
+        }
+    }
+
+    test {
+        java {
+            if (!project.hasProperty(INCLUDE_VECTORIZED)) {
+                // Remove tests for vectorized modules
+                exclude '**/Vectorized*.java'
+            }
+        }
+    }
 }

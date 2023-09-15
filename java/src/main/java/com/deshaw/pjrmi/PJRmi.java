@@ -1,6 +1,13 @@
 package com.deshaw.pjrmi;
 
+import com.deshaw.hypercube.BooleanHypercube;
+import com.deshaw.hypercube.DoubleHypercube;
+import com.deshaw.hypercube.FloatHypercube;
+import com.deshaw.hypercube.Hypercube;
+import com.deshaw.hypercube.IntegerHypercube;
+import com.deshaw.hypercube.LongHypercube;
 import com.deshaw.io.BlockingPipe;
+import com.deshaw.python.DType;
 import com.deshaw.python.Operations;
 import com.deshaw.python.PythonPickle;
 import com.deshaw.util.ByteList;
@@ -778,6 +785,76 @@ public abstract class PJRmi
         {
             this.id            = id;
             this.shouldLockFor = shouldLockFor;
+        }
+    }
+
+    /**
+     * Our extended version of the {@link PythonPickle} class, which
+     * understands PJRmi-specific classes (like Hypercubes).
+     */
+    private static class PJRmiPythonPickle
+        extends PythonPickle
+    {
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        @SuppressWarnings("unchecked")
+        protected void saveObject(final Object obj)
+            throws UnsupportedOperationException
+        {
+            // Primitive hypercubes can be rendered directly as ndarrays
+            if (obj instanceof BooleanHypercube ||
+                obj instanceof DoubleHypercube  ||
+                obj instanceof FloatHypercube   ||
+                obj instanceof IntegerHypercube ||
+                obj instanceof LongHypercube)
+            {
+                // We want to render a primitive hypercube as an ndarray but
+                // of the right shape. We do this by sending the flattened
+                // version and then reshaping it.
+                final Hypercube<?> cube = (Hypercube<?>)obj;
+
+                // We are going to call the reshape() function with a flattened
+                // version of the cube and its shape
+                saveGlobal("numpy", "reshape");
+
+                // Get the flattened version of the cube, as an array, and
+                // push it onto the stack
+                if (obj instanceof BooleanHypercube) {
+                    saveNumpyBooleanArray(((BooleanHypercube)obj).toArray());
+                }
+                else if (obj instanceof DoubleHypercube) {
+                    saveNumpyDoubleArray(((DoubleHypercube)obj).toArray());
+                }
+                else if (obj instanceof FloatHypercube) {
+                    saveNumpyFloatArray(((FloatHypercube)obj).toArray());
+                }
+                else if (obj instanceof IntegerHypercube) {
+                    saveNumpyIntArray(((IntegerHypercube)obj).toArray());
+                }
+                else if (obj instanceof LongHypercube) {
+                    saveNumpyLongArray(((LongHypercube)obj).toArray());
+                }
+                else {
+                    throw new IllegalStateException(
+                        "Got an unexpected cube type " + obj.getClass()
+                    );
+                }
+
+                // Now push the shape onto the stack as the next argument. We
+                // save this as a tuple, not a list, though reshape() will
+                // accept both. Using a tuple is more "conventional".
+                saveCollection(cube.getBoxedShape());
+
+                // Turn the array and the shape into (a tuple of) arguments and
+                // call the function
+                write(Operations.TUPLE2);
+                write(Operations.REDUCE);
+            }
+            else {
+                super.saveObject(obj);
+            }
         }
     }
 
@@ -1700,7 +1777,7 @@ public abstract class PJRmi
          *
          * @return the size of the (first dimension of the) array.
          */
-        public int __len__();
+        public long __len__();
     }
 
     /**
@@ -1826,7 +1903,7 @@ public abstract class PJRmi
          * {@inheritDoc}
          */
         @Override
-        public int __len__()
+        public long __len__()
         {
             return Array.getLength(myArray);
         }
@@ -3574,11 +3651,11 @@ public abstract class PJRmi
         }
 
         /**
-         * Our extended version of the {@link PythonPickle} class, which can be
-         * used to instantiate Java objects on the other side.
+         * Our extended version of the {@link PJRmiPythonPickle} class, which
+         * can be used to instantiate Java objects on the other side.
          */
         private class BestEffortPythonPickle
-            extends PythonPickle
+            extends PJRmiPythonPickle
         {
             /**
              * {@inheritDoc}
@@ -4852,7 +4929,9 @@ public abstract class PJRmi
 
         /**
          * Our per-thread PythonPicklers, for converting values to Python's
-         * pickle format in a best-effort fashion.
+         * pickle format in a best-effort fashion. These are connection-specific
+         * since they need to be able to identify the PJRmi instance on the
+         * Python side.
          */
         private final ThreadLocal<PythonPickle> myBestEffortPythonPickle;
 
@@ -6519,6 +6598,52 @@ public abstract class PJRmi
                         (sliceStop  != null) ? ((Number)sliceStop ).longValue() : null,
                         (sliceStep  != null) ? ((Number)sliceStep ).longValue() : null
                     );
+                }
+                else if (typeDesc.getName().equals("com.deshaw.hypercube.Hypercube")) {
+                    // We have a basic understanding for certain types of
+                    // hypercube. In the future we will add code to allow the
+                    // array data to be broken up into chunks, so that cubes of
+                    // more than 2^31 elements can be passed (and we don't need
+                    // to change the wire format to handle it). Since that's
+                    // quite a lot to be passing as a single argument, we don't
+                    // yet supoort it, and right now we can't do that in a
+                    // ByteList anyhow.
+                    ReadObjectResult ror = readObject(bytes, offset);
+                    offset = ror.offset;
+                    final Object shape = ror.object;
+                    final int chunks = readInt(bytes, offset);
+                    offset += Integer.BYTES;
+                    ror = readObject(bytes, offset);
+                    offset = ror.offset;
+                    final Object array = ror.object;
+                    final Hypercube<?> cube;
+                    if (chunks != 1) {
+                        throw new IllegalArgumentException(
+                            "Expected only one array chunk"
+                        );
+                    }
+                    if (array instanceof boolean[]) {
+                        cube = BooleanHypercube.wrap((boolean[])array);
+                    }
+                    else if (array instanceof float[]) {
+                        cube = FloatHypercube.wrap((float[])array);
+                    }
+                    else if (array instanceof double[]) {
+                        cube = DoubleHypercube.wrap((double[])array);
+                    }
+                    else if (array instanceof int[]) {
+                        cube = IntegerHypercube.wrap((int[])array);
+                    }
+                    else if (array instanceof long[]) {
+                        cube = LongHypercube.wrap((long[])array);
+                    }
+                    else {
+                        throw new UnsupportedOperationException(
+                            "Don't know how to wrap a " +
+                            array.getClass().getSimpleName() + " in a hypercube"
+                        );
+                    }
+                    result = cube.reshape((long[])shape);
                 }
                 else {
                     throw new UnsupportedOperationException(
@@ -8719,6 +8844,93 @@ public abstract class PJRmi
                 "[Z",
 
                 // Classes
+                "com.deshaw.hypercube.CubeMath",
+                "com.deshaw.hypercube.AbstractBooleanHypercube",
+                "com.deshaw.hypercube.AbstractDoubleHypercube",
+                "com.deshaw.hypercube.AbstractFloatHypercube",
+                "com.deshaw.hypercube.AbstractHypercube",
+                "com.deshaw.hypercube.AbstractIntegerHypercube",
+                "com.deshaw.hypercube.AbstractLongHypercube",
+                "com.deshaw.hypercube.AxisRolledHypercube",
+                "com.deshaw.hypercube.Boolean1dWrappingHypercube",
+                "com.deshaw.hypercube.Boolean2dWrappingHypercube",
+                "com.deshaw.hypercube.Boolean3dWrappingHypercube",
+                "com.deshaw.hypercube.Boolean4dWrappingHypercube",
+                "com.deshaw.hypercube.Boolean5dWrappingHypercube",
+                "com.deshaw.hypercube.BooleanAxisRolledHypercube",
+                "com.deshaw.hypercube.BooleanBitSetHypercube",
+                "com.deshaw.hypercube.BooleanFlatRolledHypercube",
+                "com.deshaw.hypercube.BooleanHypercube",
+                "com.deshaw.hypercube.BooleanSlicedHypercube",
+                "com.deshaw.hypercube.BooleanWrappingHypercube",
+                "com.deshaw.hypercube.Double1dWrappingHypercube",
+                "com.deshaw.hypercube.Double2dWrappingHypercube",
+                "com.deshaw.hypercube.Double3dWrappingHypercube",
+                "com.deshaw.hypercube.Double4dWrappingHypercube",
+                "com.deshaw.hypercube.Double5dWrappingHypercube",
+                "com.deshaw.hypercube.DoubleArrayHypercube",
+                "com.deshaw.hypercube.DoubleAxisRolledHypercube",
+                "com.deshaw.hypercube.DoubleFlatRolledHypercube",
+                "com.deshaw.hypercube.DoubleFromFloatHypercube",
+                "com.deshaw.hypercube.DoubleFromIntegerHypercube",
+                "com.deshaw.hypercube.DoubleFromLongHypercube",
+                "com.deshaw.hypercube.DoubleHypercube",
+                "com.deshaw.hypercube.DoubleMappedHypercube",
+                "com.deshaw.hypercube.DoubleSlicedHypercube",
+                "com.deshaw.hypercube.DoubleWrappingHypercube",
+                "com.deshaw.hypercube.FlatRolledHypercube",
+                "com.deshaw.hypercube.Float1dWrappingHypercube",
+                "com.deshaw.hypercube.Float2dWrappingHypercube",
+                "com.deshaw.hypercube.Float3dWrappingHypercube",
+                "com.deshaw.hypercube.Float4dWrappingHypercube",
+                "com.deshaw.hypercube.Float5dWrappingHypercube",
+                "com.deshaw.hypercube.FloatArrayHypercube",
+                "com.deshaw.hypercube.FloatAxisRolledHypercube",
+                "com.deshaw.hypercube.FloatFlatRolledHypercube",
+                "com.deshaw.hypercube.FloatFromDoubleHypercube",
+                "com.deshaw.hypercube.FloatFromIntegerHypercube",
+                "com.deshaw.hypercube.FloatFromLongHypercube",
+                "com.deshaw.hypercube.FloatHypercube",
+                "com.deshaw.hypercube.FloatMappedHypercube",
+                "com.deshaw.hypercube.FloatSlicedHypercube",
+                "com.deshaw.hypercube.FloatWrappingHypercube",
+                "com.deshaw.hypercube.GenericArrayHypercube",
+                "com.deshaw.hypercube.GenericHypercube",
+                "com.deshaw.hypercube.GenericWrappingHypercube",
+                "com.deshaw.hypercube.Hypercube",
+                "com.deshaw.hypercube.Integer1dWrappingHypercube",
+                "com.deshaw.hypercube.Integer2dWrappingHypercube",
+                "com.deshaw.hypercube.Integer3dWrappingHypercube",
+                "com.deshaw.hypercube.Integer4dWrappingHypercube",
+                "com.deshaw.hypercube.Integer5dWrappingHypercube",
+                "com.deshaw.hypercube.IntegerArrayHypercube",
+                "com.deshaw.hypercube.IntegerAxisRolledHypercube",
+                "com.deshaw.hypercube.IntegerFlatRolledHypercube",
+                "com.deshaw.hypercube.IntegerFromDoubleHypercube",
+                "com.deshaw.hypercube.IntegerFromFloatHypercube",
+                "com.deshaw.hypercube.IntegerFromLongHypercube",
+                "com.deshaw.hypercube.IntegerHypercube",
+                "com.deshaw.hypercube.IntegerMappedHypercube",
+                "com.deshaw.hypercube.IntegerSlicedHypercube",
+                "com.deshaw.hypercube.IntegerWrappingHypercube",
+                "com.deshaw.hypercube.Long1dWrappingHypercube",
+                "com.deshaw.hypercube.Long2dWrappingHypercube",
+                "com.deshaw.hypercube.Long3dWrappingHypercube",
+                "com.deshaw.hypercube.Long4dWrappingHypercube",
+                "com.deshaw.hypercube.Long5dWrappingHypercube",
+                "com.deshaw.hypercube.LongArrayHypercube",
+                "com.deshaw.hypercube.LongAxisRolledHypercube",
+                "com.deshaw.hypercube.LongFlatRolledHypercube",
+                "com.deshaw.hypercube.LongFromDoubleHypercube",
+                "com.deshaw.hypercube.LongFromFloatHypercube",
+                "com.deshaw.hypercube.LongFromIntegerHypercube",
+                "com.deshaw.hypercube.LongHypercube",
+                "com.deshaw.hypercube.LongMappedHypercube",
+                "com.deshaw.hypercube.LongSlicedHypercube",
+                "com.deshaw.hypercube.LongWrappingHypercube",
+                "com.deshaw.hypercube.SlicedHypercube",
+                "com.deshaw.hypercube.WrappingHypercube",
+
                 "com.deshaw.pjrmi.JavaProxyBase",
                 "com.deshaw.pjrmi.PythonFunction",
                 "com.deshaw.pjrmi.PythonKwargsFunction",
@@ -8730,6 +8942,8 @@ public abstract class PJRmi
                 "java.lang.Boolean",
                 "java.lang.Byte",
                 "java.lang.Character",
+                // Not java.lang.Class since it allows access to any class in
+                // the system, and the methods on it etc.
                 "java.lang.ClassNotFoundException",
                 "java.lang.Comparable",
                 "java.lang.Double",
@@ -8773,7 +8987,7 @@ public abstract class PJRmi
      * {@code pjrmiVersion} values in {@code gradle.properties}. Typically the
      * minor version number should change whenever the wire format changes.
      */
-    private static final String HELLO = "PJRMI_1.12";
+    private static final String HELLO = "PJRMI_1.13";
 
     /**
      * The request ID to use for callbacks (which are unsolicited from Python's
@@ -8818,7 +9032,7 @@ public abstract class PJRmi
      * Our per-thread PythonPicklers, for converting values to pickle format.
      */
     private static final ThreadLocal<PythonPickle> ourPythonPickle =
-        ThreadLocal.withInitial(PythonPickle::new);
+        ThreadLocal.withInitial(PJRmiPythonPickle::new);
 
     // ---------------------------------------------------------------------- //
 

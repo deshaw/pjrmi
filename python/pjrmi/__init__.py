@@ -80,7 +80,7 @@ class PJRmi:
     # one in the Java code. The major and minor version numbers should match the
     # `pjrmiVersion` values in `gradle.properties`. Typically the minor version
     # number should change whenever the wire format changes.
-    _HELLO = b"PJRMI_1.12"
+    _HELLO = b"PJRMI_1.13"
 
     # Flags denoting server info
     _FLAG_USE_WORKERS = 1
@@ -465,6 +465,7 @@ class PJRmi:
         self._java_util_NoSuchElementException      = self.class_for_name('java.util.NoSuchElementException')
         self._java_util_function_Function           = self.class_for_name('java.util.function.Function')
         self._java_util_function_BiFunction         = self.class_for_name('java.util.function.BiFunction')
+        self._com_deshaw_hypercube_Hypercube        = self.class_for_name('com.deshaw.hypercube.Hypercube')
         self._com_deshaw_pjrmi_JavaProxyBase        = self.class_for_name('com.deshaw.pjrmi.JavaProxyBase')
         self._com_deshaw_pjrmi_PythonObject         = self.class_for_name('com.deshaw.pjrmi.PythonObject')
         self._com_deshaw_pjrmi_PythonFunction       = self.class_for_name('com.deshaw.pjrmi.PythonFunction')
@@ -798,12 +799,21 @@ class PJRmi:
         if obj is None:
             return None
 
-        # Sanity
+        # We can only cast Java objects
         if not issubclass(obj.__class__, _JavaObject):
             raise TypeError("Can't cast non-JavaObject %s (%s)" %
                             (str(obj), str(obj.__class__)))
+
+        # See what we're casting to. Note that a secured PJRmi instance might
+        # not allow access to java.lang.Class so we have to do a bit of a
+        # roundabout test for that.
         if klass is None:
             raise TypeError("Can't cast to class None")
+        elif (getattr(klass, '_classname', None) == 'java.lang.Class' and
+              hasattr(klass, 'getName')):
+            klass = self.class_for_name(str(klass.getName()))
+        if not isinstance(klass, self._JavaClass):
+            raise TypeError("Can't cast to non Java class, had %s" % type(klass))
 
         # Send the request
         payload = (self._format_int32(klass._type_id) +
@@ -3419,6 +3429,14 @@ public class TestInjectSource {
                         self._format_int32(klass._type_id) +
                         self._format_int32(self._get_object_id(value)))
 
+            elif (klass._type_id == self._com_deshaw_hypercube_Hypercube._type_id and
+                  type(value) == numpy.ndarray):
+                return (self._ARGUMENT_VALUE +
+                        self._format_int32(klass._type_id) +
+                        self._format_by_class(self._L_java_lang_long, value.shape) +
+                        self._format_int32(1) + # num arrays to follow
+                        self._format_by_class(self._java_lang_Object, value.flatten()))
+
             elif isinstance(value, JavaMethod) and value._can_format_as(klass):
                 return self._format_method_as(value, klass)
 
@@ -4034,9 +4052,6 @@ public class TestInjectSource {
                                        self._VALUE_FORMAT_REFERENCE)
             sync_mode     = kwargs.pop('__pjrmi_sync_mode__',
                                        self.SYNC_MODE_SYNCHRONOUS)
-
-            if len(kwargs) != 0:
-                raise ValueError('Unrecognized keyword arguments: %r' % kwargs)
 
             # Validate args
             if return_format not in self._ACCEPTED_VALUE_FORMATS:
@@ -4666,6 +4681,21 @@ public class TestInjectSource {
         This is mostly making the Java stuff code play nice with the Python
         world.
         """
+        def isjavasubclass(javaclass, classname, attrname):
+            """
+            Whether the `javaclass` is a subclass of the one specified via the given
+            details.
+            """
+            # None can't be an instance. Otherwise look for an exact match (by
+            # name) and then a subclass match. The attr could be missing if we
+            # are in the middle of bootstrapping so handle that. (E.g. we could
+            # be running this for Object before we have built the String class.)
+            if javaclass is None:
+                return False
+            if javaclass._classname == classname:
+                return True
+            attr_class = getattr(self, attrname, None)
+            return attr_class is not None and javaclass._instance_of(attr_class)
 
         # All classes get the default str() method, exceptions actually yield
         # the full stack trace, coz it's handy to have
@@ -4719,7 +4749,7 @@ public class TestInjectSource {
         setattr(klass, "__str__", __str__)
 
         # Now some special handling
-        if klass._classname == "java.lang.String":
+        if isjavasubclass(klass, "java.lang.String", "_java_lang_String"):
             def __add__(self_, that):
                 if isinstance(that, (str, _JavaObject)):
                     return self_.__str__() + str(that)
@@ -4740,9 +4770,7 @@ public class TestInjectSource {
 
         # Map methods. We do the explicit test for Map to avoid recursing
         # forever if we are creating a Map.
-        if (klass._classname == "java.util.Map" or
-            (hasattr(self, '_java_util_Map') and
-             klass._instance_of(self._java_util_Map))):
+        if isjavasubclass(klass, "java.util.Map", '_java_util_Map'):
             def __getitem__(self_, index):
                 return self_.get(index)
 
@@ -4784,9 +4812,7 @@ public class TestInjectSource {
             setattr(klass, "__iter__",      __iter__     )
             setattr(klass, "_repr_pretty_", _repr_pretty_)
 
-        if (klass._classname == "java.util.Map$Entry" or
-            (hasattr(self, '_java_util_Map_Entry') and
-             klass._instance_of(self._java_util_Map_Entry))):
+        if isjavasubclass(klass, "java.util.Map$Entry", '_java_util_Map_Entry'):
             def __getitem__(self_, index):
                 if index == 0:
                     return self_.getKey()
@@ -4802,9 +4828,7 @@ public class TestInjectSource {
 
         # List methods. We do the explicit test for List to avoid recursing
         # forever if we are creating a List.
-        if (klass._classname == "java.util.List" or
-            (hasattr(self, '_java_util_List') and
-             klass._instance_of(self._java_util_List))):
+        if isjavasubclass(klass, "java.util.List", '_java_util_List'):
             def __getitem__(self_, key):
                 return self_.get(strict_number(numpy.int32, key))
 
@@ -4816,9 +4840,7 @@ public class TestInjectSource {
 
         # Collection methods. We do the explicit test for Collection to avoid
         # recursing forever if we are creating a Collection.
-        if (klass._classname == "java.util.Collection" or
-            (hasattr(self, '_java_util_Collection') and
-             klass._instance_of(self._java_util_Collection))):
+        if isjavasubclass(klass, "java.util.Collection", '_java_util_Collection'):
             def __len__(self_):
                 return self_.size()
 
@@ -4827,9 +4849,7 @@ public class TestInjectSource {
         # If something is a Java Iterator or Iterable then we make it iterable
         # under Python too. We need to handle the boot-strapping case where
         # we're creating the _java_blah_blah values here too.
-        if (klass._classname == 'java.util.Iterator' or
-            (hasattr(self, '_java_util_Iterator') and
-             klass._instance_of(self._java_util_Iterator))):
+        if isjavasubclass(klass, 'java.util.Iterator', '_java_util_Iterator'):
             def __iter__(self_):
                 # We "ask for forgiveness not permission" here (i.e., catch
                 # NoSuchElementException instead of calling hasNext()) to avoid
@@ -4845,20 +4865,33 @@ public class TestInjectSource {
 
             setattr(klass, "__iter__", __iter__)
 
-        if (klass._classname == 'java.lang.Iterable' or
-            (hasattr(self, '_java_lang_Iterable') and
-             klass._instance_of(self._java_lang_Iterable))):
+        if isjavasubclass(klass, 'java.lang.Iterable', '_java_lang_Iterable'):
             def __iter__(self_):
                 # Hand off to the java.util.Iterator case
                 return iter(self_.iterator())
 
             def _repr_pretty_(self_, p, cycle):
-                simple_name = klass._classname.split(".")[-1]
-                if cycle:
-                    p.text(f"{simple_name}(...)")
+                # Whether to name the container objects as we recurse down. For
+                # Hypercubes this is mainly noise down the line so we suppress
+                # it as we recurse. (There is probably a better way of telling
+                # how far down the stack we are over than looking at
+                # 'indentation' but I don't know what it is.)
+                if p.indentation > 0 and \
+                   isjavasubclass(klass,
+                                  'com.deshaw.hypercube.Hypercube',
+                                  '_com_deshaw_hypercube_Hypercube'):
+                    sn = ''  # simple name
+                    op = ' ' # opening paren
+                    cp = ' ' # closing paren
                 else:
-                    with p.group(len(simple_name) + 2,
-                                 f"{simple_name}([", "])"):
+                    sn = klass._classname.split(".")[-1]
+                    op = '('
+                    cp = ')'
+
+                if cycle:
+                    p.text(f"{sn}{op}...{cp}")
+                else:
+                    with p.group(len(sn) + 2, f"{sn}{op}[", f"]{cp}"):
                         try:
                             limit = int(getattr(self_,
                                                 '__repr_pretty_limit__',
@@ -4882,9 +4915,7 @@ public class TestInjectSource {
         # If something is an Comparable then we make it comparable under Python too.
         # We need to handle the boot-strapping case where we're creating the
         # _java_lang_Comparable value here too.
-        if (klass._classname == 'java.lang.Comparable' or
-            (hasattr(self, '_java_lang_Comparable') and
-             klass._instance_of(self._java_lang_Comparable))):
+        if isjavasubclass(klass, 'java.lang.Comparable', '_java_lang_Comparable'):
             def __cmp__(self_, that):
                 return self_.compareTo(that)
 
@@ -4893,9 +4924,7 @@ public class TestInjectSource {
         # If something is an AutoCloseable then we add the __enter__() and
         # __exit__() methods for Python. We need to handle the boot-strapping
         # case where we're creating the _java_lang_AutoCloseable value here too.
-        if (klass._classname == 'java.lang.AutoCloseable' or
-            (hasattr(self, '_java_lang_AutoCloseable') and
-             klass._instance_of(self._java_lang_AutoCloseable))):
+        if isjavasubclass(klass, 'java.lang.AutoCloseable', '_java_lang_AutoCloseable'):
             def __enter__(self_):
                 return self_
             def __exit__(self_, typ, value, traceback):
@@ -4903,6 +4932,118 @@ public class TestInjectSource {
 
             setattr(klass, "__enter__", __enter__)
             setattr(klass, "__exit__",  __exit__ )
+
+        if isjavasubclass(klass,
+                          'com.deshaw.hypercube.Hypercube',
+                          '_com_deshaw_hypercube_Hypercube'):
+            # We create the __array__ method so that it behaves like numpy
+            # expects, here on the Python side of things. This isn't overly
+            # efficient (to put it mildly) but it works, and is better than
+            # having per-element access.
+
+            def dtype_to_simplename(dtype):
+                # Get the class name of the a dtype, if any
+                if isinstance(dtype, numpy.dtype):
+                    dtype = dtype.name
+                if   dtype == 'float32': return 'Float'
+                elif dtype == 'float64': return 'Double'
+                elif dtype == 'int32':   return 'Integer'
+                elif dtype == 'int64':   return 'Long'
+                else: raise ValueError("Unhandled dtype: %s" % (dtype,))
+
+            def __array__(self_, dtype=None):
+                # Do this by best-effort assuming that it's one which we can
+                # cast and pickle but, if we encounter an error, then just go
+                # with doing it "by hand".
+
+                # Try to get the class to its most specific form, since that
+                # should have the methods which we care about etc.
+                try:
+                    self_ = self.cast_to(self_, self_.getClass())
+                except Exception:
+                    pass
+
+                try:
+                    # Figure out the name of the casting class to use, if any.
+                    # Assume it's the same type until we know better.
+                    if dtype is not None:
+                        from_type = dtype_to_simplename(self_.getDType().name)
+                        to_type   = dtype_to_simplename(dtype)
+                        if from_type != to_type:
+                            nm = 'com.deshaw.hypercube.%sFrom%sHypercube' % (
+                                     to_type, from_type
+                                 )
+                            self_ = self.class_for_name(nm)(self_)
+
+                    # And render the cube over the wire
+                    result = self.value_of(self_)
+
+                except Exception:
+                    # Handle it manually. Use SHM-passing if we can, since it's
+                    # more efficient.
+                    fmt = (
+                        self.VALUE_FORMAT_SHMDATA if self._use_shmdata else
+                        self.VALUE_FORMAT_PICKLE
+                    )
+
+                    # Handle any type conversions, if we can
+                    if hasattr(self_, 'array'):
+                        if dtype is None:
+                            result = self_.array()
+                        elif isinstance(dtype, numpy.dtype):
+                            result = self_.array(dtype.name)
+                        else:
+                            result = self_.array(dtype)
+                    else:
+                        if dtype is None:
+                            result = self_
+                        else:
+                            raise NotImplementedError(
+                                "Conversion to dtypes not supported "
+                                "for cubes of type '%s'" % (type(self_))
+                            )
+
+                    # If we have something to convert then we downcast it to its
+                    # actual type, since we will need to access the toArray()
+                    # method, if we can.
+                    if result is not None:
+                        try:
+                            result = self.cast_to(result, result.getClass())
+                        except Exception:
+                            pass
+
+                    # Convert it to an array and hand it back if we can. If that
+                    # doesn't work then we just give back the result of the
+                    # array() call (which will be a Hypercube but should
+                    # duck-type as an ndarray).
+
+                    # Coerce via the toArray() method as a by-value call, which
+                    # should return a numpy array which we can reshape
+                    if hasattr(result, "toArray"):
+                        result = result.toArray(__pjrmi_return_format__=fmt) \
+                                       .reshape(result.getShape())
+                    else:
+                        try:
+                            result = result.toObjectArray(__pjrmi_return_format__=fmt) \
+                                           .reshape(result.getShape())
+                        except Exception:
+                            pass
+
+                # If it's not an ndarray at this point then we attempt to
+                # convert it by hand. Be careful not to infinitely recurse
+                # though, if result is 'self'.
+                if result is not self_ and \
+                   not isinstance(result, numpy.ndarray):
+                    try:
+                        result = numpy.array(result)
+                    except Exception:
+                        pass
+
+                # Give back what we had. Hopefully it was an ndarray at this
+                # point but, if not, numpy will tell us as much.
+                return result
+
+            setattr(klass, "__array__", __array__)
 
 
     def _get_class_doc_url(self, klass):
@@ -5177,7 +5318,7 @@ used as in a `with` conntext.
                 # arguments to a function so check for that too.
                 if num_args < 0:
                     raise ValueError(
-                        "%r appears to have a malformde argspec: %s" %
+                        "%r appears to have a malformed argspec: %s" %
                         (function, argspec)
                     )
                 elif num_args > 255:

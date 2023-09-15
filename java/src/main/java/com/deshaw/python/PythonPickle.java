@@ -539,8 +539,23 @@ public class PythonPickle
         else if (o.getClass().isArray()) {
             saveList(Arrays.asList((Object[]) o));
         }
+        else if (o instanceof DType) {
+            saveDType((DType) o);
+        }
         else {
-            saveObject(o);
+            try {
+                saveObject(o);
+            }
+            catch (UnsupportedOperationException e) {
+                // Last so that we handle all specific iterable types correctly,
+                // including in saveObject()'s handling
+                if (o instanceof Iterable) {
+                    saveIterable((Iterable<Object>) o);
+                }
+                else {
+                    throw e;
+                }
+            }
         }
     }
 
@@ -602,9 +617,20 @@ public class PythonPickle
     }
 
     /**
+     * Save a DType.
+     */
+    protected void saveDType(DType x)
+    {
+        saveGlobal("numpy", "dtype");
+        saveUnicode(dtypeDescr(x.type()));
+        write(Operations.TUPLE1);
+        write(Operations.REDUCE);
+    }
+
+    /**
      * Save a Collection of arbitrary Objects as a tuple.
      */
-    private void saveCollection(Collection<Object> x)
+    protected void saveCollection(Collection<?> x)
     {
         // Tuples over 3 elements in size need a "mark" to look back to
         if (x.size() > 3) {
@@ -629,9 +655,29 @@ public class PythonPickle
     }
 
     /**
+     * Save an Iterable of arbitrary Objects as a tuple.
+     */
+    protected void saveIterable(Iterable<?> x)
+    {
+        // We don't know how big the iterable is so we'll just treat it as a
+        // tuple by dropping a mark and saving all the objects
+        write(Operations.MARK);
+
+        // Save all the elements
+        for (Object o : x) {
+            save(o);
+        }
+
+        // And say what we sent
+        write(Operations.TUPLE);
+
+        put(x);
+    }
+
+    /**
      * Save a list of arbitrary objects.
      */
-    private void saveList(List<Object> x)
+    protected void saveList(List<Object> x)
     {
         // Two implementations here. For RandomAccess lists it's faster to do
         // explicit get methods. For other ones iteration is faster.
@@ -689,7 +735,7 @@ public class PythonPickle
     /**
      * Save a map of arbitrary objects as a dict.
      */
-    private void saveDict(Map<Object,Object> x)
+    protected void saveDict(Map<Object,Object> x)
     {
         write(Operations.EMPTY_DICT);
         put(x);

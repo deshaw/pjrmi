@@ -600,14 +600,15 @@ class TestPJRmi(TestCase):
         o = Object()
         i = Integer(42)
 
+        # Call it once to get everything set up, types may need to be built etc.
+        self.assertEqual(pm.f(o, i, i), 'cs_f_oni')
+
         before = send_calls_count
         assert before > 0, "instrumented_send doesn't seem to be working"
+
         self.assertEqual(pm.f(o, i, i), 'cs_f_oni')
-        # As of January 2023, 12 calls are made without the _LazyTypeError
-        # optimization and only 7 with it. This is admittedly somewhat of a
-        # brittle assertion, but OTOH, we should strive to make as fewer calls
-        # as possible so it's probably worth the tradeoff.
-        self.assertTrue((send_calls_count - before) < 8)
+
+        self.assertTrue((send_calls_count - before) < 3)
 
 
     def test_method_not_found(self):
@@ -913,7 +914,6 @@ public class TestInjectSource {
         java_double_array[3] = 8.9
 
         java_string_array = java_string_array_class(2)
-        java_string_array_length = 2
         java_string_array[0] = "string"
         java_string_array[1] = "fun"
 
@@ -1308,6 +1308,98 @@ public class TestInjectSource {
                          test_type.value)
         self.assertEqual(tuple(HashSet(test_type)),
                          tuple((test_type.value,)))
+
+
+    def test_hypercubes(self):
+        """
+        Make sure that Hypercubes behave correctly.
+        """
+        CubeMath = get_pjrmi().class_for_name('com.deshaw.hypercube.CubeMath')
+
+        # Create numpy ndarrays, of 1D, 2D, 3D, ...
+        lengths = (13, 11, 7, 5, 3, 2, 1)
+        for i in range(len(lengths)):
+            # Create and populate
+            nda = numpy.ndarray(lengths[:(i+1)], dtype='float64')
+            nda.reshape((nda.size,))[:] = range(1, nda.size+1)
+
+            # Copy it and make sure the cube copy matches the ndarray original
+            cube = CubeMath.copy(nda)
+            self.assertTrue(numpy.all(cube == nda))
+
+            # Make sure transposing works
+            self.assertTrue(numpy.all(cube.transpose() == nda.transpose()))
+
+
+    def test_cubemath(self):
+        """
+        Make sure that CubeMath behaves like numpy and that the two inter-operate
+        correctly.
+        """
+        CubeMath = get_pjrmi().class_for_name('com.deshaw.hypercube.CubeMath')
+
+        # Create an ndarray to work on. We futz with the values a little so that
+        # floating point noise doesn't cause some of the comparisons (e.g. the
+        # trig ones) to fail.
+        dim_sz = 3
+        nda = numpy.ndarray((dim_sz,dim_sz,dim_sz), dtype='float64')
+        nda.reshape((nda.size,))[:] = range(1, nda.size+1)
+        nda /= 1000
+
+        # Create a copy of the numpy array, but downcast it to its implementing
+        # type. This is because CubeMath returns Hypercube<?>s but we want to
+        # access some methods specific to their primitive implementations.
+        dac = CubeMath.copy(nda)
+        dac = get_pjrmi().cast_to(dac, dac.getClass())
+
+        # We use assertTrue() below since we are testing all the booleans in the
+        # result of an equality operation, and that requires using all()
+
+        # Basic comparisons
+        self.assertTrue(numpy   .all(nda == dac))
+        self.assertTrue(numpy   .all(dac == nda))
+        self.assertTrue(CubeMath.all(nda == dac))
+        self.assertTrue(CubeMath.all(dac == nda))
+
+        # Sliced comparison
+        self.assertTrue(numpy.all(numpy.array(dac[:,:,0:1]) == nda[:,:,0:1]))
+
+        # Numerical operations
+        self.assertTrue(numpy.all((dac + dac) == (nda + nda)))
+        self.assertTrue(numpy.all((dac - dac) == (nda - nda)))
+        self.assertTrue(numpy.all((dac * dac) == (nda * nda)))
+        self.assertTrue(numpy.all((dac / dac) == (nda / nda)))
+
+        # Hyperbolic and trig
+        self.assertTrue(numpy.all(CubeMath.tanh(dac) == numpy.tanh(nda)))
+        self.assertTrue(numpy.all(CubeMath.sinh(dac) == numpy.sinh(nda)))
+        self.assertTrue(numpy.all(CubeMath.cosh(dac) == numpy.cosh(nda)))
+
+        self.assertTrue(numpy.all(CubeMath.tan(dac) == numpy.tan(nda)))
+        self.assertTrue(numpy.all(CubeMath.sin(dac) == numpy.sin(nda)))
+        self.assertTrue(numpy.all(CubeMath.cos(dac) == numpy.cos(nda)))
+
+        # Misc...
+        self.assertTrue(numpy.all(CubeMath.exp(dac) == numpy.exp(nda)))
+        self.assertTrue(numpy.all(CubeMath.min(dac) == numpy.min(nda)))
+        self.assertTrue(numpy.all(CubeMath.max(dac) == numpy.max(nda)))
+
+        # We get floating point noise here, since CubeMath and numpy work
+        # slightly differently. Compare against ~eps.
+        self.assertTrue(numpy.all(abs(CubeMath.sum(dac) - numpy.sum(nda)) < 1e-16))
+
+        # Rounding
+        self.assertTrue(numpy.all(CubeMath.round(dac) == numpy.round(nda)))
+        self.assertTrue(numpy.all(CubeMath.floor(dac) == numpy.floor(nda)))
+        self.assertTrue(numpy.all(CubeMath.ceil (dac) == numpy.ceil (nda)))
+
+        # Rolling (but no rocking)
+        self.assertTrue(numpy.all(CubeMath.roll(dac,     1) ==
+                                  numpy   .roll(nda,     1)))
+        self.assertTrue(numpy.all(CubeMath.roll(dac, (1,2)) ==
+                                  numpy   .roll(nda, (1,2))))
+        self.assertTrue(numpy.all(CubeMath.roll(nda, (1,2), axis=(0,1)) ==
+                                  numpy   .roll(nda, (1,2), axis=(0,1))))
 
 
     @classmethod

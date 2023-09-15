@@ -1,5 +1,5 @@
 /*
- * The Gradle build file for deshaw-pjrmi.
+ * The Gradle build file for the Java portion of deshaw-pjrmi.
  */
 
 plugins {
@@ -12,10 +12,16 @@ javadoc {
     options.addStringOption('Xdoclint:all,-missing', '-quiet')
 }
 
-/*
- * Configuration from the outside world.
- */
+// Configuration from the outside world.
 def SNAPPY = 'org.xerial.snappy:snappy-java:' + snappyVersion
+
+// PJRmi is specifically Java11 so as not to force users to later versions, if
+// they have dependencies, so enforce this in the build.
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+}
 
 jar {
     // Just the raw 'pjrmi.jar' name, unversioned. This is deployed as a

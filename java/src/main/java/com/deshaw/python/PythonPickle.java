@@ -276,16 +276,16 @@ public class PythonPickle
     // Instead of serializing array-like objects exactly the way numpy
     // arrays are serialized, we simply serialize them to be unpickled
     // as numpy arrays.  The simplest way to do this is to use
-    // numpy.fromstring().  We write out opcodes to build the
+    // numpy.frombuffer().  We write out opcodes to build the
     // following stack:
     //
-    //     [..., numpy.fromstring, binary_data_string, dtype_string]
+    //     [..., numpy.frombuffer, binary_data_string, dtype_string]
     //
     // and then call TUPLE2 and REDUCE to get:
     //
-    //     [..., numpy.fromstring(binary_data_string, dtype_string)]
+    //     [..., numpy.frombuffer(binary_data_string, dtype_string)]
     //
-    // http://docs.scipy.org/doc/numpy/reference/generated/numpy.fromstring.html
+    // https://numpy.org/doc/stable/reference/generated/numpy.frombuffer.html
 
     /**
      * Save the Python function module.name.  We use this function
@@ -305,7 +305,7 @@ public class PythonPickle
      */
     protected final void saveNumpyBooleanArray(boolean[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader((long) n);
 
@@ -321,7 +321,7 @@ public class PythonPickle
      */
     protected final void saveNumpyByteArray(byte[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader((long) n);
 
@@ -337,7 +337,7 @@ public class PythonPickle
      */
     protected final void saveNumpyCharArray(char[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader((long) n);
 
@@ -353,7 +353,7 @@ public class PythonPickle
      */
     protected final void saveNumpyByteArray(ByteList o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.size();
         writeBinStringHeader((long) n);
 
@@ -369,7 +369,7 @@ public class PythonPickle
      */
     protected final void saveNumpyShortArray(short[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader(2 * (long) n);
         myTwoByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -386,7 +386,7 @@ public class PythonPickle
      */
     protected final void saveNumpyIntArray(int[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader(4 * (long) n);
         myFourByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -403,7 +403,7 @@ public class PythonPickle
      */
     protected final void saveNumpyLongArray(long[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader(8 * (long) n);
         myEightByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -420,7 +420,7 @@ public class PythonPickle
      */
     protected final void saveNumpyFloatArray(float[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader(4 * (long) n);
         myFourByteBuffer.order(ByteOrder.LITTLE_ENDIAN);
@@ -437,7 +437,7 @@ public class PythonPickle
      */
     protected final void saveNumpyDoubleArray(double[] o)
     {
-        saveGlobal("numpy", "fromstring");
+        saveGlobal("numpy", "frombuffer");
         final int n = o.length;
         writeBinStringHeader(8 * (long) n);
         myEightByteBuffer.order(ByteOrder.LITTLE_ENDIAN);

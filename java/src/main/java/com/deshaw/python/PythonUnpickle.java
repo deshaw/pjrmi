@@ -144,9 +144,9 @@ public class PythonUnpickle
 
     /**
      * Factory class for use by the pickle framework to reconstruct
-     * numpy arrays from 'strings'.
+     * numpy arrays from byte buffers.
      */
-    private static class NumpyFromstring
+    private static class NumpyFrombuffer
         implements Global
     {
         /**
@@ -158,7 +158,7 @@ public class PythonUnpickle
         {
             // Args are a tuple of (data, dtype)
             try {
-                return new NumpyFromstringArray((List)c);
+                return new NumpyFrombufferArray((List)c);
             }
             catch (ClassCastException e) {
                 throw new MalformedPickleException(
@@ -174,7 +174,7 @@ public class PythonUnpickle
         @Override
         public String toString()
         {
-            return "numpy.fromstring()";
+            return "numpy.frombuffer()";
         }
     }
 
@@ -512,20 +512,20 @@ public class PythonUnpickle
     }
 
     /**
-     * Unpickle a basic numpy array with the fromstring method.
+     * Unpickle a basic numpy array with the frombuffer method.
      */
-    private static class NumpyFromstringArray
+    private static class NumpyFrombufferArray
         extends NumpyArray
     {
         /**
          * Constructor
          */
-        public NumpyFromstringArray(List tuple)
+        public NumpyFrombufferArray(List tuple)
             throws MalformedPickleException
         {
             if (tuple.size() != 2) {
                 throw new MalformedPickleException(
-                    "Invalid arguments passed to numpy.fromstring: " +
+                    "Invalid arguments passed to numpy.frombuffer: " +
                     "expecting 2-tuple (data, dtype), got " + tuple
                 );
             }
@@ -539,14 +539,14 @@ public class PythonUnpickle
             }
             catch (ClassCastException e) {
                 throw new MalformedPickleException(
-                    "Invalid arguments passed to numpy.fromstring: " +
+                    "Invalid arguments passed to numpy.frombuffer: " +
                     "expecting (data, dtype), got " + tuple,
                     e
                 );
             }
             catch (NullPointerException e) {
                 throw new MalformedPickleException(
-                    "Invalid arguments passed to numpy.fromstring: " +
+                    "Invalid arguments passed to numpy.frombuffer: " +
                     "nulls not allowed in (data, dtype), got " + tuple
                 );
             }
@@ -604,7 +604,7 @@ public class PythonUnpickle
         registerGlobal("numpy.core.multiarray", "scalar",       new NumpyCoreMultiarrayScalar());
         registerGlobal("numpy",                 "ndarray",      new NDArrayType());
         registerGlobal("numpy",                 "dtype",        new DTypeFactory());
-        registerGlobal("numpy",                 "fromstring",   new NumpyFromstring());
+        registerGlobal("numpy",                 "frombuffer",   new NumpyFrombuffer());
         registerGlobal("_codecs",               "encode",       new Encoder());
         registerGlobal("__builtin__",           "bytes",        new BytesPlaceholder());
     }

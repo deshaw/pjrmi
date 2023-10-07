@@ -928,6 +928,7 @@ public class TestInjectSource {
         python_double_array = numpy.array([1.2, 3.4, 5.67, 8.9], dtype='d')
         python_string_array = numpy.array(["string", "fun"])
 
+        python_bytes        = python_byte_array.tobytes()
 
         def test_native_array_value_of():
             """
@@ -1008,6 +1009,8 @@ public class TestInjectSource {
                               len(python_float_array))
             self.assertEqual(PJRmiTestHelpers.doubleArrayLength (python_double_array),
                               len(python_double_array))
+            self.assertEqual(PJRmiTestHelpers.byteArrayLength   (python_bytes),
+                              len(python_bytes))
 
             # These helper methods return a reference to a Java array. We call
             # these now because we know from the above that we can successfully

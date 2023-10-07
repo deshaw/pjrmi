@@ -2898,6 +2898,12 @@ public class TestInjectSource {
                     # This is an one-dimensional numpy array that we know we can handle natively
                     return self._format_shmdata(klass, value, strict_types)
 
+                elif isinstance(value, bytes):
+                    return (self._ARGUMENT_VALUE +
+                            self._format_int32(self._L_java_lang_byte._type_id) +
+                            self._format_int32(len(value)) +
+                            value)
+
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'int8':
                     return (self._ARGUMENT_VALUE +
                             self._format_int32(self._L_java_lang_byte._type_id) +
@@ -3244,10 +3250,16 @@ public class TestInjectSource {
 
             elif klass._type_id == self._L_java_lang_byte._type_id:
                 self._validate_format_array(value)
-                # Allow a string to be treated as a list of bytes, if it's
-                # ASCII. If it's not ASCII then we probably don't want to be
-                # doing this and an error will be thrown.
-                if isinstance(value, str):
+                if isinstance(value, bytes):
+                    # A bytes object we can just send raw
+                    return (self._ARGUMENT_VALUE +
+                            self._format_int32(klass._type_id) +
+                            self._format_int32(len(value)) +
+                            value)
+                elif isinstance(value, str):
+                    # Allow a string to be treated as a list of bytes, if it's
+                    # ASCII. If it's not ASCII then we probably don't want to be
+                    # doing this and an error will be thrown.
                     return (self._ARGUMENT_VALUE +
                             self._format_int32(klass._type_id) +
                             self._format_int32(len(value)) +

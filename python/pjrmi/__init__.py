@@ -22,7 +22,7 @@ import weakref
 from   builtins         import ascii
 from   inspect          import getfullargspec
 from   threading        import (Condition, Lock, RLock, Thread,
-                                current_thread)
+                                current_thread, local as ThreadLocal)
 from   traceback        import format_tb
 from   types            import (BuiltinMethodType, FunctionType, MethodType)
 
@@ -807,7 +807,7 @@ class PJRmi:
 
         # Send the request
         payload = (self._format_int32(klass._type_id) +
-                   self._format_int64(obj._handle))
+                   self._format_int64(obj._pjrmi_handle))
         req_id = self._send(self._OBJECT_CAST, payload)
 
         # Read the result and give it back
@@ -885,7 +885,7 @@ class PJRmi:
             value_format = self._VALUE_FORMAT_SHMDATA
 
         # Send the request
-        payload = self._format_int64(obj._handle) + value_format
+        payload = self._format_int64(obj._pjrmi_handle) + value_format
 
         req_id = self._send(self._GET_VALUE_OF, payload)
 
@@ -2527,7 +2527,7 @@ public class TestInjectSource {
         if value._this is None:
             handle = self._NULL_HANDLE
         else:
-            handle = value._this._handle
+            handle = value._this._pjrmi_handle
 
         # And build the result. Here we use a boolean to indicate the is_ctor
         # value. At some point we might want to use flags instead but, since
@@ -2578,7 +2578,7 @@ public class TestInjectSource {
                 )
             handle = self._NULL_HANDLE
         else:
-            handle = this._handle
+            handle = this._pjrmi_handle
 
         # Check the number of arguments which we were given, this should match
         # the number of type IDs in the argument list of the method
@@ -2793,17 +2793,17 @@ public class TestInjectSource {
             # argument class
             if value is not None and not value.__class__._instance_of(klass):
                 # Catch the case where we are mixing PJRmi connections
-                if value._pjrmi is not self:
+                if value._pjrmi_inst is not self:
                     raise KeyError(
                         "Attempt to use Java object (%s: %s) from connection %s with %s" %
                         (str(value.__class__), str(value),
-                         value._pjrmi._transport, self._transport)
+                         value._pjrmi_inst._transport, self._transport)
                     )
                 else:
                     raise _LazyTypeError(klass, value)
 
             # Objects are represented by their handles.
-            return self._ARGUMENT_REFERENCE + self._format_int64(value._handle)
+            return self._ARGUMENT_REFERENCE + self._format_int64(value._pjrmi_handle)
 
         else:
             # Handle the case where this a proxy, but allow us to fall through
@@ -2857,7 +2857,7 @@ public class TestInjectSource {
 
                 elif isinstance(value, _JavaObject):
                     return (self._ARGUMENT_REFERENCE +
-                            self._format_int64(value._handle))
+                            self._format_int64(value._pjrmi_handle))
 
                 elif isinstance(value, (bool, numpy.bool_)):
                     return (self._ARGUMENT_VALUE +
@@ -2997,7 +2997,7 @@ public class TestInjectSource {
                     if (isinstance(value, _JavaString) and
                         value._java_string is not None):
                         return (self._ARGUMENT_REFERENCE +
-                                self._format_int64(value._java_string._handle))
+                                self._format_int64(value._java_string._pjrmi_handle))
                     else:
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._java_lang_String._type_id) +
@@ -3343,7 +3343,7 @@ public class TestInjectSource {
             elif (isinstance(value, _JavaString) and
                   value._java_string is not None):
                 return (self._ARGUMENT_REFERENCE +
-                        self._format_int64(value._java_string._handle))
+                        self._format_int64(value._java_string._pjrmi_handle))
 
             elif (isinstance(value, str) and
                   self._java_lang_String._instance_of(klass)):
@@ -3807,7 +3807,7 @@ public class TestInjectSource {
         self._add_type_specific_methods(klass)
 
         # Remember the PJRmi instance from whence we came
-        klass._pjrmi = self
+        klass._pjrmi_inst = self
 
         # And give back the klass which we actually created
         return klass
@@ -3875,12 +3875,12 @@ public class TestInjectSource {
         else:
             def get_field(self_):
                 return self._get_field(klass,
-                                       self_._handle,
+                                       self_._pjrmi_handle,
                                        field['index'])
 
             def set_field(self_, value):
                 return self._set_field(klass,
-                                       self_._handle,
+                                       self_._pjrmi_handle,
                                        field['index'],
                                        self._get_class(field['type_id']),
                                        value)
@@ -4618,12 +4618,12 @@ public class TestInjectSource {
         # Define the methods. Array elements are modelled as fields.
         def __getitem__(self_, key):
             return self._get_field(klass,
-                                   self_._handle,
+                                   self_._pjrmi_handle,
                                    strict_number(numpy.int32, key))
 
         def __setitem__(self_, key, value):
             self._set_field(klass,
-                            self_._handle,
+                            self_._pjrmi_handle,
                             strict_number(numpy.int32, key),
                             self._get_class(self_._array_element_type_id), value)
 
@@ -4633,7 +4633,7 @@ public class TestInjectSource {
         def __iter__(self_):
             i = 0
             while i < self_._length:
-                yield self._get_field(klass, self_._handle, i)
+                yield self._get_field(klass, self_._pjrmi_handle, i)
                 i += 1
 
         def _repr_pretty_(self_, p, cycle):
@@ -4676,26 +4676,31 @@ public class TestInjectSource {
                 if hasattr(self_, '_str'):
                     return getattr(self_, '_str')
 
-                # This relies on the connection being up which might not be the case
-                try:
-                    # Grab the stack trace from the Java side, this will never change
-                    StringUtil = self.class_for_name('com.deshaw.util.StringUtil')
-                    self_._str = str(StringUtil.stackTraceToString(self_))
-                except Exception as e:
-                    # We can't do a lot here so say so
-                    LOG.debug("Could not render exception: %s", e)
-                    self_._str = "<UNKNOWN ERROR>"
+                # Any changes to the object must happen under the guard
+                with self_._pjrmi_attr_guard:
+                    # This relies on the connection being up which might not be
+                    # the case
+                    try:
+                        # Grab the stack trace from the Java side, this will
+                        # never change
+                        StringUtil = self.class_for_name('com.deshaw.util.StringUtil')
+                        self_._pjrmi_str = str(StringUtil.stackTraceToString(self_))
+                    except Exception as e:
+                        # We can't do a lot here so say so
+                        LOG.debug("Could not render exception: %s", e)
+                        self_._pjrmi_str = "<UNKNOWN ERROR>"
 
                 # And give it back
-                return self_._str
+                return self_._pjrmi_str
         else:
             def __str__(self_):
                 # Look for a cached value
-                if hasattr(self_, '_str'):
-                    return getattr(self_, '_str')
+                if hasattr(self_, '_pjrmi_str'):
+                    return getattr(self_, '_pjrmi_str')
 
                 # Else we need to call over to the Java side
-                req_id = self._send(self._TO_STRING, self._format_int64(self_._handle))
+                req_id = self._send(self._TO_STRING,
+                                    self._format_int64(self_._pjrmi_handle))
 
                 # Read the result
                 result = self._read_result(req_id)
@@ -4705,7 +4710,8 @@ public class TestInjectSource {
                 # value
                 if klass._is_immutable:
                     # Yes, it's safe to cache the string value then
-                    setattr(self_, '_str', result)
+                    with self_._pjrmi_attr_guard:
+                        setattr(self_, '_pjrmi_str', result)
 
                 # Give back the result now
                 return result
@@ -4928,19 +4934,30 @@ public class TestInjectSource {
         if klass is None:
             raise TypeError("Can't determine class for type %d" % type_id)
         else:
-            # Create the object and give it back
+            # Create the object
             if issubclass(klass, Exception):
                 result = Exception.__new__(klass)
             else:
                 result = object.__new__(klass)
-            result._pjrmi  = self
-            result._handle = handle
+
+            # Set all the parts which we expect to have associated with it
+            result._pjrmi_inst   = self
+            result._pjrmi_handle = handle
 
             # Need the __len__ method for arrays
             if klass._is_array:
                 # Figure out the length and add the method to the instance
                 req_id = self._send(self._GET_ARRAY_LENGTH, self._format_int64(handle))
                 setattr(result, "_length", self._read_result(req_id))
+
+            # Now that we are done building the Java object, we add the
+            # attribute modification guard
+            result._pjrmi_attr_guard = _ContextGuard()
+            result._pjrmi_attr_guard.__doc__ = '''\
+The _pjrmi_attr_guard prevents accidental creation or deletion of Python
+attributes on Java objects. In order to allow such changes with guard may be
+used as in a `with` conntext.
+'''
 
             # We have special handling for some Python-native-like types here.
             # We turn them into special boxed objects which look like their
@@ -4962,6 +4979,7 @@ public class TestInjectSource {
                     else:
                         result = (raw[0] != 0)
 
+            # And give it back
             return result
 
 
@@ -4995,7 +5013,7 @@ public class TestInjectSource {
         """
 
         # Create the call info
-        handle = self._NULL_HANDLE if obj is None else obj._handle
+        handle = self._NULL_HANDLE if obj is None else obj._pjrmi_handle
         payload = ((b'\x01' if is_ctor else b'\x00') +
                     self._format_int32(type_id)      +
                     value_format                     +
@@ -6659,6 +6677,40 @@ class _ClassGetter:
         return "<Class lookup namespace '%s'>" % '.'.join(self._parts)
 
 
+class _ContextGuard:
+    """
+    A way of guarding certain operations in such a way that the guard is removed
+    when it's context is entered. The context is only visible to the current
+    thread.
+    """
+    def __init__(self):
+        """
+        Initialiser for Java objects.
+        """
+        self.__frozen__ = ThreadLocal()
+
+
+    def active(self):
+        """
+        Whether the guard is active or not.
+        """
+        # A non-zero value means that the guard isn't active; zero means its
+        # context has not been entered and it is active
+        return getattr(self.__frozen__, 'count', 0) == 0
+
+
+    def __enter__(self):
+        if hasattr(self.__frozen__, 'count'):
+            self.__frozen__.count += 1
+        else:
+            self.__frozen__.count  = 1
+        return self
+
+
+    def __exit__(self, typ, value, traceback):
+        self.__frozen__.count -= 1
+
+
 class _JavaMethod:
     """
     How we call a Java method or constructor.
@@ -6706,9 +6758,9 @@ class _JavaMethod:
         """
         klass = self.__klass__
         if self._is_ctor:
-            gettor = lambda x: klass._pjrmi.get_constructor(klass, arg_types=x)
+            gettor = lambda x: klass._pjrmi_inst.get_constructor(klass, arg_types=x)
         else:
-            gettor = lambda x: klass._pjrmi.get_bound_method(self, arg_types=x)
+            gettor = lambda x: klass._pjrmi_inst.get_bound_method(self, arg_types=x)
 
         if key is None:
             # No arguments, represents an empty sequence
@@ -6776,7 +6828,7 @@ class _JavaObject:
         Try to ensure that we drop any reference on the Java side too.
         """
         try:
-            self._pjrmi._drop_reference(type(self), self._handle)
+            self._pjrmi_inst._drop_reference(type(self), self._pjrmi_handle)
         except Exception:
             # Best effort
             pass
@@ -6789,8 +6841,8 @@ class _JavaObject:
         """
 
         if (self is that or
-            (isinstance(that, _JavaObject) and self._handle == that._handle and
-                                               self._pjrmi  is that._pjrmi)):
+            (isinstance(that, _JavaObject) and self._pjrmi_handle == that._pjrmi_handle and
+                                               self._pjrmi_inst  is that._pjrmi_inst)):
             # This is the trivial case; we know these are the same instance
             # since they are either the same Python object or because have the
             # same handle on the Java object (which means they represent the
@@ -6844,6 +6896,37 @@ class _JavaObject:
         """
 
         raise NotImplementedError("PJRmi instances can't be pickled")
+
+
+    def __setattr__(self, k, v):
+        """
+        Disallow calling `__setattr__` to create new attributes if the object is
+        guarded. Modification is allowed since we assume that people know what
+        they're doing once something is created. Also, the properties attributes
+        which front the Java object members rely on __setattr__ to work.
+        """
+        if not hasattr(self, k) and \
+           hasattr(self, '_pjrmi_attr_guard') and self._pjrmi_attr_guard.active():
+            raise AttributeError(
+                "Creation Python attributes outside of the _pjrmi_attr_guard "
+                "context is disallowed"
+            )
+        else:
+            object.__setattr__(self, k, v)
+
+
+    def __delattr__(self, k):
+        """
+        Disallow calling `__delattr__` if the object is guarded.
+        """
+        if hasattr(self, '_pjrmi_attr_guard') and self._pjrmi_attr_guard.active():
+            raise AttributeError(
+                "Deletion Python attributes outside of the _pjrmi_attr_guard "
+                "context is disallowed"
+            )
+        else:
+            del self.__dict__[k]
+
 
 
 class _JavaLock:

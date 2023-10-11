@@ -356,7 +356,13 @@ class PJRmi:
         # the server, and that should be pretty obvious from context.
         if ack != self._HELLO:
             self._transport.disconnect()
-            raise IOError("Didn't get expected hand-shake back: %s" % ack)
+            raise IOError(
+                "Didn't get expected handshake back; "
+                "got %s but expected %s; "
+                "this likely indicates a version mismatch between "
+                "the client and server libraries."
+                % (ack, self._HELLO)
+            )
 
         # We are about to get a short string back. Read in its size, if it's
         # negative then it means we encountered an error and the connection will

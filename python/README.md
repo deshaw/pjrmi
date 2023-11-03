@@ -27,6 +27,8 @@ Some headline features of PJRmi are:
 -   Thread-safe execution, with built-in locking support and asynchronous
     execution via futures.
 -   Realtime code injection.
+-   A [numpy](https://numpy.org/)-like math library for Java, which is also
+    directly interoperable with Python.
 
 Use-case examples:
 -   Scriptification of Java applications.
@@ -104,6 +106,27 @@ And you can treat the Java objects much like Python ones:
     6
     >>> 1 in a
     True
+
+The `hypercube` package supports `ndarray`-like Java classes, as well as
+providing a subset of `numpy` math library operations. Hypercubes also duck-type
+as `ndarray`s in Python:
+
+    >>> DoubleArrayHypercube = c.class_for_name('com.deshaw.hypercube.DoubleArrayHypercube')
+    >>> Dimension            = c.class_for_name('com.deshaw.hypercube.Dimension')
+    >>> CubeMath             = c.class_for_name('com.deshaw.hypercube.CubeMath')
+    >>> dac = DoubleArrayHypercube(Dimension.of((3,3,3)))
+    >>> dac.reshape((27,))[:] = tuple(range(27))
+    >>> dac[0]
+    DoubleSlicedHypercube([ [0.0, 1.0, 2.0] ,
+                            [3.0, 4.0, 5.0] ,
+                            [6.0, 7.0, 8.0] ])
+    >>> numpy.sum(dac)
+    351.0
+    >>> CubeMath.sum(dac)
+    351.0
+
+These are covered in more detail in the Jupyter
+[notebook](python/tests/hypercube.ipynb).
 
 
 ## Accessing Existing Object Instances

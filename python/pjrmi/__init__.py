@@ -3930,6 +3930,30 @@ public class TestInjectSource {
                           method_name,
                           's' if len(methods) > 1 else ''))
 
+        # All the method signatures in a sensible order.
+        signatures = self._get_signatures(is_ctor, method_name, methods)
+
+        # Add each signature to the docstring, allong with anything extra.
+        for signature in signatures:
+            if klass_doc_url is None:
+                doc_link = ''
+            else:
+                doc_link = "\n%s%s%s#%s(%s)" % (indent,
+                                                indent,
+                                                klass_doc_url,
+                                                method_name,
+                                                ','.join(arg_classnames))
+
+            # Add the details
+            result += ("%s%s%s\n" % (indent, signature, doc_link))
+
+        return result
+
+
+    def _get_signatures(self, is_ctor, method_name, methods):
+        """
+        Create a list of pretty method signatures, in a sensible order.
+        """
         # Static methods will have a 'static' prefix and so we want to align the
         # instance methods accordingly, but only if we have any static ones to
         # align against
@@ -3939,8 +3963,9 @@ public class TestInjectSource {
         else:
             instance_indent = ''
 
-        # List each method form, ordered by static vs instance, then fewest
+        # Create each method form, ordered by static vs instance, then fewest
         # arguments to the most
+        signatures = [] # (method, str)
         for method in sorted(methods,
                              key = lambda m: (not m['is_static'],
                                               len(m['argument_type_ids']))):
@@ -3962,41 +3987,31 @@ public class TestInjectSource {
                 re.match('^arg[0-9]+', pn) for pn in parameter_names
             )
 
-            # If we have default parameter names, use the concatenated
-            # argument class names for docstring since parameter names do
-            # not provide any extra information in this case. Else,
-            # concatenate the argument class names with the corresponding
-            # parameter names and use it for docstring.
+            # If we have default parameter names, use the concatenated argument
+            # class names since parameter names do not provide any extra
+            # information in this case. Else, concatenate the argument class
+            # names with the corresponding parameter names.
             if are_param_names_default:
-                params_doc = ', '.join(arg_classnames)
+                params = ', '.join(arg_classnames)
             else:
                 parameter_classes_and_names = [
-                    type + ' ' + name
-                    for type, name in zip(arg_classnames, parameter_names)
+                    type_ + ' ' + name
+                    for type_, name in zip(arg_classnames, parameter_names)
                 ]
+                params = ', '.join(parameter_classes_and_names)
 
-                params_doc = ', '.join(parameter_classes_and_names)
-
-            if klass_doc_url is None:
-                doc_link = ''
-            else:
-                doc_link = "\n%s%s%s#%s(%s)" % (indent,
-                                                indent,
-                                                klass_doc_url,
-                                                method_name,
-                                                ','.join(arg_classnames))
-            # Add the details
+            # Construct the signature
             return_string = '' if is_ctor else \
                 '%s ' % self._get_class(method['return_type_id'])._prettyname
-            result += ("%s%s%s%s(%s)%s\n" %
-                       (indent,
-                        static_pfx if method['is_static'] else instance_indent,
-                        return_string,
-                        method_name,
-                        params_doc,
-                        doc_link))
+            signatures.append(
+                "%s%s%s(%s)" %
+                (static_pfx if method['is_static'] else instance_indent,
+                 return_string,
+                 method_name,
+                 params)
+            )
 
-        return result
+        return signatures
 
 
     def _create_method(self, klass, method_name, methods):
@@ -4347,13 +4362,17 @@ public class TestInjectSource {
                 )
 
             else:
-                # matches was empty so we found nothing
+                # matches was empty so we found nothing, but report the possible
+                # method signatures so the user can adjust their parameters
+                signatures = self._get_signatures(False, method_name, methods)
+
                 raise TypeError(
-                    "Could not find a method matching %s#%s(%s): %s" %
+                    "Could not find a method matching %s#%s(%s) in:%s%s" %
                     (klass._classname,
                      method_name,
                      ', '.join(str(i.__class__) for i in args),
-                     '; '.join(map(str, exceptions)))
+                     ''  .join('\n    %s' % (s,) for s in signatures),
+                     '' if not exceptions else '\n' + '; '.join(map(str, exceptions)))
                 )
 
         # Give it a better name

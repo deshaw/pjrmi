@@ -164,6 +164,13 @@ public class MethodUtil
     // ----------------------------------------------------------------------
 
     /**
+     * The basic instance of this class, without specialisation.
+     */
+    public static final MethodUtil INSTANCE = new MethodUtil();
+
+    // ----------------------------------------------------------------------
+
+    /**
      * Compare two methods according to the Java compiler binding semantics.
      * Read the Java spec, referenced below, for the official definition of
      * what that means.
@@ -230,8 +237,7 @@ public class MethodUtil
      */
     public static int compareBySpecificity(final Method m1, final Method m2)
     {
-        return compareBySpecificity(new MethodWrapper(m1),
-                                    new MethodWrapper(m2));
+        return INSTANCE.compareMethodBySpecificity(m1, m2);
     }
 
     /**
@@ -245,187 +251,36 @@ public class MethodUtil
     public static int compareBySpecificity(final Constructor<?> m1,
                                            final Constructor<?> m2)
     {
-        return compareBySpecificity(new ConstructorWrapper(m1),
-                                    new ConstructorWrapper(m2));
+        return INSTANCE.compareConstructorBySpecificity(m1, m2);
     }
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     /**
-     * How we actually compare any two CallableWrappers.
-     *
-     * @see #compareBySpecificity(Method,Method)
-     *
-     * @param w1  The first wrapper.
-     * @param w2  The second wrapper.
-     *
-     * @return the relative specificity.
+     * The instance version of {@link #compareBySpecificity(Method,Method)}.
      */
-    private static int compareBySpecificity(final CallableWrapper w1,
-                                            final CallableWrapper w2)
+    public int compareMethodBySpecificity(final Method m1,
+                                          final Method m2)
     {
-        // Simple name compare
-        final String n1 = w1.getName();
-        final String n2 = w2.getName();
-        if (!n1.equals(n2)) {
-            return 0;
-        }
+        return compareBySpecificity(new MethodWrapper(m1),
+                                    new MethodWrapper(m2));
+    }
 
-        // Simple num-args compare
-        final Class<?>[] a1 = w1.getParameterTypes();
-        final Class<?>[] a2 = w2.getParameterTypes();
-        if (a1.length != a2.length) {
-            return 0;
-        }
-
-        // Now compare by specificity. If m1's arguments are more specific then
-        // they are "less than" the those of m2. E.g. this is an ordering:
-        //   f(Integer)
-        //   f(Number)
-        //   f(Object)
-        //
-        // Note that if there is no definite ordering then we return zero, e.g.
-        // for:
-        //   f(Integer, Number)
-        //   f(Number, Integer)
-        // neither one is greater than the other.
-        //
-        // Also note that, if two methods have arguments which are not in the
-        // same inheritance tree then they are not comparable (i.e. we return
-        // zero). Consider these interfaces:
-        //   A, B-extends-A, C, D
-        // and these methods:
-        //   void f(A, C)
-        //   void f(B, D)
-        // These calls are:
-        //   f(a,    null);  <-- unique and unambiguous
-        //   f(b,    null);  <-- ambiguous (could bind to either)
-        //   f(null, null);  <-- ambiguous (could bind to either)
-        //   f(a,    c);     <-- unique and unambiguous
-        //   f(b,    d);     <-- unique and unambiguous
-        // So, in all cases, no specificity ordering exists.
-        //
-        // An extra quirk here is that the Python side of PJRmi will allow
-        // assignment-by-argument passing to array types. I.e. a list of Python
-        // floats can be rendered as a Java double[] or an Object[]. That means
-        // that overloaded methods which take such array types can both bind to
-        // the given Python argument. We dictate that similar binding semantics
-        // exist for the arrays, based on their element types. I.e. in the above
-        // example the double[] version of the method is more specific than the
-        // Object[] one, since you can assign doubles to Objects, but not
-        // Objects to doubles.
-        //
-        // Finally, note that it's possible for the arguments to _exactly_ match
-        // if one class overrides a method in another class but has a more
-        // specific return type. As such, we need to know if that happens too
-        // and tie-break on the return type.
-        boolean match = true;
-        int cmp = 0;
-        for (int i=0; i < a1.length; i++) {
-            final Class<?> c1 = a1[i];
-            final Class<?> c2 = a2[i];
-            if (areEquivalent(c1, c2)) {
-                // Same class is not more or less specific
-            }
-            else if (isAssignableFrom(c1, c2)) {
-                // c2 is more specific than c1 since we can assign a c2 value to
-                // a c1 one. (E.g. c1 is a long and c2 is a short.)
-                if (cmp < 0) {
-                    // We have one argument which is more specific and one
-                    // argument which is less specific; therefore neither method
-                    // is more specific than the other. See above.
-                    return 0;
-                }
-                else {
-                    // Remember the direction of specificity, so we can check
-                    // that all the arguments don't have conflicting directions.
-                    // (As per the if block just above.)
-                    cmp  = 1;
-                    match = false;
-                }
-            }
-            else if (isAssignableFrom(c2, c1)) {
-                // c1 is more specific
-                if (cmp > 0) {
-                    // The same one-more/one-less case, like above.
-                    return 0;
-                }
-                else {
-                    // Remember the direction, like above.
-                    cmp   = -1;
-                    match = false;
-                }
-            }
-            else if (c1.isArray() && c2.isArray() &&
-                     isArrayMoreSpecific(c2, c1)) // <-- note order
-            {
-                // c2 is an array which is more specific than c1. See the
-                // similar case above for comments.
-                if (cmp < 0) {
-                    return 0;
-                }
-                else {
-                    cmp   = 1;
-                    match = false;
-                }
-            }
-            else if (c1.isArray() && c2.isArray() &&
-                     isArrayMoreSpecific(c1, c2)) // <-- note order
-            {
-                // c1 is an array which is more specific than c2
-                if (cmp > 0) {
-                    return 0;
-                }
-                else {
-                    cmp   = -1;
-                    match = false;
-                }
-            }
-            else {
-                // The two types have no relation and so they are uncomparable.
-                // This renders the entire method uncomparable also. Per Java
-                // semantics, it can now not be more specific than another
-                // method.
-                return 0;
-            }
-        }
-
-        // Did we get an exact match in the arguments?
-        if (match) {
-            // The more specific return type overrides the less specific one
-            final Class<?> r1 = w1.getReturnType();
-            final Class<?> r2 = w2.getReturnType();
-            if (r1.equals(r2)) {
-                // This can happen if we were passed two identical methods
-                return 0;
-            }
-            else if (isAssignableFrom(r1, r2)) {
-                // w1's overridden by w2 so it's after w2 in terms of
-                // specificity
-                return 1;
-            }
-            else if (isAssignableFrom(r2, r1)) {
-                // w1 overrides w2 so it's before w2 in terms of specificity
-                return -1;
-            }
-            else {
-                // The two return types are different classes and, so, they are
-                // not comparable
-                return 0;
-            }
-        }
-        else {
-            // The signed result indicates the relative specificity of the
-            // arguments
-            return cmp;
-        }
+    /**
+     * The instance version of {@link #compareBySpecificity(Constructor,Constructor)}.
+     */
+    public int compareConstructorBySpecificity(final Constructor<?> m1,
+                                               final Constructor<?> m2)
+    {
+        return compareBySpecificity(new ConstructorWrapper(m1),
+                                    new ConstructorWrapper(m2));
     }
 
     /**
      * Whether two classes are equivalent, with understanding of auto-boxing.
      * This is in the context of method comparison, as opposed to type equality.
      */
-    private static boolean areEquivalent(final Class<?> c1, final Class<?> c2)
+    protected boolean areEquivalent(final Class<?> c1, final Class<?> c2)
     {
         // If both are null or equal then they are equivalent
         if (Objects.equals(c1, c2)) {
@@ -490,6 +345,20 @@ public class MethodUtil
     }
 
     /**
+     * Whether the type represented by class {@code c1} is more specific than
+     * the type represented by {@code c2}.
+     *
+     * <p>This code assumes that the arguments are non-{@code null}; no checking
+     * will be done.
+     */
+    protected boolean isMoreSpecific(final Class<?> c1, final Class<?> c2)
+    {
+        // By default we don't say that they are. This method is here so that
+        // sub-classes can nuance the type semantics.
+        return false;
+    }
+
+    /**
      * Whether one class is assignable from another class. This is just like the
      * standard {@link Class} version of the method, except that it will handle
      * primitives too.
@@ -524,7 +393,7 @@ public class MethodUtil
      * <p>If either class is {@code null} then this method will return
      * {@code false}.
      */
-    private static boolean isAssignableFrom(final Class<?> c1, final Class<?> c2)
+    protected boolean isAssignableFrom(final Class<?> c1, final Class<?> c2)
     {
         // You can never assign to or from a null class
         if (c1 == null || c2 == null) {
@@ -645,7 +514,7 @@ public class MethodUtil
      * <p>This code assumes that the arguments are non-{@code null} and that
      * they represent arrays; no checking will be done.
      */
-    private static boolean isArrayMoreSpecific(final Class<?> c1, final Class<?> c2)
+    protected boolean isArrayMoreSpecific(final Class<?> c1, final Class<?> c2)
     {
         // Determine the element types
         final Class<?> t1 = c1.getComponentType();
@@ -679,6 +548,197 @@ public class MethodUtil
             // is not the boxed type of the other).
             return isAssignableFrom(t2, t1) &&
                   !isAssignableFrom(t1, t2);
+        }
+    }
+
+    /**
+     * How we actually compare any two CallableWrappers.
+     *
+     * @see #compareBySpecificity(Method,Method)
+     *
+     * @param w1  The first wrapper.
+     * @param w2  The second wrapper.
+     *
+     * @return the relative specificity.
+     */
+    private int compareBySpecificity(final CallableWrapper w1,
+                                     final CallableWrapper w2)
+    {
+        // Simple name compare
+        final String n1 = w1.getName();
+        final String n2 = w2.getName();
+        if (!n1.equals(n2)) {
+            return 0;
+        }
+
+        // Simple num-args compare
+        final Class<?>[] a1 = w1.getParameterTypes();
+        final Class<?>[] a2 = w2.getParameterTypes();
+        if (a1.length != a2.length) {
+            return 0;
+        }
+
+        // Now compare by specificity. If m1's arguments are more specific then
+        // they are "less than" the those of m2. E.g. this is an ordering:
+        //   f(Integer)
+        //   f(Number)
+        //   f(Object)
+        //
+        // Note that if there is no definite ordering then we return zero, e.g.
+        // for:
+        //   f(Integer, Number)
+        //   f(Number, Integer)
+        // neither one is greater than the other.
+        //
+        // Also note that, if two methods have arguments which are not in the
+        // same inheritance tree then they are not comparable (i.e. we return
+        // zero). Consider these interfaces:
+        //   A, B-extends-A, C, D
+        // and these methods:
+        //   void f(A, C)
+        //   void f(B, D)
+        // These calls are:
+        //   f(a,    null);  <-- unique and unambiguous
+        //   f(b,    null);  <-- ambiguous (could bind to either)
+        //   f(null, null);  <-- ambiguous (could bind to either)
+        //   f(a,    c);     <-- unique and unambiguous
+        //   f(b,    d);     <-- unique and unambiguous
+        // So, in all cases, no specificity ordering exists.
+        //
+        // An extra quirk here is that the Python side of PJRmi will allow
+        // assignment-by-argument passing to array types. I.e. a list of Python
+        // floats can be rendered as a Java double[] or an Object[]. That means
+        // that overloaded methods which take such array types can both bind to
+        // the given Python argument. We dictate that similar binding semantics
+        // exist for the arrays, based on their element types. I.e. in the above
+        // example the double[] version of the method is more specific than the
+        // Object[] one, since you can assign doubles to Objects, but not
+        // Objects to doubles.
+        //
+        // Finally, note that it's possible for the arguments to _exactly_ match
+        // if one class overrides a method in another class but has a more
+        // specific return type. As such, we need to know if that happens too
+        // and tie-break on the return type.
+        boolean match = true;
+        int cmp = 0;
+        for (int i=0; i < a1.length; i++) {
+            final Class<?> c1 = a1[i];
+            final Class<?> c2 = a2[i];
+            if (areEquivalent(c1, c2)) {
+                // Same class is not more or less specific
+            }
+            else if (isMoreSpecific(c2, c1)) { // <-- note order
+                // c2 is a type which is more specific than c1. See the similar
+                // case below for comments.
+                if (cmp < 0) {
+                    return 0;
+                }
+                else {
+                    cmp   = 1;
+                    match = false;
+                }
+            }
+            else if (isMoreSpecific(c1, c2)) { // <-- note order
+                // c1 is a type which is more specific than c2
+                if (cmp > 0) {
+                    return 0;
+                }
+                else {
+                    cmp   = -1;
+                    match = false;
+                }
+            }
+            else if (isAssignableFrom(c1, c2)) {
+                // c2 is more specific than c1 since we can assign a c2 value to
+                // a c1 one. (E.g. c1 is a long and c2 is a short.)
+                if (cmp < 0) {
+                    // We have one argument which is more specific and one
+                    // argument which is less specific; therefore neither method
+                    // is more specific than the other. See above.
+                    return 0;
+                }
+                else {
+                    // Remember the direction of specificity, so we can check
+                    // that all the arguments don't have conflicting directions.
+                    // (As per the if block just above.)
+                    cmp  = 1;
+                    match = false;
+                }
+            }
+            else if (isAssignableFrom(c2, c1)) {
+                // c1 is more specific
+                if (cmp > 0) {
+                    // The same one-more/one-less case, like above.
+                    return 0;
+                }
+                else {
+                    // Remember the direction, like above.
+                    cmp   = -1;
+                    match = false;
+                }
+            }
+            else if (c1.isArray() && c2.isArray() &&
+                     isArrayMoreSpecific(c2, c1)) // <-- note order
+            {
+                // c2 is an array which is more specific than c1. See the
+                // similar case above for comments.
+                if (cmp < 0) {
+                    return 0;
+                }
+                else {
+                    cmp   = 1;
+                    match = false;
+                }
+            }
+            else if (c1.isArray() && c2.isArray() &&
+                     isArrayMoreSpecific(c1, c2)) // <-- note order
+            {
+                // c1 is an array which is more specific than c2
+                if (cmp > 0) {
+                    return 0;
+                }
+                else {
+                    cmp   = -1;
+                    match = false;
+                }
+            }
+            else {
+                // The two types have no relation and so they are uncomparable.
+                // This renders the entire method uncomparable also. Per Java
+                // semantics, it can now not be more specific than another
+                // method.
+                return 0;
+            }
+        }
+
+        // Did we get an exact match in the arguments?
+        if (match) {
+            // The more specific return type overrides the less specific one
+            final Class<?> r1 = w1.getReturnType();
+            final Class<?> r2 = w2.getReturnType();
+            if (r1.equals(r2)) {
+                // This can happen if we were passed two identical methods
+                return 0;
+            }
+            else if (isAssignableFrom(r1, r2)) {
+                // w1's overridden by w2 so it's after w2 in terms of
+                // specificity
+                return 1;
+            }
+            else if (isAssignableFrom(r2, r1)) {
+                // w1 overrides w2 so it's before w2 in terms of specificity
+                return -1;
+            }
+            else {
+                // The two return types are different classes and, so, they are
+                // not comparable
+                return 0;
+            }
+        }
+        else {
+            // The signed result indicates the relative specificity of the
+            // arguments
+            return cmp;
         }
     }
 }

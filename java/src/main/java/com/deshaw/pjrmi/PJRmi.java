@@ -101,7 +101,6 @@ import java.util.stream.Collectors;
 
 import org.xerial.snappy.Snappy;
 
-import static com.deshaw.pjrmi.MethodUtil.compareBySpecificity;
 import static com.deshaw.util.StringUtil.appendHexByte;
 import static com.deshaw.util.StringUtil.stackTraceToString;
 
@@ -1125,8 +1124,11 @@ public abstract class PJRmi
             // incomparible with itself).
             for (int i=0; i < myConstructors.length; i++) {
                 for (int j=0; j < i; j++) {
-                    final int cmp = compareBySpecificity(myConstructors[i],
-                                                         myConstructors[j]);
+                    final int cmp =
+                        ourMethodUtil.compareConstructorBySpecificity(
+                            myConstructors[i],
+                            myConstructors[j]
+                        );
                     myConstructorSpecificities[i][j] = (byte)Math.signum( cmp);
                     myConstructorSpecificities[j][i] = (byte)Math.signum(-cmp);
                 }
@@ -1151,8 +1153,11 @@ public abstract class PJRmi
             // with itself).
             for (int i=0; i < myMethods.length; i++) {
                 for (int j=0; j < i; j++) {
-                    final int cmp = compareBySpecificity(myMethods[i],
-                                                         myMethods[j]);
+                    final int cmp =
+                        ourMethodUtil.compareMethodBySpecificity(
+                            myMethods[i],
+                            myMethods[j]
+                        );
                     myMethodSpecificities[i][j] = (byte)Math.signum( cmp);
                     myMethodSpecificities[j][i] = (byte)Math.signum(-cmp);
                 }
@@ -2086,6 +2091,49 @@ public abstract class PJRmi
     }
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    /**
+     * A specialisation of MethodUtil which handles noisy semantics of certain
+     * Python types.
+     */
+    private static class PythonicMethodUtil
+        extends MethodUtil
+    {
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        protected boolean isMoreSpecific(final Class<?> c1, final Class<?> c2)
+        {
+            // We say that Strings are more specific than char[]s or byte[]s,
+            // since we want a Python str to bind to String.
+            if (String.class.equals(c1) &&
+                (char[].class.equals(c2) || byte[].class.equals(c2)))
+            {
+                return true;
+            }
+
+            // Defer to the parent method
+            return super.isMoreSpecific(c1, c2);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        protected boolean isArrayMoreSpecific(final Class<?> c1, final Class<?> c2)
+        {
+            // We say that a char[] is more specific than a byte[] one, so that
+            // a Python str is interpreted as a char[] where we have ambuiguity
+            // in binding.
+            if (char[].class.equals(c1) && byte[].class.equals(c2)) {
+                return true;
+            }
+
+            // Defer to the parent method
+            return super.isArrayMoreSpecific(c1, c2);
+        }
+    }
 
     /**
      * How we order methods. We put them in order of:
@@ -9020,6 +9068,11 @@ public abstract class PJRmi
      * An empty {@code Object[]}, so we don't create pointless ones.
      */
     private static final Object[] EMPTY_OBJECTS = new Object[0];
+
+    /**
+     * Our specialisation of the MethodUtil class.
+     */
+    private static MethodUtil ourMethodUtil = new PythonicMethodUtil();
 
     /**
      * The byte buffers used to build up the output messages. Always returned

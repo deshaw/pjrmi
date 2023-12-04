@@ -6046,7 +6046,7 @@ class SocketTransport:
         """
 
         self._host   = host
-        self._port   = port
+        self._port   = int(port)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
@@ -6055,11 +6055,7 @@ class SocketTransport:
         A brief description of the transport.
         """
 
-        if self._server_name is None:
-            details = "%s:%d" % (self._host, self._port)
-        else:
-            details = "%s@%s:%d" % (self._server_name, self._host, self._port)
-        return "Socket[%s]" % details
+        return "%s[%s:%d]" % (self.__class__.__name__, self._host, self._port)
 
 
     def connect(self):

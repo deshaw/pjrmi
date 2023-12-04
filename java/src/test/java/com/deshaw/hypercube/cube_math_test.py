@@ -2,6 +2,8 @@ import numpy
 import params
 
 _CUBE_MATH_TEST_PREFIX = '''\
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 /**
@@ -27,7 +29,7 @@ public class CubeMathTest
     private <T> void assertEquals(final Hypercube<T> cube1,
                                   final Hypercube<T> cube2)
     {{
-        assert(CubeMath.all(CubeMath.equal(cube1, cube2)));
+        assert(CubeMath.all0d(CubeMath.equal(cube1, cube2)));
     }}
 '''
 
@@ -51,14 +53,14 @@ _CUBE_MATH_TEST_ALL = '''\
         final Hypercube<Boolean> le = CubeMath.lessEqual   (a, b);
         final Hypercube<Boolean> ge = CubeMath.greaterEqual(a, b);
 
-        assert( CubeMath.all(eq));
-        assert( CubeMath.any(eq));
-        assert(!CubeMath.any(lt));
-        assert(!CubeMath.any(gt));
-        assert( CubeMath.any(le));
-        assert( CubeMath.any(ge));
-        assert(!CubeMath.all(ne));
-        assert(!CubeMath.any(ne));
+        assert( CubeMath.all0d(eq));
+        assert( CubeMath.any0d(eq));
+        assert(!CubeMath.any0d(lt));
+        assert(!CubeMath.any0d(gt));
+        assert( CubeMath.any0d(le));
+        assert( CubeMath.any0d(ge));
+        assert(!CubeMath.all0d(ne));
+        assert(!CubeMath.any0d(ne));
     }}
 
     // ----------------------------------------------------------------------
@@ -152,7 +154,7 @@ _CUBE_MATH_TEST_NUMERIC = '''\
         // Check that all elements are zero.
         final Hypercube<Boolean> e = CubeMath.equal(m, {cast}0);
         final Hypercube<Boolean> b = CubeMath.equal(e, true);
-        assert(CubeMath.all(b));
+        assert(CubeMath.all0d(b));
     }}
 
     /**
@@ -330,6 +332,35 @@ _CUBE_MATH_TEST_REAL = '''\
 
         assert({object_type}.isNaN(CubeMath.sum0d(a)));
         assert(Math.abs(CubeMath.nansum0d(a) - nansum) <= EPS);
+    }}
+
+    /**
+     * Test that the {{@code where}} kwarg works as expected.
+     */
+    @Test
+    public void test{object_type}WhereKwarg()
+    {{
+        // Create the cube full of values, from negative to positive, and
+        // compute the sum of the non-negative ones
+        {primitive_type} sum = 0;
+        final {object_type}Hypercube cube = create{object_type}Hypercube();
+        for (long i = 0, j = cube.getSize() / 2; i < cube.getSize(); i++, j++) {{
+            cube.setAt(i, {cast}j);
+            if (j >= 0) {{
+                sum += j;
+            }}
+        }}
+
+        // Get the mask of the values in the cube which are non-negative and use
+        // that as the where clause for sum()
+        final Hypercube<Boolean> where = CubeMath.greaterEqual(cube, {cast}0);
+        final Object whereSum = CubeMath.sum(cube, Map.of("where", where));
+
+        // Sum should return an object of the element type. (It could return
+        // null, or another cube if the axis kwarg is used.) That value should
+        // match our computed sum.
+        assert(whereSum instanceof {object_type});
+        assert(({object_type})whereSum == sum);
     }}
 '''
 

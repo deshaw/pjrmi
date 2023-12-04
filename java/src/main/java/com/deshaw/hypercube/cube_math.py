@@ -45,6 +45,11 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Math operations on {{@link Hypercube}} instances.
+ *
+ * <p>This class provides a subset of Python's various {{@code numpy}} methods
+ * as well as similar utility functions. Some methods also support a subset of
+ * the corresponding kwargs. It is not current feature-complete with respect to
+ * the {{@code numpy}} module and does not aim to better it in performance.
  */
 public class {class_name}
 {{
@@ -499,21 +504,8 @@ public class {class_name}
             dims = Dimension.of(KwargUtil.toLongArray(shape));
         }}
 
-        Object dtype = (kwargs == null) ? "float64"
-                                        : kwargs.getOrDefault("dtype", "float");
-        if (dtype == null) {{
-            throw new IllegalArgumentException("Specified dtype was null");
-        }}
-        if (dtype.equals("float")) {{
-            dtype = "float64";
-        }}
-        if (!(dtype instanceof String)) {{
-            dtype = dtype.toString();
-        }}
-        final DType.Type type = DType.Type.byName((String)dtype);
-        if (type == null) {{
-            throw new IllegalArgumentException("No dtype for '" + dtype + "'");
-        }}
+        final Object dtype = (kwargs == null) ? "float64" : kwargs.get("dtype");
+        final DType.Type type = KwargUtil.toDTypeType(dtype);
         final Class<?> klass = type.objectClass;
 
         // See if we can do it, leveraging our already existing casting methods
@@ -568,20 +560,8 @@ public class {class_name}
             dims = Dimension.of(KwargUtil.toLongArray(shape));
         }}
 
-        Object dtype = (kwargs == null) ? "float64" : kwargs.get("dtype");
-        if (dtype == null) {{
-            dtype = "float";
-        }}
-        if (dtype.equals("float")) {{
-            dtype = "float64";
-        }}
-        if (!(dtype instanceof String)) {{
-            dtype = dtype.toString();
-        }}
-        final DType.Type type = DType.Type.byName((String)dtype);
-        if (type == null) {{
-            throw new IllegalArgumentException("No dtype for '" + dtype + "'");
-        }}
+        final Object dtype = (kwargs == null) ? "float64" : kwargs.get("dtype");
+        final DType.Type type = KwargUtil.toDTypeType(dtype);
         final Class<?> klass = type.objectClass;
 
         // See if we can do it, leveraging our already existing casting methods
@@ -636,20 +616,8 @@ public class {class_name}
             dims = Dimension.of(KwargUtil.toLongArray(shape));
         }}
 
-        Object dtype = (kwargs == null) ? "float64" : kwargs.get("dtype");
-        if (dtype == null) {{
-            dtype = "float";
-        }}
-        if (dtype.equals("float")) {{
-            dtype = "float64";
-        }}
-        if (!(dtype instanceof String)) {{
-            dtype = dtype.toString();
-        }}
-        final DType.Type type = DType.Type.byName((String)dtype);
-        if (type == null) {{
-            throw new IllegalArgumentException("No dtype for '" + dtype + "'");
-        }}
+        final Object dtype = (kwargs == null) ? "float64" : kwargs.get("dtype");
+        final DType.Type type = KwargUtil.toDTypeType(dtype);
         final Class<?> klass = type.objectClass;
 
         // See if we can do it, leveraging our already existing casting methods
@@ -891,7 +859,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.ADD);
+        return binaryOp(a, b, null, BinaryOp.ADD);
     }}
 
     /**
@@ -912,7 +880,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.ADD);
+        return binaryOp(a, b, r, null, BinaryOp.ADD);
     }}
 
     /**
@@ -930,7 +898,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.ADD);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.ADD);
     }}
 
     /**
@@ -951,7 +919,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.ADD);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.ADD);
     }}
 
     /**
@@ -969,7 +937,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.ADD);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.ADD);
     }}
 
     /**
@@ -990,7 +958,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.ADD);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.ADD);
     }}
 
     /**
@@ -1010,7 +978,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.SUB);
+        return binaryOp(a, b, null, BinaryOp.SUB);
     }}
 
     /**
@@ -1031,7 +999,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.SUB);
+        return binaryOp(a, b, r, null, BinaryOp.SUB);
     }}
 
     /**
@@ -1049,7 +1017,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.SUB);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.SUB);
     }}
 
     /**
@@ -1070,7 +1038,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.SUB);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.SUB);
     }}
 
     /**
@@ -1088,7 +1056,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.SUB);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.SUB);
     }}
 
     /**
@@ -1109,7 +1077,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.SUB);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.SUB);
     }}
 
     /**
@@ -1129,7 +1097,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.MUL);
+        return binaryOp(a, b, null, BinaryOp.MUL);
     }}
 
     /**
@@ -1150,7 +1118,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.MUL);
+        return binaryOp(a, b, r, null, BinaryOp.MUL);
     }}
 
     /**
@@ -1168,7 +1136,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.MUL);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.MUL);
     }}
 
     /**
@@ -1190,7 +1158,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.MUL);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.MUL);
     }}
 
     /**
@@ -1208,7 +1176,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.MUL);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.MUL);
     }}
 
     /**
@@ -1230,7 +1198,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.MUL);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.MUL);
     }}
 
     /**
@@ -1250,7 +1218,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.DIV);
+        return binaryOp(a, b, null, BinaryOp.DIV);
     }}
 
     /**
@@ -1271,7 +1239,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.DIV);
+        return binaryOp(a, b, r, null, BinaryOp.DIV);
     }}
 
     /**
@@ -1289,7 +1257,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.DIV);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.DIV);
     }}
 
     /**
@@ -1310,7 +1278,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.DIV);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.DIV);
     }}
 
     /**
@@ -1328,7 +1296,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.DIV);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.DIV);
     }}
 
     /**
@@ -1349,7 +1317,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.DIV);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.DIV);
     }}
 
     /**
@@ -1369,7 +1337,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.MOD);
+        return binaryOp(a, b, null, BinaryOp.MOD);
     }}
 
     /**
@@ -1390,7 +1358,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.MOD);
+        return binaryOp(a, b, r, null, BinaryOp.MOD);
     }}
 
     /**
@@ -1408,7 +1376,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.MOD);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.MOD);
     }}
 
     /**
@@ -1429,7 +1397,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.MOD);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.MOD);
     }}
 
     /**
@@ -1447,7 +1415,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.MOD);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.MOD);
     }}
 
     /**
@@ -1468,7 +1436,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.MOD);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.MOD);
     }}
 
     /**
@@ -1488,7 +1456,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.POW);
+        return binaryOp(a, b, null, BinaryOp.POW);
     }}
 
     /**
@@ -1510,7 +1478,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.POW);
+        return binaryOp(a, b, r, null, BinaryOp.POW);
     }}
 
     /**
@@ -1528,7 +1496,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.POW);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.POW);
     }}
 
     /**
@@ -1550,7 +1518,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.POW);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.POW);
     }}
 
     /**
@@ -1568,7 +1536,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.POW);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.POW);
     }}
 
     /**
@@ -1590,7 +1558,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.POW);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.POW);
     }}
 
     /**
@@ -1611,7 +1579,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.MIN);
+        return binaryOp(a, b, null, BinaryOp.MIN);
     }}
 
     /**
@@ -1633,7 +1601,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.MIN);
+        return binaryOp(a, b, r, null, BinaryOp.MIN);
     }}
 
     /**
@@ -1652,7 +1620,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.MIN);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.MIN);
     }}
 
     /**
@@ -1674,7 +1642,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.MIN);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.MIN);
     }}
 
     /**
@@ -1693,7 +1661,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.MIN);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.MIN);
     }}
 
     /**
@@ -1715,7 +1683,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.MIN);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.MIN);
     }}
 
     /**
@@ -1736,7 +1704,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.MAX);
+        return binaryOp(a, b, null, BinaryOp.MAX);
     }}
 
     /**
@@ -1758,7 +1726,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.MAX);
+        return binaryOp(a, b, r, null, BinaryOp.MAX);
     }}
 
     /**
@@ -1777,7 +1745,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.MAX);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.MAX);
     }}
 
     /**
@@ -1799,7 +1767,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.MAX);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.MAX);
     }}
 
     /**
@@ -1818,7 +1786,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.MAX);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.MAX);
     }}
 
     /**
@@ -1840,7 +1808,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.MAX);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.MAX);
     }}
 
     // -------------------------------------------------------------------------
@@ -2406,7 +2374,26 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOp(a, AssociativeOp.ADD);
+        return associativeOp(a, null, null, AssociativeOp.ADD);
+    }}
+
+    /**
+     * Sum all the values of a cube.{sum_extra_javadoc}
+     *
+     * @return The resulting sum, which will be {{@code NaN}} if any of the values
+     *         were {{@code NaN}}s.
+     *
+     * @throws NullPointerException          If the given cube was {{@code null}}.
+     * @throws UnsupportedOperationException If the operation was not supported
+     *                                       for the given cube.
+     */
+    public static <T> T sum0d(final Hypercube<T> a,
+                              final T initial,
+                              final BooleanHypercube where)
+        throws NullPointerException,
+               UnsupportedOperationException
+    {{
+        return associativeOp(a, initial, where, AssociativeOp.ADD);
     }}
 
     /**
@@ -2423,7 +2410,26 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOp(a, AssociativeOp.MIN);
+        return associativeOp(a, null, null, AssociativeOp.MIN);
+    }}
+
+    /**
+     * Returns the minimum value of a cube.{min_extra_javadoc}
+     *
+     * @return The resulting minimum, which will be {{@code NaN}} if any of the
+     *         values were {{@code NaN}}s.
+     *
+     * @throws NullPointerException          If the given cube was {{@code null}}.
+     * @throws UnsupportedOperationException If the operation was not supported
+     *                                       for the given cube.
+     */
+    public static <T> T min0d(final Hypercube<T> a,
+                              final T initial,
+                              final BooleanHypercube where)
+        throws NullPointerException,
+               UnsupportedOperationException
+    {{
+        return associativeOp(a, initial, where, AssociativeOp.MIN);
     }}
 
     /**
@@ -2440,7 +2446,26 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOp(a, AssociativeOp.MAX);
+        return associativeOp(a, null, null, AssociativeOp.MAX);
+    }}
+
+    /**
+     * Returns the maximum value of a cube.{max_extra_javadoc}
+     *
+     * @return The resulting maximum, which will be {{@code NaN}} if any of the
+     *         values were {{@code NaN}}s.
+     *
+     * @throws NullPointerException          If the given cube was {{@code null}}.
+     * @throws UnsupportedOperationException If the operation was not supported
+     *                                       for the given cube.
+     */
+    public static <T> T max0d(final Hypercube<T> a,
+                              final T initial,
+                              final BooleanHypercube where)
+        throws NullPointerException,
+               UnsupportedOperationException
+    {{
+        return associativeOp(a, initial, where, AssociativeOp.MAX);
     }}
 
     /**
@@ -2458,7 +2483,27 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOp(a, AssociativeOp.NANADD);
+        return associativeOp(a, null, null, AssociativeOp.NANADD);
+    }}
+
+    /**
+     * Sum all the values of a cube, ignoring floating point {{@code NaN}} values
+     * where applicable.{nansum_extra_javadoc}
+     *
+     * @return The resulting sum, which will be zero if all the values were
+     *         {{@code NaN}}s.
+     *
+     * @throws NullPointerException          If the given cube was {{@code null}}.
+     * @throws UnsupportedOperationException If the operation was not supported
+     *                                       for the given cube.
+     */
+    public static <T> T nansum0d(final Hypercube<T> a,
+                                 final T initial,
+                                 final BooleanHypercube where)
+        throws NullPointerException,
+               UnsupportedOperationException
+    {{
+        return associativeOp(a, initial, where, AssociativeOp.NANADD);
     }}
 
     /**
@@ -2472,11 +2517,14 @@ public class {class_name}
      *                                       for the given cube.
      */
     @GenericReturnType
-    public static <T> Hypercube<T> sumNd(final Hypercube<T> a, final int[] axes)
+    public static <T> Hypercube<T> sumNd(final Hypercube<T> a,
+                                         final int[] axes,
+                                         final T initial,
+                                         final BooleanHypercube where)
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOpByAxes(a, axes, AssociativeOp.ADD);
+        return associativeOpByAxes(a, axes, initial, where, AssociativeOp.ADD);
     }}
 
     /**
@@ -2490,11 +2538,14 @@ public class {class_name}
      *                                       for the given cube.
      */
     @GenericReturnType
-    public static <T> Hypercube<T> minNd(final Hypercube<T> a, final int[] axes)
+    public static <T> Hypercube<T> minNd(final Hypercube<T> a,
+                                         final int[] axes,
+                                         final T initial,
+                                         final BooleanHypercube where)
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOpByAxes(a, axes, AssociativeOp.MIN);
+        return associativeOpByAxes(a, axes, initial, where, AssociativeOp.MIN);
     }}
 
     /**
@@ -2508,11 +2559,14 @@ public class {class_name}
      *                                       for the given cube.
      */
     @GenericReturnType
-    public static <T> Hypercube<T> maxNd(final Hypercube<T> a, final int[] axes)
+    public static <T> Hypercube<T> maxNd(final Hypercube<T> a,
+                                         final int[] axes,
+                                         final T initial,
+                                         final BooleanHypercube where)
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOpByAxes(a, axes, AssociativeOp.MAX);
+        return associativeOpByAxes(a, axes, initial, where, AssociativeOp.MAX);
     }}
 
     /**
@@ -2527,11 +2581,14 @@ public class {class_name}
      *                                       for the given cube.
      */
     @GenericReturnType
-    public static <T> Hypercube<T> nansumNd(final Hypercube<T> a, final int[] axes)
+    public static <T> Hypercube<T> nansumNd(final Hypercube<T> a,
+                                            final int[] axes,
+                                            final T initial,
+                                            final BooleanHypercube where)
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return associativeOpByAxes(a, axes, AssociativeOp.NANADD);
+        return associativeOpByAxes(a, axes, initial, where, AssociativeOp.NANADD);
     }}
 
     /**
@@ -2546,6 +2603,7 @@ public class {class_name}
      */
     @Kwargs("axis,dtype,out,keepdims,initial,where")
     @GenericReturnType
+    @SuppressWarnings("unchecked")
     public static <T> Object sum(final Hypercube<T> a,
                                  final Map<String,Object> kwargs)
         throws IllegalArgumentException,
@@ -2553,6 +2611,8 @@ public class {class_name}
                UnsupportedOperationException
     {{
         int[] axes = null;
+        T initial = null;
+        BooleanHypercube where = null;
         if (kwargs != null) {{
             for (Map.Entry<String,Object> entry : kwargs.entrySet()) {{
                 switch (entry.getKey()) {{
@@ -2560,9 +2620,16 @@ public class {class_name}
                     axes = KwargUtil.toIntArray(entry.getValue());
                     break;
 
-                case "out":
                 case "initial":
+                    initial = KwargUtil.toClassValue(entry.getValue(),
+                                                     a.getElementType());
+                    break;
+
                 case "where":
+                    where = KwargUtil.toBooleanHypercube(entry.getValue());
+                    break;
+
+                case "out":
                     if (entry.getValue() != null) {{
                         throw new UnsupportedOperationException(
                             "Unhandled kwarg: " + entry
@@ -2578,10 +2645,11 @@ public class {class_name}
             }}
         }}
         if (axes == null) {{
-            return associativeOp(a, AssociativeOp.ADD);
+            return associativeOp(a, initial, where, AssociativeOp.ADD);
         }}
         else {{
-            final Hypercube<T> result = associativeOpByAxes(a, axes, AssociativeOp.ADD);
+            final Hypercube<T> result =
+                associativeOpByAxes(a, axes, initial, where, AssociativeOp.ADD);
             return result.isSingleton() ? result.getObjectAt(0) : result;
         }}
     }}
@@ -2598,6 +2666,7 @@ public class {class_name}
      */
     @Kwargs("axis,dtype,out,keepdims,initial,where")
     @GenericReturnType
+    @SuppressWarnings("unchecked")
     public static <T> Object min(final Hypercube<T> a,
                                  final Map<String,Object> kwargs)
         throws IllegalArgumentException,
@@ -2605,6 +2674,8 @@ public class {class_name}
                UnsupportedOperationException
     {{
         int[] axes = null;
+        T initial = null;
+        BooleanHypercube where = null;
         if (kwargs != null) {{
             for (Map.Entry<String,Object> entry : kwargs.entrySet()) {{
                 switch (entry.getKey()) {{
@@ -2612,9 +2683,16 @@ public class {class_name}
                     axes = KwargUtil.toIntArray(entry.getValue());
                     break;
 
-                case "out":
                 case "initial":
+                    initial = KwargUtil.toClassValue(entry.getValue(),
+                                                     a.getElementType());
+                    break;
+
                 case "where":
+                    where = KwargUtil.toBooleanHypercube(entry.getValue());
+                    break;
+
+                case "out":
                     if (entry.getValue() != null) {{
                         throw new UnsupportedOperationException(
                             "Unhandled kwarg: " + entry
@@ -2630,10 +2708,11 @@ public class {class_name}
             }}
         }}
         if (axes == null) {{
-            return associativeOp(a, AssociativeOp.MIN);
+            return associativeOp(a, initial, where, AssociativeOp.MIN);
         }}
         else {{
-            final Hypercube<T> result = associativeOpByAxes(a, axes, AssociativeOp.MIN);
+            final Hypercube<T> result =
+                associativeOpByAxes(a, axes, initial, where, AssociativeOp.MIN);
             return result.isSingleton() ? result.getObjectAt(0) : result;
         }}
     }}
@@ -2650,6 +2729,7 @@ public class {class_name}
      */
     @Kwargs("axis,dtype,out,keepdims,initial,where")
     @GenericReturnType
+    @SuppressWarnings("unchecked")
     public static <T> Object max(final Hypercube<T> a,
                                  final Map<String,Object> kwargs)
         throws IllegalArgumentException,
@@ -2657,6 +2737,8 @@ public class {class_name}
                UnsupportedOperationException
     {{
         int[] axes = null;
+        T initial = null;
+        BooleanHypercube where = null;
         if (kwargs != null) {{
             for (Map.Entry<String,Object> entry : kwargs.entrySet()) {{
                 switch (entry.getKey()) {{
@@ -2664,9 +2746,16 @@ public class {class_name}
                     axes = KwargUtil.toIntArray(entry.getValue());
                     break;
 
-                case "out":
                 case "initial":
+                    initial = KwargUtil.toClassValue(entry.getValue(),
+                                                     a.getElementType());
+                    break;
+
                 case "where":
+                    where = KwargUtil.toBooleanHypercube(entry.getValue());
+                    break;
+
+                case "out":
                     if (entry.getValue() != null) {{
                         throw new UnsupportedOperationException(
                             "Unhandled kwarg: " + entry
@@ -2682,10 +2771,11 @@ public class {class_name}
             }}
         }}
         if (axes == null) {{
-            return associativeOp(a, AssociativeOp.MAX);
+            return associativeOp(a, initial, where, AssociativeOp.MAX);
         }}
         else {{
-            final Hypercube<T> result = associativeOpByAxes(a, axes, AssociativeOp.MAX);
+            final Hypercube<T> result =
+                associativeOpByAxes(a, axes, initial, where, AssociativeOp.MAX);
             return result.isSingleton() ? result.getObjectAt(0) : result;
         }}
     }}
@@ -2703,6 +2793,7 @@ public class {class_name}
      */
     @Kwargs("axis,dtype,out,keepdims,initial,where")
     @GenericReturnType
+    @SuppressWarnings("unchecked")
     public static <T> Object nansum(final Hypercube<T> a,
                                     final Map<String,Object> kwargs)
         throws IllegalArgumentException,
@@ -2710,6 +2801,8 @@ public class {class_name}
                UnsupportedOperationException
     {{
         int[] axes = null;
+        T initial = null;
+        BooleanHypercube where = null;
         if (kwargs != null) {{
             for (Map.Entry<String,Object> entry : kwargs.entrySet()) {{
                 switch (entry.getKey()) {{
@@ -2717,9 +2810,16 @@ public class {class_name}
                     axes = KwargUtil.toIntArray(entry.getValue());
                     break;
 
-                case "out":
                 case "initial":
+                    initial = KwargUtil.toClassValue(entry.getValue(),
+                                                     a.getElementType());
+                    break;
+
                 case "where":
+                    where = KwargUtil.toBooleanHypercube(entry.getValue());
+                    break;
+
+                case "out":
                     if (entry.getValue() != null) {{
                         throw new UnsupportedOperationException(
                             "Unhandled kwarg: " + entry
@@ -2735,10 +2835,11 @@ public class {class_name}
             }}
         }}
         if (axes == null) {{
-            return associativeOp(a, AssociativeOp.NANADD);
+            return associativeOp(a, initial, where, AssociativeOp.NANADD);
         }}
         else {{
-            final Hypercube<T> result = associativeOpByAxes(a, axes, AssociativeOp.NANADD);
+            final Hypercube<T> result =
+                associativeOpByAxes(a, axes, initial, where, AssociativeOp.NANADD);
             return result.isSingleton() ? result.getObjectAt(0) : result;
         }}
     }}
@@ -2765,7 +2866,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.AND);
+        return binaryOp(a, b, null, BinaryOp.AND);
     }}
 
     /**
@@ -2790,7 +2891,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.AND);
+        return binaryOp(a, b, r, null, BinaryOp.AND);
     }}
 
     /**
@@ -2808,7 +2909,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.AND);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.AND);
     }}
 
     /**
@@ -2826,7 +2927,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.AND);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.AND);
     }}
 
     /**
@@ -2848,7 +2949,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.AND);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.AND);
     }}
 
     /**
@@ -2870,7 +2971,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.AND);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.AND);
     }}
 
     /**
@@ -2893,7 +2994,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.OR);
+        return binaryOp(a, b, null, BinaryOp.OR);
     }}
 
     /**
@@ -2918,7 +3019,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.OR);
+        return binaryOp(a, b, r, null, BinaryOp.OR);
     }}
 
     /**
@@ -2936,7 +3037,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.OR);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.OR);
     }}
 
     /**
@@ -2954,7 +3055,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.OR);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.OR);
     }}
 
     /**
@@ -2976,7 +3077,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.OR);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.OR);
     }}
 
     /**
@@ -2998,7 +3099,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.OR);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.OR);
     }}
 
     /**
@@ -3021,7 +3122,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, BinaryOp.XOR);
+        return binaryOp(a, b, null, BinaryOp.XOR);
     }}
 
     /**
@@ -3046,7 +3147,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, b, r, BinaryOp.XOR);
+        return binaryOp(a, b, r, null, BinaryOp.XOR);
     }}
 
     /**
@@ -3064,7 +3165,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), BinaryOp.XOR);
+        return binaryOp(a, singleValuedCube(a, b), null, BinaryOp.XOR);
     }}
 
     /**
@@ -3082,7 +3183,7 @@ public class {class_name}
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, BinaryOp.XOR);
+        return binaryOp(singleValuedCube(b, a), b, null, BinaryOp.XOR);
     }}
 
     /**
@@ -3104,7 +3205,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(a, singleValuedCube(a, b), r, BinaryOp.XOR);
+        return binaryOp(a, singleValuedCube(a, b), r, null, BinaryOp.XOR);
     }}
 
     /**
@@ -3126,7 +3227,7 @@ public class {class_name}
                NullPointerException,
                UnsupportedOperationException
     {{
-        return binaryOp(singleValuedCube(b, a), b, r, BinaryOp.XOR);
+        return binaryOp(singleValuedCube(b, a), b, r, null, BinaryOp.XOR);
     }}
 
     // -------------------------------------------------------------------------
@@ -3904,11 +4005,11 @@ public class {class_name}
      * @throws UnsupportedOperationException If the operation was not supported
      *                                       for the given cube.
      */
-    public static <T> boolean any(final Hypercube<T> a)
+    public static <T> boolean any0d(final Hypercube<T> a)
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return reductiveLogicOp(a, ReductiveLogicOp.ANY);
+        return reductiveLogicOp(a, null, ReductiveLogicOp.ANY);
     }}
 
     /**
@@ -3920,11 +4021,119 @@ public class {class_name}
      * @throws UnsupportedOperationException If the operation was not supported
      *                                       for the given cube.
      */
-    public static <T> boolean all(final Hypercube<T> a)
+    public static <T> boolean all0d(final Hypercube<T> a)
         throws NullPointerException,
                UnsupportedOperationException
     {{
-        return reductiveLogicOp(a, ReductiveLogicOp.ALL);
+        return reductiveLogicOp(a, null, ReductiveLogicOp.ALL);
+    }}
+
+    /**
+     * Returns whether any elements of the given cube evaluate to {{@code true}}.{any_extra_javadoc}
+     *
+     * @return The resulting boolean.
+     *
+     * @throws NullPointerException          If the given cube was {{@code null}}.
+     * @throws UnsupportedOperationException If the operation was not supported
+     *                                       for the given cube.
+     */
+    @Kwargs("axis,out,keepdims,where")
+    @GenericReturnType
+    public static <T> Object any(final Hypercube<T> a,
+                                 final Map<String,Object> kwargs)
+        throws NullPointerException,
+               UnsupportedOperationException
+    {{
+        int[] axes = null;
+        BooleanHypercube where = null;
+        if (kwargs != null) {{
+            for (Map.Entry<String,Object> entry : kwargs.entrySet()) {{
+                switch (entry.getKey()) {{
+                case "axis":
+                    axes = KwargUtil.toIntArray(entry.getValue());
+                    break;
+
+                case "where":
+                    where = KwargUtil.toBooleanHypercube(entry.getValue());
+                    break;
+
+                case "out":
+                case "initial":
+                    if (entry.getValue() != null) {{
+                        throw new UnsupportedOperationException(
+                            "Unhandled kwarg: " + entry
+                        );
+                    }}
+                    break;
+
+                default:
+                    throw new UnsupportedOperationException(
+                        "Unhandled kwarg: " + entry
+                    );
+                }}
+            }}
+        }}
+        if (axes == null) {{
+            return reductiveLogicOp(a, null, ReductiveLogicOp.ANY);
+        }}
+        else {{
+            final BooleanHypercube result = reductiveLogicOpByAxes(a, axes, where, ReductiveLogicOp.ANY);
+            return result.isSingleton() ? result.getObjectAt(0) : result;
+        }}
+    }}
+
+    /**
+     * Returns whether all elements of the given cube evaluate to {{@code true}}.{all_extra_javadoc}
+     *
+     * @return The resulting boolean.
+     *
+     * @throws NullPointerException          If the given cube was {{@code null}}.
+     * @throws UnsupportedOperationException If the operation was not supported
+     *                                       for the given cube.
+     */
+    @Kwargs("axis,out,keepdims,where")
+    @GenericReturnType
+    public static <T> Object all(final Hypercube<T> a,
+                                 final Map<String,Object> kwargs)
+        throws NullPointerException,
+               UnsupportedOperationException
+    {{
+        int[] axes = null;
+        BooleanHypercube where = null;
+        if (kwargs != null) {{
+            for (Map.Entry<String,Object> entry : kwargs.entrySet()) {{
+                switch (entry.getKey()) {{
+                case "axis":
+                    axes = KwargUtil.toIntArray(entry.getValue());
+                    break;
+
+                case "where":
+                    where = KwargUtil.toBooleanHypercube(entry.getValue());
+                    break;
+
+                case "out":
+                case "initial":
+                    if (entry.getValue() != null) {{
+                        throw new UnsupportedOperationException(
+                            "Unhandled kwarg: " + entry
+                        );
+                    }}
+                    break;
+
+                default:
+                    throw new UnsupportedOperationException(
+                        "Unhandled kwarg: " + entry
+                    );
+                }}
+            }}
+        }}
+        if (axes == null) {{
+            return reductiveLogicOp(a, null, ReductiveLogicOp.ALL);
+        }}
+        else {{
+            final BooleanHypercube result = reductiveLogicOpByAxes(a, axes, where, ReductiveLogicOp.ALL);
+            return result.isSingleton() ? result.getObjectAt(0) : result;
+        }}
     }}
 
     // -------------------------------------------------------------------------
@@ -4002,9 +4211,10 @@ public class {class_name}
      * Handle the given binary operation for two cubes.
      */
     @SuppressWarnings("unchecked")
-    private static <T> Hypercube<T> binaryOp(final Hypercube<T> a,
-                                             final Hypercube<T> b,
-                                             final BinaryOp     op)
+    private static <T> Hypercube<T> binaryOp(final Hypercube<T>     a,
+                                             final Hypercube<T>     b,
+                                             final BooleanHypercube w,
+                                             final BinaryOp         op)
         throws IllegalArgumentException,
                NullPointerException,
                UnsupportedOperationException
@@ -4019,31 +4229,39 @@ public class {class_name}
         if (!a.matches(b)) {{
             throw new IllegalArgumentException("Given incompatible cubes");
         }}
+        if (w != null && !a.matchesInShape(w)) {{
+            throw new IllegalArgumentException("Given an incompatible 'w' cube");
+        }}
 
         // See if we can do it
         if (a.getElementType().equals(Double.class)) {{
             return (Hypercube<T>)doubleBinaryOp((Hypercube<Double>)a,
                                                 (Hypercube<Double>)b,
+                                                w,
                                                 op);
         }}
         else if (a.getElementType().equals(Float.class)) {{
             return (Hypercube<T>)floatBinaryOp((Hypercube<Float>)a,
                                                (Hypercube<Float>)b,
+                                               w,
                                                op);
         }}
         else if (a.getElementType().equals(Integer.class)) {{
             return (Hypercube<T>)intBinaryOp((Hypercube<Integer>)a,
                                              (Hypercube<Integer>)b,
+                                             w,
                                              op);
         }}
         else if (a.getElementType().equals(Long.class)) {{
             return (Hypercube<T>)longBinaryOp((Hypercube<Long>)a,
                                               (Hypercube<Long>)b,
+                                              w,
                                               op);
         }}
         else if (a.getElementType().equals(Boolean.class)) {{
             return (Hypercube<T>)booleanBinaryOp((Hypercube<Boolean>)a,
                                                  (Hypercube<Boolean>)b,
+                                                 w,
                                                  op);
         }}
         else {{
@@ -4059,10 +4277,11 @@ public class {class_name}
      * third.
      */
     @SuppressWarnings("unchecked")
-    private static <T> Hypercube<T> binaryOp(final Hypercube<T> a,
-                                             final Hypercube<T> b,
-                                             final Hypercube<T> r,
-                                             final BinaryOp     op)
+    private static <T> Hypercube<T> binaryOp(final Hypercube<T>     a,
+                                             final Hypercube<T>     b,
+                                             final Hypercube<T>     r,
+                                             final BooleanHypercube w,
+                                             final BinaryOp         op)
         throws IllegalArgumentException,
                NullPointerException,
                UnsupportedOperationException
@@ -4080,36 +4299,44 @@ public class {class_name}
         if (!a.matches(b) || !a.matches(r)) {{
             throw new IllegalArgumentException("Given incompatible cubes");
         }}
+        if (w != null && !a.matchesInShape(w)) {{
+            throw new IllegalArgumentException("Given an incompatible 'w' cube");
+        }}
 
         // See if we can do it
         if (a.getElementType().equals(Double.class)) {{
             return (Hypercube<T>)doubleBinaryOp((Hypercube<Double>)a,
                                                 (Hypercube<Double>)b,
                                                 (Hypercube<Double>)r,
+                                                w,
                                                 op);
         }}
         else if (a.getElementType().equals(Float.class)) {{
             return (Hypercube<T>)floatBinaryOp((Hypercube<Float>)a,
                                                (Hypercube<Float>)b,
                                                (Hypercube<Float>)r,
+                                               w,
                                                op);
         }}
         else if (a.getElementType().equals(Integer.class)) {{
             return (Hypercube<T>)intBinaryOp((Hypercube<Integer>)a,
                                              (Hypercube<Integer>)b,
                                              (Hypercube<Integer>)r,
+                                             w,
                                              op);
         }}
         else if (a.getElementType().equals(Long.class)) {{
             return (Hypercube<T>)longBinaryOp((Hypercube<Long>)a,
                                               (Hypercube<Long>)b,
                                               (Hypercube<Long>)r,
+                                              w,
                                               op);
         }}
         else if (a.getElementType().equals(Boolean.class)) {{
             return (Hypercube<T>)booleanBinaryOp((Hypercube<Boolean>)a,
                                                  (Hypercube<Boolean>)b,
                                                  (Hypercube<Boolean>)r,
+                                                 w,
                                                  op);
         }}
         else {{
@@ -4224,8 +4451,10 @@ public class {class_name}
      * Handle the given associative operation for a cube.
      */
     @SuppressWarnings("unchecked")
-    private static <T> T associativeOp(final Hypercube<T>  a,
-                                       final AssociativeOp op)
+    private static <T> T associativeOp(final Hypercube<T>     a,
+                                       final T                i,
+                                       final BooleanHypercube w,
+                                       final AssociativeOp    op)
         throws NullPointerException,
                UnsupportedOperationException
     {{
@@ -4235,17 +4464,18 @@ public class {class_name}
         }}
 
         // See if we can do it
+        final Object o = i;
         if (a.getElementType().equals(Double.class)) {{
-            return (T)doubleAssociativeOp((Hypercube<Double>)a, op);
+            return (T)doubleAssociativeOp((Hypercube<Double>)a, (Double)o, w, op);
         }}
         else if (a.getElementType().equals(Float.class)) {{
-            return (T)floatAssociativeOp((Hypercube<Float>)a, op);
+            return (T)floatAssociativeOp((Hypercube<Float>)a, (Float)o, w, op);
         }}
         else if (a.getElementType().equals(Integer.class)) {{
-            return (T)intAssociativeOp((Hypercube<Integer>)a, op);
+            return (T)intAssociativeOp((Hypercube<Integer>)a, (Integer)o, w, op);
         }}
         else if (a.getElementType().equals(Long.class)) {{
-            return (T)longAssociativeOp((Hypercube<Long>)a, op);
+            return (T)longAssociativeOp((Hypercube<Long>)a, (Long)o, w, op);
         }}
         else {{
             throw new UnsupportedOperationException(
@@ -4259,35 +4489,38 @@ public class {class_name}
      * Handle the given associative operation for a cube, for the given axes.
      */
     @SuppressWarnings("unchecked")
-    private static <T> Hypercube<T> associativeOpByAxes(final Hypercube<T>  a,
-                                                        final int[]         axes,
-                                                        final AssociativeOp op)
+    private static <T> Hypercube<T> associativeOpByAxes(final Hypercube<T>     c,
+                                                        final int[]            a,
+                                                        final T                i,
+                                                        final BooleanHypercube w,
+                                                        final AssociativeOp    op)
         throws NullPointerException,
                UnsupportedOperationException
     {{
         // Checks
-        if (a == null) {{
-            throw new NullPointerException("Given a null cube, 'a'");
+        if (c == null) {{
+            throw new NullPointerException("Given a null cube");
         }}
 
         // See if we can do it
-        if (a.getElementType().equals(Double.class)) {{
-            return (Hypercube<T>)doubleAssociativeOpByAxes((Hypercube<Double>)a, axes, op);
+        final Object o = i;
+        if (c.getElementType().equals(Double.class)) {{
+            return (Hypercube<T>)doubleAssociativeOpByAxes((Hypercube<Double>)c, a, (Double)o, w, op);
         }}
-        else if (a.getElementType().equals(Float.class)) {{
-            return (Hypercube<T>)floatAssociativeOpByAxes((Hypercube<Float>)a, axes, op);
+        else if (c.getElementType().equals(Float.class)) {{
+            return (Hypercube<T>)floatAssociativeOpByAxes((Hypercube<Float>)c, a, (Float)o, w, op);
         }}
-        else if (a.getElementType().equals(Integer.class)) {{
-            return (Hypercube<T>)intAssociativeOpByAxes((Hypercube<Integer>)a, axes, op);
+        else if (c.getElementType().equals(Integer.class)) {{
+            return (Hypercube<T>)intAssociativeOpByAxes((Hypercube<Integer>)c, a, (Integer)o, w, op);
         }}
-        else if (a.getElementType().equals(Long.class)) {{
-            return (Hypercube<T>)longAssociativeOpByAxes((Hypercube<Long>)a, axes, op);
+        else if (c.getElementType().equals(Long.class)) {{
+            return (Hypercube<T>)longAssociativeOpByAxes((Hypercube<Long>)c, a, (Long)o, w, op);
         }}
         else {{
             throw new UnsupportedOperationException(
                 "Don't know how to perform associative " + op + " " +
                 "on a cube with element type " +
-                a.getElementType().getSimpleName()
+                c.getElementType().getSimpleName()
             );
         }}
     }}
@@ -4423,6 +4656,7 @@ public class {class_name}
      */
     @SuppressWarnings("unchecked")
     private static <T> boolean reductiveLogicOp(final Hypercube<T>     a,
+                                                final BooleanHypercube w,
                                                 final ReductiveLogicOp op)
         throws NullPointerException,
                UnsupportedOperationException
@@ -4434,19 +4668,59 @@ public class {class_name}
 
         // See if we can do it
         if (a.getElementType().equals(Double.class)) {{
-            return doubleReductiveLogicOp ((Hypercube<Double>) a, op);
+            return doubleReductiveLogicOp ((Hypercube<Double>) a, w, op);
         }}
         else if (a.getElementType().equals(Float.class)) {{
-            return floatReductiveLogicOp  ((Hypercube<Float>)  a, op);
+            return floatReductiveLogicOp  ((Hypercube<Float>)  a, w, op);
         }}
         else if (a.getElementType().equals(Integer.class)) {{
-            return intReductiveLogicOp    ((Hypercube<Integer>)a, op);
+            return intReductiveLogicOp    ((Hypercube<Integer>)a, w, op);
         }}
         else if (a.getElementType().equals(Long.class)) {{
-            return longReductiveLogicOp   ((Hypercube<Long>)   a, op);
+            return longReductiveLogicOp   ((Hypercube<Long>)   a, w, op);
         }}
         else if (a.getElementType().equals(Boolean.class)) {{
-            return booleanReductiveLogicOp((Hypercube<Boolean>)a, op);
+            return booleanReductiveLogicOp((Hypercube<Boolean>)a, w, op);
+        }}
+        else {{
+            throw new UnsupportedOperationException(
+                "Don't know how to perform reductive logical " + op + " on a cube with element type " +
+                a.getElementType().getSimpleName()
+            );
+        }}
+    }}
+
+    /**
+     * Handle the given reductive logic operation for a cube.
+     */
+    @SuppressWarnings("unchecked")
+    private static BooleanHypercube reductiveLogicOpByAxes(final Hypercube<?>     a,
+                                                           final int[]            axes,
+                                                           final BooleanHypercube where,
+                                                           final ReductiveLogicOp op)
+        throws NullPointerException,
+               UnsupportedOperationException
+    {{
+        // Checks
+        if (a == null) {{
+            throw new NullPointerException("Given a null cube, 'a'");
+        }}
+
+        // See if we can do it
+        if (a.getElementType().equals(Double.class)) {{
+            return doubleReductiveLogicOpByAxes ((Hypercube<Double>) a, axes, where, op);
+        }}
+        else if (a.getElementType().equals(Float.class)) {{
+            return floatReductiveLogicOpByAxes  ((Hypercube<Float>)  a, axes, where, op);
+        }}
+        else if (a.getElementType().equals(Integer.class)) {{
+            return intReductiveLogicOpByAxes    ((Hypercube<Integer>)a, axes, where, op);
+        }}
+        else if (a.getElementType().equals(Long.class)) {{
+            return longReductiveLogicOpByAxes   ((Hypercube<Long>)   a, axes, where, op);
+        }}
+        else if (a.getElementType().equals(Boolean.class)) {{
+            return booleanReductiveLogicOpByAxes((Hypercube<Boolean>)a, axes, where, op);
         }}
         else {{
             throw new UnsupportedOperationException(
@@ -4591,6 +4865,8 @@ public class {class_name}
     private static {object_type}Hypercube {primitive_type}AssociativeOpByAxes(
         final Hypercube<{object_type}> a,
         final int[] axes,
+        final {object_type} initial,
+        final BooleanHypercube where,
         final AssociativeOp op
     ) throws IllegalArgumentException,
              NullPointerException,
@@ -4610,6 +4886,14 @@ public class {class_name}
                 );
             }}
             axesSet.set(axis);
+        }}
+
+        // If there is a where value then it should match in shape
+        if (where != null && !a.matchesInShape(where)) {{
+            // TODO implement broadcasting
+            throw new IllegalArgumentException(
+                "Source cube and where cube don't match in shape"
+            );
         }}
 
         // Create the destination axes by copying out the remaining (non-sliced)
@@ -4654,7 +4938,10 @@ public class {class_name}
             }}
 
             // Compute and assign
-            final {object_type} result = associativeOp(a.slice(srcAccessors), op);
+            final BooleanHypercube whereSlice =
+                (where == null) ? null : where.slice(srcAccessors);
+            final {object_type} result =
+                associativeOp(a.slice(srcAccessors), initial, whereSlice, op);
             if (dstNDim > 0) {{
                 // Subcube
                 dst.setObj(result, dstAccessors);
@@ -4705,37 +4992,48 @@ public class {class_name}
     @SuppressWarnings("inline")
     private static {primitive_type} {primitive_type}AssociativeOpHelper(
         final {object_type}Hypercube da,
-        final AssociativeOp op,
-        final long          startIndex,
-        final long          endIndex
+        final {object_type}    i,
+        final BooleanHypercube w,
+        final AssociativeOp    op,
+        final long             startIndex,
+        final long             endIndex
     ) throws UnsupportedOperationException
     {{
         {primitive_type} r;
 
-        // Initialize the return value according to the operation
-        switch (op) {{
-        case ADD:    r = 0; break;
-        case NANADD: r = 0; break;
-        case MIN:    r = {object_type}.MAX_VALUE; break;
-        case MAX:    r = {object_type}.MIN_VALUE; break;
-        default:
-            throw new UnsupportedOperationException(
-                "Unsupported associative operation: " + op
-            );
+        // Initialize the return value, possibly according to the operation
+        if (i != null) {{
+            r = i;
+        }}
+        else {{
+            switch (op) {{
+            case ADD:    r = 0; break;
+            case NANADD: r = 0; break;
+            case MIN:    r = {object_type}.MAX_VALUE; break;
+            case MAX:    r = {object_type}.MIN_VALUE; break;
+            default:
+                throw new UnsupportedOperationException(
+                    "Unsupported associative operation: " + op
+                );
+            }}
         }}
 
         // Stage in here. These arrays don't need to be huge in order to get
         // the benefit of the loop unrolling.
         final {primitive_type}[] aa = new {primitive_type}[STAGING_SIZE];
+        final boolean[]          ww = (w == null) ? null : new boolean[STAGING_SIZE];
 
         // Now walk and do the op on the chunk
-        for (long i = startIndex; i < endIndex; i += STAGING_SIZE) {{
+        for (long ii = startIndex; ii < endIndex; ii += STAGING_SIZE) {{
             // How much to copy for this round. This will be 'STAGING_SIZE' until
             // we hit the end.
-            final int len = (int)Math.min(endIndex - i, STAGING_SIZE);
+            final int len = (int)Math.min(endIndex - ii, STAGING_SIZE);
 
             // Copy out
-            da.toFlattened(i, aa, 0, len);
+            da.toFlattened(ii, aa, 0, len);
+            if (w != null) {{
+                w.toFlattened(ii, ww, 0, len);
+            }}
 
             // For operations with no special NaN handling, missing values will
             // automatically propagate into NaNs so we can ignore them.
@@ -4756,6 +5054,8 @@ public class {class_name}
      */
     private static {object_type} {primitive_type}AssociativeOp(
         final Hypercube<{object_type}> a,
+        final {object_type} i,
+        final BooleanHypercube w,
         final AssociativeOp op
     ) throws NullPointerException
     {{
@@ -4764,18 +5064,31 @@ public class {class_name}
             throw new NullPointerException("Given a null cube, 'a'");
         }}
 
+        // If there is a where value then it should match in shape
+        if (w != null && !a.matchesInShape(w)) {{
+            // TODO implement broadcasting
+            throw new IllegalArgumentException(
+                "Source cube and where cube don't match in shape"
+            );
+        }}
+
         {primitive_type} r;
 
-        // Initialize the return value according to the operation
-        switch (op) {{
-        case ADD:    r = 0; break;
-        case NANADD: r = 0; break;
-        case MIN:    r = {object_type}.MAX_VALUE; break;
-        case MAX:    r = {object_type}.MIN_VALUE; break;
-        default:
-            throw new UnsupportedOperationException(
-                "Unsupported associative operation: " + op
-            );
+        // Initialize the return value, possibly according to the operation
+        if (i != null) {{
+            r = i;
+        }}
+        else {{
+            switch (op) {{
+            case ADD:    r = 0; break;
+            case NANADD: r = 0; break;
+            case MIN:    r = {object_type}.MAX_VALUE; break;
+            case MAX:    r = {object_type}.MIN_VALUE; break;
+            default:
+                throw new UnsupportedOperationException(
+                    "Unsupported associative operation: " + op
+                );
+            }}
         }}
 
         // Try to do this natively but fall back to the non-native version
@@ -4786,7 +5099,7 @@ public class {class_name}
             // Only use multithreading if it is enabled and if the
             // cubes are large enough to justify the overhead.
             if (ourExecutorService == null || a.getSize() < THREADING_THRESHOLD) {{
-                r = {primitive_type}AssociativeOpHelper(da, op, 0, a.getSize());
+                r = {primitive_type}AssociativeOpHelper(da, i, w, op, 0, a.getSize());
             }}
             else {{
                 // Initialize a countdown to wait for all threads to finish processing.
@@ -4815,7 +5128,7 @@ public class {class_name}
                     // Submit this subtask to the thread pool
                     ourExecutorService.submit(() -> {{
                         try {{
-                            ar[idx] = {primitive_type}AssociativeOpHelper(da, op, startIndex, endIndex);
+                            ar[idx] = {primitive_type}AssociativeOpHelper(da, null, w, op, startIndex, endIndex);
                         }}
                         catch (Exception e) {{
                             exception.set(e);
@@ -4851,9 +5164,14 @@ public class {class_name}
         }}
         catch (Exception e) {{
             // Just do a linear waltz
-            for (long i = 0, size = a.getSize(); i < size{nan_check_for_r}; i++) {{
+            for (long ii = 0, size = a.getSize(); ii < size{nan_check_for_r}; ii++) {{
+                // Handle any 'where' clause
+                if (w != null && !w.getAt(ii)) {{
+                    continue;
+                }}
+
                 // Need to handle missing values
-                final {object_type} va = a.getObjectAt(i);
+                final {object_type} va = a.getObjectAt(ii);
                 if (va != null) {{
                     switch (op) {{
 {associative_ops_naive}\
@@ -4946,6 +5264,7 @@ public class {class_name}
         final {object_type}Hypercube da,
         final {object_type}Hypercube db,
         final {object_type}Hypercube dr,
+        final BooleanHypercube dw,
         final BinaryOp op,
         final long     startIndex,
         final long     endIndex
@@ -4956,6 +5275,7 @@ public class {class_name}
         final {primitive_type}[] aa = new {primitive_type}[STAGING_SIZE];
         final {primitive_type}[] ab = new {primitive_type}[STAGING_SIZE];
         final {primitive_type}[] ar = new {primitive_type}[STAGING_SIZE];
+        final boolean[] aw = (dw == null) ? null : new boolean[STAGING_SIZE];
 
         // Now walk and do the op on the chunk
         for (long i = startIndex; i < endIndex; i += STAGING_SIZE) {{
@@ -4966,6 +5286,9 @@ public class {class_name}
             // Copy out
             da.toFlattened(i, aa, 0, len);
             db.toFlattened(i, ab, 0, len);
+            if (dw != null) {{
+                dw.toFlattened(i, aw, 0, len);
+            }}
 
             // For operations with no special NaN handling, missing values will
             // automatically propagate into NaNs so we can ignore them.
@@ -4979,7 +5302,16 @@ public class {class_name}
             }}
 
             // Copy in
-            dr.fromFlattened(ar, 0, i, len);
+            if (aw == null) {{
+                dr.fromFlattened(ar, 0, i, len);
+            }}
+            else {{
+                for (int j=0; j < len; j++) {{
+                    if (aw[j]) {{
+                        dr.setAt(i + j, ar[j]);
+                    }}
+                }}
+            }}
         }}
     }}
 
@@ -4989,6 +5321,7 @@ public class {class_name}
     private static Hypercube<{object_type}> {primitive_type}BinaryOp(
         final Hypercube<{object_type}> a,
         final Hypercube<{object_type}> b,
+        final BooleanHypercube dw,
         final BinaryOp op
     ) throws IllegalArgumentException,
              NullPointerException
@@ -5005,7 +5338,7 @@ public class {class_name}
         }}
 
         // Create the destination, a simple {default_impl} one by default
-        return binaryOp(a, b, new {object_type}{default_impl}Hypercube(a.getDimensions()), op);
+        return binaryOp(a, b, new {object_type}{default_impl}Hypercube(a.getDimensions()), dw, op);
     }}
 
     /**
@@ -5016,6 +5349,7 @@ public class {class_name}
         final Hypercube<{object_type}> a,
         final Hypercube<{object_type}> b,
         final Hypercube<{object_type}> r,
+        final BooleanHypercube dw,
         final BinaryOp op
     ) throws IllegalArgumentException,
              NullPointerException
@@ -5046,7 +5380,7 @@ public class {class_name}
             // Only use multithreading if it is enabled and if the
             // cubes are large enough to justify the overhead.
             if (ourExecutorService == null || a.getSize() < THREADING_THRESHOLD) {{
-                {primitive_type}BinaryOpHelper(da, db, dr, op, 0, a.getSize());
+                {primitive_type}BinaryOpHelper(da, db, dr, dw, op, 0, a.getSize());
             }}
             else {{
                 // Initialize a countdown to wait for all threads to finish processing.
@@ -5073,7 +5407,7 @@ public class {class_name}
                     // Submit this subtask to the thread pool
                     ourExecutorService.submit(() -> {{
                         try {{
-                            {primitive_type}BinaryOpHelper(da, db, dr, op, startIndex, endIndex);
+                            {primitive_type}BinaryOpHelper(da, db, dr, dw, op, startIndex, endIndex);
                         }}
                         catch (Exception e) {{
                             exception.set(e);
@@ -5483,6 +5817,130 @@ public class {class_name}
     // -------------------------------------------------------------------------
 
     /**
+     * Handle the given reductive operation for a {primitive_type} cube, for the
+     * given axes.
+     */
+    private static BooleanHypercube {primitive_type}ReductiveLogicOpByAxes(
+        final Hypercube<{object_type}> a,
+        final int[] axes,
+        final BooleanHypercube where,
+        final ReductiveLogicOp op
+    ) throws IllegalArgumentException,
+             NullPointerException,
+             UnsupportedOperationException
+    {{
+        // Figure out what axes we are working over, and if they are good
+        final BitSet axesSet = new BitSet(a.getNDim());
+        for (int axis : axes) {{
+            if (axis >= a.getNDim()) {{
+                throw new IllegalArgumentException(
+                    "Axis " + axis + " not in given cube"
+                );
+            }}
+            if (axesSet.get(axis)) {{
+                throw new IllegalArgumentException(
+                    "Duplicate axis " + axis + " in " + Arrays.toString(axes)
+                );
+            }}
+            axesSet.set(axis);
+        }}
+
+        // If there is a where value then it should match in shape
+        if (where != null && !a.matchesInShape(where)) {{
+            // TODO implement broadcasting
+            throw new IllegalArgumentException(
+                "Source cube and where cube don't match in shape"
+            );
+        }}
+
+        // Create the destination axes by copying out the remaining (non-sliced)
+        // axes from the source cube
+        final Dimension<?>[] srcDims = a.getDimensions();
+        final int            dstNDim = a.getNDim() - axesSet.cardinality();
+        final Dimension<?>[] dstDims;
+        if (dstNDim > 0) {{
+            // Sliced out dims
+            dstDims = new Dimension<?>[dstNDim];
+            for (int i=0, j=0; i < a.getNDim(); i++) {{
+                if (!axesSet.get(i)) {{
+                    dstDims[j++] = srcDims[i];
+                }}
+            }}
+        }}
+        else {{
+            // Singleton cube
+            dstDims = Dimension.of(1);
+        }}
+
+        // Where we will put the result
+        final BooleanHypercube dst = new BooleanBitSetHypercube(dstDims);
+
+        // Walk all the non-axes values, using the axes values as slices
+        final long[] indices = new long[a.getNDim()];
+        final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
+        final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
+        for (int i=0, j=0; i < srcAccessors.length; i++) {{
+            if (axesSet.get(i)) {{
+                srcAccessors[i] = a.dim(i).slice(0, a.length(i));
+            }}
+        }}
+
+        // Incrementally walk all the non-axes dimensions
+        while (true) {{
+            // Create the accessors
+            for (int i=0, j=0; i < a.getNDim(); i++) {{
+                if (!axesSet.get(i)) {{
+                    srcAccessors[i] = dstAccessors[j++] = a.dim(i).at(indices[i]);
+                }}
+            }}
+
+            // Compute and assign
+            final BooleanHypercube whereSlice =
+                (where == null) ? null : where.slice(srcAccessors);
+            final boolean result = {primitive_type}ReductiveLogicOp(a.slice(srcAccessors), whereSlice, op);
+            if (dstNDim > 0) {{
+                // Subcube
+                dst.setObj(result, dstAccessors);
+            }}
+            else {{
+                // Singleton
+                dst.setObjectAt(0, result);
+            }}
+
+            // Move on one, we use a ripple adder to increment the indices,
+            // stopping when the carry bit overflows. (The indices are
+            // effectively a variable-base number which we're stepping, until it
+            // loops back through zero.)
+            boolean carry = true;
+            for (int i=0; i < indices.length && carry; i++) {{
+                // Skip over indices which were slicing
+                if (axesSet.get(i)) {{
+                    continue;
+                }}
+
+                // Increment this index. If doing so would cause overflow then
+                // we reset it to zero and move onto the next one, taking the
+                // carry bit with us.
+                if (indices[i] < a.length(i)-1) {{
+                    indices[i]++;
+                    carry = false;
+                }}
+                else {{
+                    indices[i] = 0;
+                }}
+            }}
+
+            // If we overflowed then we're done
+            if (carry) {{
+                break;
+            }}
+        }}
+
+        // Give back the result
+        return dst;
+    }}
+
+    /**
      * Helper function for {{@code {primitive_type}ReductiveLogicOp}} that performs a reductive
      * logical operation on a sub-array of the cube. The sub-array is specified
      * by parameters startIndex and endIndex, and the result is returned as a
@@ -5491,6 +5949,7 @@ public class {class_name}
     @SuppressWarnings("inline")
     private static boolean {primitive_type}ReductiveLogicOpHelper(
         final {object_type}Hypercube da,
+        final BooleanHypercube w,
         final ReductiveLogicOp op,
         final long             startIndex,
         final long             endIndex
@@ -5511,6 +5970,7 @@ public class {class_name}
         // Stage in here. These arrays don't need to be huge in order to get
         // the benefit of the loop unrolling.
         final {primitive_type}[] aa = new {primitive_type}[STAGING_SIZE];
+        final boolean[]          ww = (w == null) ? null : new boolean[STAGING_SIZE];
 
         // Now walk and do the op on the chunk
         for (long i = startIndex; i < endIndex; i += STAGING_SIZE) {{
@@ -5520,6 +5980,9 @@ public class {class_name}
 
             // Copy out
             da.toFlattened(i, aa, 0, len);
+            if (w != null) {{
+                w.toFlattened(i, ww, 0, len);
+            }}
 
             switch (op) {{
 {reductive_logic_ops}\
@@ -5538,6 +6001,7 @@ public class {class_name}
      */
     private static boolean {primitive_type}ReductiveLogicOp(
         final Hypercube<{object_type}> a,
+        final BooleanHypercube w,
         final ReductiveLogicOp op
     ) throws NullPointerException
     {{
@@ -5566,7 +6030,7 @@ public class {class_name}
             // Only use multithreading if it is enabled and if the
             // cubes are large enough to justify the overhead.
             if (ourExecutorService == null || a.getSize() < THREADING_THRESHOLD) {{
-                r = {primitive_type}ReductiveLogicOpHelper(da, op, 0, a.getSize());
+                r = {primitive_type}ReductiveLogicOpHelper(da, w, op, 0, a.getSize());
             }}
             else {{
                 // Initialize a countdown to wait for all threads to finish processing.
@@ -5595,7 +6059,7 @@ public class {class_name}
                     // Submit this subtask to the thread pool
                     ourExecutorService.submit(() -> {{
                         try {{
-                            ar[idx] = {primitive_type}ReductiveLogicOpHelper(da, op, startIndex, endIndex);
+                            ar[idx] = {primitive_type}ReductiveLogicOpHelper(da, w, op, startIndex, endIndex);
                         }}
                         catch (Exception e) {{
                             exception.set(e);
@@ -6310,14 +6774,14 @@ public class {class_name}
     # needing to modify the main code (for example to create a vectorized version
     # of CubeMath).
     'BINARY_NUMERIC_OPS': '''\
-            case ADD: for (int j=0; j < len; j++) ar[j] = aa[j] + ab[j];          break;
-            case SUB: for (int j=0; j < len; j++) ar[j] = aa[j] - ab[j];          break;
-            case MUL: for (int j=0; j < len; j++) ar[j] = aa[j] * ab[j];          break;
-            case DIV: for (int j=0; j < len; j++) ar[j] = aa[j] / ab[j];          break;
-            case MOD: for (int j=0; j < len; j++) ar[j] = aa[j] % ab[j];          break;
-            case MIN: for (int j=0; j < len; j++) ar[j] = Math.min(aa[j], ab[j]); break;
-            case MAX: for (int j=0; j < len; j++) ar[j] = Math.max(aa[j], ab[j]); break;
-            case POW: for (int j=0; j < len; j++) ar[j] = {cast}Math.pow(aa[j], ab[j]); break;
+            case ADD: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] + ab[j];          break;
+            case SUB: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] - ab[j];          break;
+            case MUL: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] * ab[j];          break;
+            case DIV: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] / ab[j];          break;
+            case MOD: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] % ab[j];          break;
+            case MIN: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = Math.min(aa[j], ab[j]); break;
+            case MAX: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = Math.max(aa[j], ab[j]); break;
+            case POW: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = {cast}Math.pow(aa[j], ab[j]); break;
 ''',
 
     'BINARY_NUMERIC_OPS_NAIVE': '''\
@@ -6346,9 +6810,9 @@ public class {class_name}
 ''',
 
     'BINARY_LOGIC_OPS': '''\
-            case AND: for (int j=0; j < len; j++) ar[j] = aa[j] & ab[j]; break;
-            case OR:  for (int j=0; j < len; j++) ar[j] = aa[j] | ab[j]; break;
-            case XOR: for (int j=0; j < len; j++) ar[j] = aa[j] ^ ab[j]; break;
+            case AND: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] & ab[j]; break;
+            case OR:  for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] | ab[j]; break;
+            case XOR: for (int j=0; j < len; j++) if (aw == null || aw[j]) ar[j] = aa[j] ^ ab[j]; break;
 ''',
 
     'BINARY_LOGIC_OPS_NAIVE': '''\
@@ -6400,10 +6864,10 @@ public class {class_name}
 ''',
 
     'ASSOCIATIVE_OPS': '''\
-            case ADD:    for (int j=0; j < len{nan_check_for_r}; j++) r += aa[j]; break;
-            case MIN:    for (int j=0; j < len{nan_check_for_r}; j++) r  = (r < aa[j] ? r : aa[j]); break;
-            case MAX:    for (int j=0; j < len{nan_check_for_r}; j++) r  = (r > aa[j] ? r : aa[j]); break;
-            case NANADD: for (int j=0; j < len; j++) r += ({floating_object_type}.isNaN(aa[j]) ? 0 : aa[j]); break;
+            case ADD:    for (int j=0; j < len{nan_check_for_r}; j++) if (ww == null || ww[j]) r += aa[j]; break;
+            case MIN:    for (int j=0; j < len{nan_check_for_r}; j++) if (ww == null || ww[j]) r  = (r < aa[j] ? r : aa[j]); break;
+            case MAX:    for (int j=0; j < len{nan_check_for_r}; j++) if (ww == null || ww[j]) r  = (r > aa[j] ? r : aa[j]); break;
+            case NANADD: for (int j=0; j < len; j++) if (ww == null || ww[j]) r += ({floating_object_type}.isNaN(aa[j]) ? 0 : aa[j]); break;
 ''',
 
     'ASSOCIATIVE_OPS_NAIVE': '''\
@@ -6432,8 +6896,8 @@ public class {class_name}
 ''',
 
     'REDUCTIVE_LOGIC_OPS': '''\
-            case ANY: for (int j=0; j < len; j++) r |= (aa[j]{boolean_conversion}); break;
-            case ALL: for (int j=0; j < len; j++) r &= (aa[j]{boolean_conversion}); break;
+            case ANY: for (int j=0; j < len; j++) if (ww == null || ww[j]) r |= (aa[j]{boolean_conversion}); break;
+            case ALL: for (int j=0; j < len; j++) if (ww == null || ww[j]) r &= (aa[j]{boolean_conversion}); break;
 ''',
 
     'REDUCTIVE_LOGIC_OPS_NAIVE': '''\

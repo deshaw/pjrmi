@@ -309,7 +309,12 @@ public class {class_name}
 
     'ASSOCIATIVE_OPS': '''\
             case ADD:
-                /*scope*/ {{
+                if (ww != null) {{
+                    throw new UnsupportedOperationException(
+                        "Where clauses not supported for vectorized operations"
+                    );
+                }}
+                else {{
                     int j = 0;
                     for (; j <= len - {species_length}{nan_check_for_r}; j += {species_length}) {{
                         // "Reduce" this chunk through an associative add operation
@@ -327,7 +332,12 @@ public class {class_name}
                 }}
                 break;
             case NANADD:
-                /*scope*/ {{
+                if (ww != null) {{
+                    throw new UnsupportedOperationException(
+                        "Where clauses not supported for vectorized operations"
+                    );
+                }}
+                else {{
                     int j = 0;
                     for (; j <= len - {species_length}; j += {species_length}) {{
                         // "Reduce" this chunk through an associative add operation,
@@ -346,7 +356,12 @@ public class {class_name}
                 }}
                 break;
             case MIN:
-                /*scope*/ {{
+                if (ww != null) {{
+                    throw new UnsupportedOperationException(
+                        "Where clauses not supported for vectorized operations"
+                    );
+                }}
+                else {{
                     int j = 0;
                     for (; j <= len - {species_length}{nan_check_for_r}; j += {species_length}) {{
                         // "Reduce" this chunk through an associative min operation
@@ -366,7 +381,12 @@ public class {class_name}
                 }}
                 break;
             case MAX:
-                /*scope*/ {{
+                if (ww != null) {{
+                    throw new UnsupportedOperationException(
+                        "Where clauses not supported for vectorized operations"
+                    );
+                }}
+                else {{
                     int j = 0;
                     for (; j <= len - {species_length}{nan_check_for_r}; j += {species_length}) {{
                         // "Reduce" this chunk through an associative max operation

@@ -7,6 +7,8 @@ package com.deshaw.hypercube;
 //
 //     cog.outl(cube_math_test.generate())
 // ]]]
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 /**
@@ -32,7 +34,7 @@ public class CubeMathTest
     private <T> void assertEquals(final Hypercube<T> cube1,
                                   final Hypercube<T> cube2)
     {
-        assert(CubeMath.all(CubeMath.equal(cube1, cube2)));
+        assert(CubeMath.all0d(CubeMath.equal(cube1, cube2)));
     }
 
     // -------------------------------------------------------------------------
@@ -100,14 +102,14 @@ public class CubeMathTest
         final Hypercube<Boolean> le = CubeMath.lessEqual   (a, b);
         final Hypercube<Boolean> ge = CubeMath.greaterEqual(a, b);
 
-        assert( CubeMath.all(eq));
-        assert( CubeMath.any(eq));
-        assert(!CubeMath.any(lt));
-        assert(!CubeMath.any(gt));
-        assert( CubeMath.any(le));
-        assert( CubeMath.any(ge));
-        assert(!CubeMath.all(ne));
-        assert(!CubeMath.any(ne));
+        assert( CubeMath.all0d(eq));
+        assert( CubeMath.any0d(eq));
+        assert(!CubeMath.any0d(lt));
+        assert(!CubeMath.any0d(gt));
+        assert( CubeMath.any0d(le));
+        assert( CubeMath.any0d(ge));
+        assert(!CubeMath.all0d(ne));
+        assert(!CubeMath.any0d(ne));
     }
 
     // ----------------------------------------------------------------------
@@ -293,7 +295,7 @@ public class CubeMathTest
         // Check that all elements are zero.
         final Hypercube<Boolean> e = CubeMath.equal(m, (float)0);
         final Hypercube<Boolean> b = CubeMath.equal(e, true);
-        assert(CubeMath.all(b));
+        assert(CubeMath.all0d(b));
     }
 
     /**
@@ -470,6 +472,35 @@ public class CubeMathTest
         assert(Math.abs(CubeMath.nansum0d(a) - nansum) <= EPS);
     }
 
+    /**
+     * Test that the {@code where} kwarg works as expected.
+     */
+    @Test
+    public void testFloatWhereKwarg()
+    {
+        // Create the cube full of values, from negative to positive, and
+        // compute the sum of the non-negative ones
+        float sum = 0;
+        final FloatHypercube cube = createFloatHypercube();
+        for (long i = 0, j = cube.getSize() / 2; i < cube.getSize(); i++, j++) {
+            cube.setAt(i, (float)j);
+            if (j >= 0) {
+                sum += j;
+            }
+        }
+
+        // Get the mask of the values in the cube which are non-negative and use
+        // that as the where clause for sum()
+        final Hypercube<Boolean> where = CubeMath.greaterEqual(cube, (float)0);
+        final Object whereSum = CubeMath.sum(cube, Map.of("where", where));
+
+        // Sum should return an object of the element type. (It could return
+        // null, or another cube if the axis kwarg is used.) That value should
+        // match our computed sum.
+        assert(whereSum instanceof Float);
+        assert((Float)whereSum == sum);
+    }
+
     // ----------------------------------------------------------------------
 
     /**
@@ -488,14 +519,14 @@ public class CubeMathTest
         final Hypercube<Boolean> le = CubeMath.lessEqual   (a, b);
         final Hypercube<Boolean> ge = CubeMath.greaterEqual(a, b);
 
-        assert( CubeMath.all(eq));
-        assert( CubeMath.any(eq));
-        assert(!CubeMath.any(lt));
-        assert(!CubeMath.any(gt));
-        assert( CubeMath.any(le));
-        assert( CubeMath.any(ge));
-        assert(!CubeMath.all(ne));
-        assert(!CubeMath.any(ne));
+        assert( CubeMath.all0d(eq));
+        assert( CubeMath.any0d(eq));
+        assert(!CubeMath.any0d(lt));
+        assert(!CubeMath.any0d(gt));
+        assert( CubeMath.any0d(le));
+        assert( CubeMath.any0d(ge));
+        assert(!CubeMath.all0d(ne));
+        assert(!CubeMath.any0d(ne));
     }
 
     // ----------------------------------------------------------------------
@@ -681,7 +712,7 @@ public class CubeMathTest
         // Check that all elements are zero.
         final Hypercube<Boolean> e = CubeMath.equal(m, (double)0);
         final Hypercube<Boolean> b = CubeMath.equal(e, true);
-        assert(CubeMath.all(b));
+        assert(CubeMath.all0d(b));
     }
 
     /**
@@ -858,6 +889,35 @@ public class CubeMathTest
         assert(Math.abs(CubeMath.nansum0d(a) - nansum) <= EPS);
     }
 
+    /**
+     * Test that the {@code where} kwarg works as expected.
+     */
+    @Test
+    public void testDoubleWhereKwarg()
+    {
+        // Create the cube full of values, from negative to positive, and
+        // compute the sum of the non-negative ones
+        double sum = 0;
+        final DoubleHypercube cube = createDoubleHypercube();
+        for (long i = 0, j = cube.getSize() / 2; i < cube.getSize(); i++, j++) {
+            cube.setAt(i, (double)j);
+            if (j >= 0) {
+                sum += j;
+            }
+        }
+
+        // Get the mask of the values in the cube which are non-negative and use
+        // that as the where clause for sum()
+        final Hypercube<Boolean> where = CubeMath.greaterEqual(cube, (double)0);
+        final Object whereSum = CubeMath.sum(cube, Map.of("where", where));
+
+        // Sum should return an object of the element type. (It could return
+        // null, or another cube if the axis kwarg is used.) That value should
+        // match our computed sum.
+        assert(whereSum instanceof Double);
+        assert((Double)whereSum == sum);
+    }
+
     // ----------------------------------------------------------------------
 
     /**
@@ -876,14 +936,14 @@ public class CubeMathTest
         final Hypercube<Boolean> le = CubeMath.lessEqual   (a, b);
         final Hypercube<Boolean> ge = CubeMath.greaterEqual(a, b);
 
-        assert( CubeMath.all(eq));
-        assert( CubeMath.any(eq));
-        assert(!CubeMath.any(lt));
-        assert(!CubeMath.any(gt));
-        assert( CubeMath.any(le));
-        assert( CubeMath.any(ge));
-        assert(!CubeMath.all(ne));
-        assert(!CubeMath.any(ne));
+        assert( CubeMath.all0d(eq));
+        assert( CubeMath.any0d(eq));
+        assert(!CubeMath.any0d(lt));
+        assert(!CubeMath.any0d(gt));
+        assert( CubeMath.any0d(le));
+        assert( CubeMath.any0d(ge));
+        assert(!CubeMath.all0d(ne));
+        assert(!CubeMath.any0d(ne));
     }
 
     // ----------------------------------------------------------------------
@@ -1069,7 +1129,7 @@ public class CubeMathTest
         // Check that all elements are zero.
         final Hypercube<Boolean> e = CubeMath.equal(m, (int)0);
         final Hypercube<Boolean> b = CubeMath.equal(e, true);
-        assert(CubeMath.all(b));
+        assert(CubeMath.all0d(b));
     }
 
     /**
@@ -1158,14 +1218,14 @@ public class CubeMathTest
         final Hypercube<Boolean> le = CubeMath.lessEqual   (a, b);
         final Hypercube<Boolean> ge = CubeMath.greaterEqual(a, b);
 
-        assert( CubeMath.all(eq));
-        assert( CubeMath.any(eq));
-        assert(!CubeMath.any(lt));
-        assert(!CubeMath.any(gt));
-        assert( CubeMath.any(le));
-        assert( CubeMath.any(ge));
-        assert(!CubeMath.all(ne));
-        assert(!CubeMath.any(ne));
+        assert( CubeMath.all0d(eq));
+        assert( CubeMath.any0d(eq));
+        assert(!CubeMath.any0d(lt));
+        assert(!CubeMath.any0d(gt));
+        assert( CubeMath.any0d(le));
+        assert( CubeMath.any0d(ge));
+        assert(!CubeMath.all0d(ne));
+        assert(!CubeMath.any0d(ne));
     }
 
     // ----------------------------------------------------------------------
@@ -1351,7 +1411,7 @@ public class CubeMathTest
         // Check that all elements are zero.
         final Hypercube<Boolean> e = CubeMath.equal(m, (long)0);
         final Hypercube<Boolean> b = CubeMath.equal(e, true);
-        assert(CubeMath.all(b));
+        assert(CubeMath.all0d(b));
     }
 
     /**
@@ -1440,14 +1500,14 @@ public class CubeMathTest
         final Hypercube<Boolean> le = CubeMath.lessEqual   (a, b);
         final Hypercube<Boolean> ge = CubeMath.greaterEqual(a, b);
 
-        assert( CubeMath.all(eq));
-        assert( CubeMath.any(eq));
-        assert(!CubeMath.any(lt));
-        assert(!CubeMath.any(gt));
-        assert( CubeMath.any(le));
-        assert( CubeMath.any(ge));
-        assert(!CubeMath.all(ne));
-        assert(!CubeMath.any(ne));
+        assert( CubeMath.all0d(eq));
+        assert( CubeMath.any0d(eq));
+        assert(!CubeMath.any0d(lt));
+        assert(!CubeMath.any0d(gt));
+        assert( CubeMath.any0d(le));
+        assert( CubeMath.any0d(ge));
+        assert(!CubeMath.all0d(ne));
+        assert(!CubeMath.any0d(ne));
     }
 
     // ----------------------------------------------------------------------
@@ -1574,4 +1634,4 @@ public class CubeMathTest
     }
 }
 
-// [[[end]]] (checksum: f0a218aeec948bbc70f81bd28950a147)
+// [[[end]]] (checksum: cb66599ebcc953dd0bdc22675037170d)

@@ -1,5 +1,10 @@
 package com.deshaw.pjrmi;
 
+import com.deshaw.hypercube.BooleanHypercube;
+import com.deshaw.hypercube.Boolean1dWrappingHypercube;
+import com.deshaw.hypercube.Hypercube;
+import com.deshaw.python.DType;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -8,6 +13,85 @@ import java.util.List;
  */
 public class KwargUtil
 {
+    /**
+     * Turn the given (kwarg) object into a value of the given class, if
+     * possible.
+     *
+     * @return the cube, or {@code null} if given null.
+     *
+     * @throws IllegalArgumentException if the conversion is not possible.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T toClassValue(final Object   kwarg,
+                                     final Class<T> klass)
+        throws IllegalArgumentException
+    {
+        // Null breeds null
+        if (kwarg == null) {
+            return null;
+        }
+
+        // Handle a missing class
+        if (klass == null) {
+            throw new IllegalArgumentException("Given a null class");
+        }
+
+        // See if direct casting is possible
+        try {
+            return klass.cast(kwarg);
+        }
+        catch (ClassCastException e) {
+            // Nothing; best effort
+        }
+
+        // Do things by hand
+
+        // Convert to numbers
+        if (kwarg instanceof Number) {
+            final Number number = (Number)kwarg;
+            if (klass == Byte   .class) return (T)(Object)number.byteValue();
+            if (klass == Double .class) return (T)(Object)number.doubleValue();
+            if (klass == Float  .class) return (T)(Object)number.floatValue();
+            if (klass == Integer.class) return (T)(Object)number.intValue();
+            if (klass == Short  .class) return (T)(Object)number.shortValue();
+            if (klass == Long   .class) return (T)(Object)number.longValue();
+        }
+
+        // Turn things into Strings. This should really be made a little
+        // cleverer so as to handle arrays etc. at some point.
+        if (klass == String.class) {
+            return (T)(Object)kwarg.toString();
+        }
+
+        // If we got here then we couldn't do it
+        throw new IllegalArgumentException(
+            "Could not convert " + kwarg + " to a " + klass.getSimpleName()
+        );
+    }
+
+    /**
+     * Turn the given value into a {@link DType.Type}.
+     */
+    @SuppressWarnings("unchecked")
+    public static DType.Type toDTypeType(Object kwarg)
+        throws IllegalArgumentException
+    {
+        if (kwarg == null) {
+            kwarg = "float";
+        }
+        if (kwarg.equals("float")) {
+            kwarg = "float64";
+        }
+        if (!(kwarg instanceof String)) {
+            kwarg = kwarg.toString();
+        }
+        final DType.Type type = DType.Type.byName((String)kwarg);
+        if (type == null) {
+            throw new IllegalArgumentException("No kwarg for '" + kwarg + "'");
+        }
+        return type;
+    }
+
     /**
      * Turn the given (kwarg) object into a {@code int[]}, if possible.
      *
@@ -201,5 +285,52 @@ public class KwargUtil
                 "Could not convert " + kwarg + " to a long[]"
             );
         }
+    }
+
+    /**
+     * Turn the given (kwarg) object into a {@link BooleanHypercube}, if possible.
+     *
+     * @return the cube, or {@code null} if given null.
+     *
+     * @throws IllegalArgumentException if the conversion is not possible.
+     */
+    public static BooleanHypercube toBooleanHypercube(final Object kwarg)
+        throws IllegalArgumentException
+    {
+        // Null breeds null
+        if (kwarg == null) {
+            return null;
+        }
+
+        // Handle some primitives
+        if (kwarg instanceof Boolean) {
+            return new Boolean1dWrappingHypercube(
+                new boolean[]{((Boolean)kwarg).booleanValue()}
+            );
+        }
+        if (kwarg instanceof Number) {
+            return new Boolean1dWrappingHypercube(
+                new boolean[]{((Number)kwarg).byteValue() != 0}
+            );
+        }
+
+        // Now assume it's a cube
+        BooleanHypercube result = null;
+        try {
+            result = BooleanHypercube.asBooleanHypercube((Hypercube<?>)kwarg);
+        }
+        catch (ClassCastException e) {
+            // Nothing, checked below
+        }
+
+        // If the result was null then the conversion failed
+        if (result == null) {
+            throw new IllegalArgumentException(
+                "Could not convert value to a BooleanHypercube: " + kwarg
+            );
+        }
+
+        // Otherwise it must have worked
+        return result;
     }
 }

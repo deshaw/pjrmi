@@ -2973,17 +2973,17 @@ public class TestInjectSource {
                                           for el in value))
 
                 elif isinstance(value, int):
-                    if numpy.int8(value) == value:
+                    if numpy.can_cast(value, numpy.int8):
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._java_lang_Byte._type_id) +
                                 self._format_int8(strict_number(numpy.int8, value)))
 
-                    elif numpy.int16(value) == value:
+                    elif numpy.can_cast(value, numpy.int16):
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._java_lang_Short._type_id) +
                                 self._format_int16(strict_number(numpy.int16, value)))
 
-                    elif numpy.int32(value) == value:
+                    elif numpy.can_cast(value, numpy.int32):
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._java_lang_Integer._type_id) +
                                 self._format_int32(strict_number(numpy.int32, value)))
@@ -3631,14 +3631,14 @@ public class TestInjectSource {
         Reads an array of 8 bit integers array from some data looking like
         [int32:size][byte[]:data] from a byte buffer.
 
-        :return: An array of int8s, the new offset into the byte buffer.
+        :return: An array-like of int8s, the new offset into the byte buffer.
         """
 
         # Hand off to the version which reads the values as a string
         (byte_array, index) = self._read_byte_array(bytes, index)
 
         # Convert to an array of int8s
-        int8_array = [numpy.int8(b) for b in bytearray(byte_array)]
+        int8_array = numpy.array(bytearray(byte_array)).astype(numpy.int8)
 
         return (int8_array, index)
 

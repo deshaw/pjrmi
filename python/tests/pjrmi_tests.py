@@ -1370,23 +1370,25 @@ public class TestInjectSource {
         self.assertTrue(numpy.all((dac * dac) == (nda * nda)))
         self.assertTrue(numpy.all((dac / dac) == (nda / nda)))
 
+        # We get floating point noise for some of the tests in the below since
+        # CubeMath and numpy work slightly differently. Compare against ~eps in
+        # those cases.
+        EPS = 1e-16
+
         # Hyperbolic and trig
-        self.assertTrue(numpy.all(CubeMath.tanh(dac) == numpy.tanh(nda)))
-        self.assertTrue(numpy.all(CubeMath.sinh(dac) == numpy.sinh(nda)))
-        self.assertTrue(numpy.all(CubeMath.cosh(dac) == numpy.cosh(nda)))
+        self.assertTrue(numpy.all(abs(CubeMath.tanh(dac) -  numpy.tanh(nda)) < EPS))
+        self.assertTrue(numpy.all(    CubeMath.sinh(dac) == numpy.sinh(nda)))
+        self.assertTrue(numpy.all(    CubeMath.cosh(dac) == numpy.cosh(nda)))
 
         self.assertTrue(numpy.all(CubeMath.tan(dac) == numpy.tan(nda)))
         self.assertTrue(numpy.all(CubeMath.sin(dac) == numpy.sin(nda)))
         self.assertTrue(numpy.all(CubeMath.cos(dac) == numpy.cos(nda)))
 
         # Misc...
-        self.assertTrue(numpy.all(CubeMath.exp(dac) == numpy.exp(nda)))
-        self.assertTrue(numpy.all(CubeMath.min(dac) == numpy.min(nda)))
-        self.assertTrue(numpy.all(CubeMath.max(dac) == numpy.max(nda)))
-
-        # We get floating point noise here, since CubeMath and numpy work
-        # slightly differently. Compare against ~eps.
-        self.assertTrue(numpy.all(abs(CubeMath.sum(dac) - numpy.sum(nda)) < 1e-16))
+        self.assertTrue(numpy.all(    CubeMath.exp(dac) == numpy.exp(nda)))
+        self.assertTrue(numpy.all(    CubeMath.min(dac) == numpy.min(nda)))
+        self.assertTrue(numpy.all(    CubeMath.max(dac) == numpy.max(nda)))
+        self.assertTrue(numpy.all(abs(CubeMath.sum(dac) -  numpy.sum(nda)) < EPS))
 
         # Rounding
         self.assertTrue(numpy.all(CubeMath.round(dac) == numpy.round(nda)))

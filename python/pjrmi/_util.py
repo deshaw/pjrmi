@@ -96,7 +96,7 @@ def strict_bool(arg):
     """
     if isinstance(arg, bool):
         return arg
-    if not isinstance(arg, (int, numpy.integer, numpy.bool8)):
+    if not isinstance(arg, (int, numpy.integer, numpy.bool_)):
         raise TypeError(
             "Expected a bool, but got a %s with value %r" %
                 (type(arg).__name__, arg))
@@ -126,11 +126,11 @@ def strict_number(typ, value):
         raise TypeError("String may not be cast to %s" % typ)
 
     # Do the cast, this may throw
-    casted = typ(value)
+    casted = numpy.array(value).astype(typ)
 
     # NaNs are easy to check
     if numpy.isnan(casted) and numpy.isnan(value):
-        return casted
+        return value
 
     # Make sure they look the same, in a somewhat simplistic way
     if casted == value:
@@ -146,7 +146,7 @@ def strict_number(typ, value):
             type(value)(casted) == value):
             # Either it wasn't being cast to a float, or it matched when we
             # cast it back. Either way, it's safe to hand back.
-            return casted
+            return value
 
     # If we got here then we failed
     raise ImpreciseRepresentationError(

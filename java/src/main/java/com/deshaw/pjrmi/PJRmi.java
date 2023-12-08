@@ -8484,6 +8484,17 @@ public abstract class PJRmi
         {
             // Loop until we get it back
             while (true) {
+                // We won't get an answer back from a closed transport
+                if (myTransport.isClosed()) {
+                    throw new PythonCallbackException(
+                        "Connection to Python is closed",
+                        new IOException(
+                            "Connection to Python is closed"
+                        )
+                    );
+                }
+
+                // Is the result ready?
                 if (result.isReady()) {
                     final Object pythonResult = result.getResult();
                     if (LOG.isLoggable(Level.FINEST)) {

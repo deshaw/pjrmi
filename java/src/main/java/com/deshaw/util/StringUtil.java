@@ -1,27 +1,9 @@
 package com.deshaw.util;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.RandomAccessFile;
 import java.io.StringWriter;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.StandardCharsets;
-
 import java.text.ParseException;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Provides utility methods to deal with {@link String}s and

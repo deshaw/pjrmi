@@ -7,9 +7,13 @@ package com.deshaw.hypercube;
 //
 //     cog.outl(vectorized_cube_math.generate())
 // ]]]
+import com.deshaw.pjrmi.KwargUtil;
+import com.deshaw.pjrmi.PJRmi.GenericReturnType;
 import com.deshaw.pjrmi.PJRmi.Kwargs;
+import com.deshaw.python.DType;
 
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
@@ -18174,4 +18178,4 @@ public class VectorizedCubeMath
     }
 }
 
-// [[[end]]] (checksum: 043608ba2f3508e6523dd167e0031720)
+// [[[end]]] (checksum: ffc85e2ad3c905867f09b42b00fdfe3a)

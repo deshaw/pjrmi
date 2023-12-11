@@ -76,7 +76,8 @@ dependencies {
 
 ext {
     // The user-given parameter that is used to decide whether to include
-    // vectorized classes when building.
+    // vectorized classes when building:
+    //   ./gradlew build -PincludeVectorized
     INCLUDE_VECTORIZED = 'includeVectorized'
 }
 

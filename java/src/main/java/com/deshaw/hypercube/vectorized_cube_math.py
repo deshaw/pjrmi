@@ -49,9 +49,13 @@ _VECTORIZED_CUBE_MATH_IMPL = {
     ],
 
     'IMPORTS': '''\
+import com.deshaw.pjrmi.KwargUtil;
+import com.deshaw.pjrmi.PJRmi.GenericReturnType;
 import com.deshaw.pjrmi.PJRmi.Kwargs;
+import com.deshaw.python.DType;
 
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;

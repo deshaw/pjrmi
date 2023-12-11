@@ -37,13 +37,13 @@ public class VectorizedCubeMathTest
     {{
         // Make sure to consider an error margin for floating-point cubes.
         if (cube1.getElementType().equals(Double.class)) {{
-            assert(CubeMath.all(CubeMath.lessEqual(CubeMath.abs(CubeMath.subtract(cube1, cube2)), (T)((Double)EPS))));
+            assert(CubeMath.all0d(CubeMath.lessEqual(CubeMath.abs(CubeMath.subtract(cube1, cube2)), (T)((Double)EPS))));
         }}
         else if (cube1.getElementType().equals(Float.class)) {{
-            assert(CubeMath.all(CubeMath.lessEqual(CubeMath.abs(CubeMath.subtract(cube1, cube2)), (T)(Float)((float)EPS))));
+            assert(CubeMath.all0d(CubeMath.lessEqual(CubeMath.abs(CubeMath.subtract(cube1, cube2)), (T)(Float)((float)EPS))));
         }}
         else {{
-            assert(CubeMath.all(CubeMath.equal(cube1, cube2)));
+            assert(CubeMath.all0d(CubeMath.equal(cube1, cube2)));
         }}
     }}
 '''
@@ -75,8 +75,8 @@ _CUBE_MATH_TEST_ALL = '''\
         assertEquals(VectorizedCubeMath.greaterEqual(a, b),
                      CubeMath          .greaterEqual(a, b));
 
-        assert(VectorizedCubeMath.any(a) == CubeMath.any(a));
-        assert(VectorizedCubeMath.all(a) == CubeMath.all(a));
+        assert(VectorizedCubeMath.any0d(a) == CubeMath.any0d(a));
+        assert(VectorizedCubeMath.all0d(a) == CubeMath.all0d(a));
     }}
 
     // ----------------------------------------------------------------------
@@ -161,9 +161,9 @@ _CUBE_MATH_TEST_NUMERIC = '''\
         final {object_type}Hypercube a = create{object_type}Hypercube();
 
         // Make sure to allow for an error margin
-        assert(Math.abs(VectorizedCubeMath.min(a) - CubeMath.min(a)) <= EPS);
-        assert(Math.abs(VectorizedCubeMath.max(a) - CubeMath.max(a)) <= EPS);
-        assert(Math.abs(VectorizedCubeMath.sum(a) - CubeMath.sum(a)) <= EPS);
+        assert(Math.abs(VectorizedCubeMath.min0d(a) - CubeMath.min0d(a)) <= EPS);
+        assert(Math.abs(VectorizedCubeMath.max0d(a) - CubeMath.max0d(a)) <= EPS);
+        assert(Math.abs(VectorizedCubeMath.sum0d(a) - CubeMath.sum0d(a)) <= EPS);
     }}
 
     /**
@@ -265,12 +265,12 @@ _CUBE_MATH_TEST_REAL = '''\
         a.setAt(0, {object_type}.NaN);
 
         // Ensure that the results are NaNs
-        assert({object_type}.isNaN(VectorizedCubeMath.min(a)));
-        assert({object_type}.isNaN(VectorizedCubeMath.max(a)));
-        assert({object_type}.isNaN(VectorizedCubeMath.sum(a)));
+        assert({object_type}.isNaN(VectorizedCubeMath.min0d(a)));
+        assert({object_type}.isNaN(VectorizedCubeMath.max0d(a)));
+        assert({object_type}.isNaN(VectorizedCubeMath.sum0d(a)));
 
         // Make sure to allow for an error margin
-        assert(Math.abs(VectorizedCubeMath.nansum(a) - CubeMath.nansum(a)) <= EPS);
+        assert(Math.abs(VectorizedCubeMath.nansum0d(a) - CubeMath.nansum0d(a)) <= EPS);
     }}
 '''
 

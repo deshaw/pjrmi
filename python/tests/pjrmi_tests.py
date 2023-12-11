@@ -1386,6 +1386,7 @@ public class TestInjectSource {
 
         # Misc...
         self.assertTrue(numpy.all(    CubeMath.exp(dac) == numpy.exp(nda)))
+        self.assertTrue(numpy.all(    CubeMath.log(dac) == numpy.log(nda)))
         self.assertTrue(numpy.all(    CubeMath.min(dac) == numpy.min(nda)))
         self.assertTrue(numpy.all(    CubeMath.max(dac) == numpy.max(nda)))
         self.assertTrue(numpy.all(abs(CubeMath.sum(dac) -  numpy.sum(nda)) < EPS))

@@ -50,6 +50,9 @@ implementations are:
 -   [jpy](https://pypi.org/project/jpy/) is another in-process implementation.
     One of its key features is support for fast pass-by-value operations with
     arrays by use of pointer hand-off.
+-   [jpype](https://pypi.org/project/JPype1/) is another in-process
+    implementation. Since it uses internal C-based handoff it's highly
+    performant.
 
 As well as the feature sets of the above, PJRmi supports complex Java
 constructs, has smooth integration of the two languages' type systems, and can

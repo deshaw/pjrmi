@@ -15,11 +15,33 @@ javadoc {
 // Configuration from the outside world.
 def SNAPPY = 'org.xerial.snappy:snappy-java:' + snappyVersion
 
-// PJRmi is specifically Java11 so as not to force users to later versions, if
-// they have dependencies, so enforce this in the build.
+// Support for Vectorized math.
+ext {
+    // The user-given parameter that is used to decide whether to include
+    // vectorized classes when building:
+    //   ./gradlew build -PincludeVectorized
+    INCLUDE_VECTORIZED = 'includeVectorized'
+}
+
+
+// Choose which Java version to use, for the general population. This section
+// can be commented out if you want to let the build pick up the Java version
+// from the environment, though read the comments about Vectorized support.
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
+    if (project.hasProperty(INCLUDE_VECTORIZED)) {
+        // PJRmi is specifically Java11 so as not to force users to later
+        // versions. However, as of 20230906, the Vector API incubator module
+        // is only available in Java17.
+        toolchain {
+            languageVersion.set(JavaLanguageVersion.of(17))
+        }
+    }
+    else {
+        // PJRmi is specifically Java11 so as not to force users to later
+        // versions, if they have dependencies, so enforce this in the build.
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(11)
+         }
     }
 }
 
@@ -76,30 +98,9 @@ dependencies {
     compileOnly SNAPPY
 }
 
-// ============================================================================
-/* Add the Vector API incubator module when a certain build parameter (defined
- * below) is passed. Otherwise, exclude the vectorized files that include this
- * module from the build.
- */
-
-ext {
-    // The user-given parameter that is used to decide whether to include
-    // vectorized classes when building:
-    //   ./gradlew build -PincludeVectorized
-    INCLUDE_VECTORIZED = 'includeVectorized'
-}
-
-java {
-    if (project.hasProperty(INCLUDE_VECTORIZED)) {
-        // PJRmi is specifically Java11 so as not to force users to later
-        // versions. However, as of 20230906, the Vector API incubator module
-        // is only available in Java17.
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
-        }
-    }
-}
-
+// Add the Vector API incubator module when the 'includeVectorized' build
+// parameter is passed. Otherwise, exclude the vectorized files that include
+// this module from the build.
 sourceSets {
     main {
         java {

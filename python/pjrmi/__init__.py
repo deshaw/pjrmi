@@ -107,6 +107,7 @@ class PJRmi:
     _GET_PROXY             = b'R' # Client to server
     _INVOKE_AND_GET_OBJECT = b'S' # Client to server
     _INJECT_SOURCE         = b'T' # Client to server
+    _REPLACE_CLASS         = b'U' # Client to server
     _OBJECT_REFERENCE      = b'a' # Server to client
     _TYPE_DESCRIPTION      = b'b' # Server to client
     _ARBITRARY_ITEM        = b'c' # Server to client
@@ -976,6 +977,9 @@ class PJRmi:
         Read some Java bytecode from a file and inject it into the running Java
         instance as a ``Class``.
 
+        :param filename: The path of the Java class file containing the class
+                         bytecode.
+
         :return: The Python class shim of the injected Java class.
         """
 
@@ -983,24 +987,28 @@ class PJRmi:
             return ValueError('Given a null filename')
 
         # Read in and send over the bytecode from the file
-        fh = open(filename, 'rb')
-        req_id = self._send(self._INJECT_CLASS, fh.read())
+        with open(filename, 'rb') as fh:
+            req_id = self._send(self._INJECT_CLASS, fh.read())
 
         # Read the result
         type_dict = self._read_result(req_id)
         if type_dict is None:
             raise TypeError("Could not read type information back from server")
         else:
-            return self._create_class(type_dict)
+            klass = self._create_class(type_dict)
+            self._classes_by_id  [klass._type_id]   = klass
+            self._classes_by_name[klass._classname] = klass
+
+            return klass
 
 
     def inject_source(self, class_name, source):
         """
         Compile the Java class source-code with the given class name.
 
-        :param str class_name: The name of the class in the source given.
+        :param class_name: The name of the class in the source given.
 
-        :param str source: The source code for the class to compile and inject,
+        :param source: The source code for the class to compile and inject,
                            e.g.:
 public class TestInjectSource {
     public static int foo(int i) {
@@ -1032,6 +1040,46 @@ public class TestInjectSource {
             self._classes_by_name[klass._classname] = klass
 
             return klass
+
+
+    def replace_class(self, klass, filename):
+        """
+        Read some Java bytecode from a file and use it to replace the implementation
+        of an existing class in the JVM.
+
+        For this to function the ``PJRmiAgent`` must be loaded into the JVM.
+
+        :param klass:    The Python shim class of the Java class which we are
+                         replacing.
+        :param filename: The path of the Java class file containing the new
+                         bytecode.
+
+        :return: The Python class shim of the replaced Java class.
+        """
+
+        if filename is None:
+            return ValueError('Given a null filename')
+
+        # Read in and send over the bytecode from the file
+        with open(filename, 'rb') as fh:
+            bytecode = fh.read()
+
+        # And send it off
+        payload  = self._format_int32(klass._type_id)
+        payload += self._format_int32(len(bytecode))
+        payload += bytecode
+        req_id   = self._send(self._REPLACE_CLASS, payload)
+
+        # Read the result
+        type_dict = self._read_result(req_id)
+        if type_dict is None:
+            raise TypeError("Could not read type information back from server")
+        else:
+            new_klass = self._create_class(type_dict)
+            self._classes_by_id  [new_klass._type_id]   = new_klass
+            self._classes_by_name[new_klass._classname] = new_klass
+
+            return new_klass
 
 
     def get_constructor(self, klass, arg_types=None):
@@ -5673,6 +5721,7 @@ def connect_to_child_jvm(main_class='com.deshaw.pjrmi.UnixFifoProvider',
                          classpath=(), java_args=(), application_args=(), timeout=60,
                          stdin='/dev/stdin', stdout='/dev/stdout', stderr='/dev/stderr',
                          interactive_mode=True, use_shm_arg_passing=False,
+                         use_pjrmi_agent=False,
                          impl=PJRmi):
     """
     Create a child JVM instance and connect to it.
@@ -5709,8 +5758,19 @@ def connect_to_child_jvm(main_class='com.deshaw.pjrmi.UnixFifoProvider',
                                 make it more friendly to that.
     :param use_shm_arg_passing: Whether to enable passing of some values by SHM
                                 copying. This requires the C extension to function.
+    :param use_pjrmi_agent:     Whether to include the directive to load the
+                                ``PJRmiAgent`` class on the command line.
     :param impl:                The `PJRmi` implementation to use.
     """
+
+    # If we have been told to load the agent then we should include that as part
+    # of the command line arguments
+    if use_pjrmi_agent:
+        if java_args is None:
+            java_args = []
+        else:
+            java_args = list(java_args)
+        java_args.append(f'-javaagent:{_PJRMI_FATJAR}')
 
     # Create and connect
     c = impl(UnixFifoTransport(main_class,

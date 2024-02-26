@@ -32,6 +32,14 @@ jar {
     from {
         configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
+
+    // Add the agent info to the manifest file
+    manifest {
+        attributes 'Agent-Class'             : 'com.deshaw.pjrmi.PJRmiAgent'
+        attributes 'Premain-Class'           : 'com.deshaw.pjrmi.PJRmiAgent'
+        attributes 'Can-Redefine-Classes'    : 'true'
+        attributes 'Can-Retransform-Classes' : 'true'
+    }
 }
 
 compileJava {

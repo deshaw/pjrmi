@@ -41,6 +41,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.instrument.ClassDefinition;
+import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -716,6 +718,7 @@ public abstract class PJRmi
         GET_PROXY            ((byte) 'R', false), // Client to server
         INVOKE_AND_GET_OBJECT((byte) 'S', false), // Client to server
         INJECT_SOURCE        ((byte) 'T', false), // Client to server
+        REPLACE_CLASS        ((byte) 'U', false), // Client to server
         OBJECT_REFERENCE     ((byte) 'a', false), // Server to client
         TYPE_DESCRIPTION     ((byte) 'b', false), // Server to client
         ARBITRARY_ITEM       ((byte) 'c', false), // Server to client
@@ -3024,6 +3027,47 @@ public abstract class PJRmi
                     LOG.finest("Created type mapping " +
                                "from " + klass + " to " + desc);
                 }
+            }
+            return desc;
+        }
+
+        /**
+         * Replace the description for the given class.
+         */
+        public synchronized TypeDescription replaceDescription(final int      id,
+                                                               final Class<?> klass)
+        {
+            // Check args
+            if (klass == null) {
+                throw new NullPointerException(
+                    "Given a null replacement class"
+                );
+            }
+            if (id < 0 || id >= myIdToDescription.length) {
+                throw new IllegalArgumentException(
+                    "Given a bad type ID " + id
+                );
+            }
+
+            // Remove the existing mapping for the given ID (from the class to
+            // the description). We'll overwrite the ID mapping below.
+            final TypeDescription cur = myIdToDescription[id];
+            if (cur == null) {
+                throw new IllegalArgumentException(
+                    "Given a bad type ID " + id
+                );
+            }
+            myClassToDescription.remove(cur.getRepresentedClass());
+
+            // And update to point to the new one
+            final TypeDescription desc = new TypeDescription(klass, id);
+            myClassToDescription.put(klass, desc);
+            myIdToDescription[id] = desc;
+
+            // That worked
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest("Updated type mapping " +
+                           "from " + klass + " to " + desc);
             }
             return desc;
         }
@@ -5978,6 +6022,10 @@ public abstract class PJRmi
                                clientReceiver);
                 return;
 
+            case REPLACE_CLASS:
+                handleReplaceClass(threadId, reqId, payload, result);
+                return;
+
             default:
                 throw new IllegalArgumentException(
                     "Unhandled incoming message type: " + type
@@ -6916,13 +6964,13 @@ public abstract class PJRmi
          * Handle an INSTANCE_REQUEST message.
          *
          * This is of the form:
-         *  int16   : String length
-         *  byte[]  : String bytes (string length in total)
+         *  int16  : String length
+         *  byte[] : String bytes (string length in total)
          *
          * Gives back:
-         *  int32   : Type ID
-         *  int64   : Handle
-         *  int32   : -1 (no raw data)
+         *  int32  : Type ID
+         *  int64  : Handle
+         *  int32  : -1 (no raw data)
          * where Handle will be -ve if the result was null.
          */
         private void handleInstanceRequest(final long                      threadId,
@@ -7045,10 +7093,10 @@ public abstract class PJRmi
          * This is of the form:
          *  boolean : by-id or by-string flag
          *  type:
-         *   int32   : Type ID
+         *   int32  : Type ID
          *  or
-         *   int32   : Name length
-         *   bytes[] : Name
+         *   int32  : Name length
+         *   byte[] : Name
          *
          * Gives back by deferring to writeTypeDesc().
          */
@@ -7126,12 +7174,12 @@ public abstract class PJRmi
          *  byte    : PythonValueFormat
          *  int64   : Object handle
          *  int32   : Method/constructor index as defined by TypeDescription
-         *  bytes[] : Arguments (if any) as raw bytes
+         *  byte[]  : Arguments (if any) as raw bytes
          *
          * Gives back:
-         *  int32    : Result type (possibly void)
-         *  bytes[]  : The result (if native), or its handle (if an Object),
-         *             or nothing (if void)
+         *  int32   : Result type (possibly void)
+         *  byte[]  : The result (if native), or its handle (if an Object),
+         *            or nothing (if void)
          */
         private void handleMethodCall(final long                      threadId,
                                       final VirtualThread             virtualThread,
@@ -7459,13 +7507,13 @@ public abstract class PJRmi
          * Handle an GET_FIELD message.
          *
          * This is of the form:
-         *  int32   : Object type ID
-         *  int64   : Object handle
-         *  int32   : Field index as defined by TypeDescription
+         *  int32 : Object type ID
+         *  int64 : Object handle
+         *  int32 : Field index as defined by TypeDescription
          *
          * Gives back:
-         *  int32    : Field type ID
-         *  bytes[]  : The field (if native), or its handle (if an Object)
+         *  int32  : Field type ID
+         *  byte[] : The field (if native), or its handle (if an Object)
          */
         private void handleGetField(final long                      threadId,
                                     final int                       reqId,
@@ -7526,10 +7574,10 @@ public abstract class PJRmi
          * Handle an SET_FIELD message.
          *
          * This is of the form:
-         *  int64   : Object handle
-         *  int32   : Field index as defined by TypeDescription
-         *  int32   : Field type
-         *  bytes[] : The new value of the field (if native), or a handle
+         *  int64  : Object handle
+         *  int32  : Field index as defined by TypeDescription
+         *  int32  : Field type
+         *  byte[] : The new value of the field (if native), or a handle
          *
          * Gives back empty ACK.
          */
@@ -7823,10 +7871,10 @@ public abstract class PJRmi
          * Handle an INJECT_SOURCE message.
          *
          * This is of the form:
-         *  int32   : Class name length
-         *  bytes[] : Class name
-         *  int32   : Source code length
-         *  bytes[] : Source code
+         *  int32  : Class name length
+         *  byte[] : Class name
+         *  int32  : Source code length
+         *  byte[] : Source code
          *
          * Gives back by deferring to writeTypeDesc().
          */
@@ -7879,17 +7927,69 @@ public abstract class PJRmi
         }
 
         /**
+         * Handle an REPLACE_CLASS message.
+         *
+         * Gives back by deferring to writeTypeDesc().
+         */
+        private void handleReplaceClass(final long                      threadId,
+                                        final int                       reqId,
+                                        final ByteList                  payload,
+                                        final ByteArrayDataOutputStream buf)
+            throws Throwable
+        {
+            // Usual care needs to be taken
+            if (!isClassInjectionPermitted()) {
+                throw new SecurityException("Source replacement not permitted");
+            }
+
+            // Pull in the full payload, including the bytecode at the end
+            int offset = 0;
+            final int typeId = readInt(payload, offset); offset += Integer.BYTES;
+            final int len    = readInt(payload, offset); offset += Integer.BYTES;
+            final byte[] bytecode = new byte[len];
+            for (int i=0; i < len; i++) {
+                bytecode[i] = payload.get(offset++);
+            }
+
+            // This will only work if we have a Instrumentation class in the
+            // Agent
+            final Instrumentation instr = PJRmiAgent.getInstrumentation();
+            if (instr == null) {
+                throw new UnsupportedOperationException(
+                    "Classes can't be redefined " +
+                    "since the PJRmiAgent is not loaded"
+                );
+            }
+
+            // Known type?
+            final TypeDescription desc = myTypeMapping.getDescription(typeId);
+            if (desc == null) {
+                throw new IllegalArgumentException("Unknown type " + typeId);
+            }
+            final Class<?> klass = desc.getRepresentedClass();
+
+            // Attempt to do the replacement
+            instr.redefineClasses(new ClassDefinition(klass, bytecode));
+            final Class<?> newKlass = Class.forName(klass.getName());
+            final TypeDescription newDesc =
+                myTypeMapping.replaceDescription(typeId, newKlass);
+
+            // And give back the new description
+            writeTypeDesc(newDesc, threadId, reqId, buf);
+        }
+
+        /**
          * Handle a GET_VALUE_OF message.
          *
          * This is of the form:
-         *  int64   : Object handle
-         *  byte    : PythonValueFormat
+         *  int64 : Object handle
+         *  byte  : PythonValueFormat
          *
          * Gives back:
-         *  int32    : Number of bytes
-         *  bytes[]  : The pickled form of the object, or each component of a
-         *             {@link JniPJRmi$ArrayHandle}, depending on the specified
-         *             {@link PythonValueFormat}.
+         *  int32  : Number of bytes
+         *  byte[] : The pickled form of the object, or each component of a
+         *           {@link JniPJRmi$ArrayHandle}, depending on the specified
+         *           {@link PythonValueFormat}.
          */
         private void handleGetValueOf(final long                      threadId,
                                       final int                       reqId,
@@ -7997,13 +8097,13 @@ public abstract class PJRmi
          * Handle a GET_CALLBACK_HANDLE message.
          *
          * This is of the form:
-         *  int32   : Python function ID
-         *  int32   : Java Type ID, or -1
-         *  byte    : Argument count
+         *  int32  : Python function ID
+         *  int32  : Java Type ID, or -1
+         *  byte   : Argument count
          *
          * Gives back:
-         *  int32    : Function type ID
-         *  bytes[]  : The function type
+         *  int32  : Function type ID
+         *  byte[] : The function type
          */
         private void handleGetCallbackHandle(final long                      threadId,
                                              final int                       reqId,

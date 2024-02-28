@@ -9923,7 +9923,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -10483,7 +10483,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -11471,7 +11471,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -12031,7 +12031,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -13019,7 +13019,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -13579,7 +13579,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -14583,7 +14583,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -15143,7 +15143,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -16147,7 +16147,7 @@ public class CubeMath
         final long[] indices = new long[a.getNDim()];
         final Dimension.Accessor<?>  [] srcAccessors = new Dimension.Accessor  <?>[a.getNDim()];
         final Dimension.Coordinate<?>[] dstAccessors = new Dimension.Coordinate<?>[dstNDim];
-        for (int i=0, j=0; i < srcAccessors.length; i++) {
+        for (int i=0; i < srcAccessors.length; i++) {
             if (axesSet.get(i)) {
                 srcAccessors[i] = a.dim(i).slice(0, a.length(i));
             }
@@ -16572,4 +16572,4 @@ public class CubeMath
     }
 }
 
- // [[[end]]] (checksum: feabf8217e8edea3875800a3ec702970)
+ // [[[end]]] (checksum: 7d429fc88498b76e3459643a3e08a022)

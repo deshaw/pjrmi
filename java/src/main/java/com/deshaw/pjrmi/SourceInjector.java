@@ -221,7 +221,6 @@ public class SourceInjector
 
                 // Print the erroneous line (lineNumber is 1-indexed)
                 boolean found = false;
-                final StringBuilder sb = new StringBuilder();
                 for (int i = 0, line = 1;
                      i < source.length() && line <= lineNumber;
                      i++)

@@ -233,15 +233,6 @@ public class StringUtil
     // ---------------------------------------------------------------------- //
 
     /**
-     * A thread-local instance of a StringBuilder class for use by this class
-     * only.
-     */
-    private static final ThreadLocalStringBuilder ourStringBuilder =
-        new ThreadLocalStringBuilder(1024);
-
-    // ---------------------------------------------------------------------- //
-
-    /**
      * Convert stack trace from a {@link Throwable} to a string.
      */
     public static String stackTraceToString(Throwable e)

@@ -2056,8 +2056,6 @@ public abstract class PJRmi
         {
             sb.append('[');
             if (array != null) {
-                final boolean isArray =
-                    array.getClass().getComponentType().isArray();
                 for (int i = 0, len = Array.getLength(array); i < len; i++) {
                     final Object element = Array.get(array, i);
                     if (element.getClass().isArray()) {
@@ -8006,15 +8004,9 @@ public abstract class PJRmi
             // The object handle
             final long handle = readLong(payload, 0);
 
-            // The return format. Make sure it's kosher.
+            // The return format
             final PythonValueFormat valueFormat =
                 PythonValueFormat.byId(payload.get(8));
-            if (valueFormat == null) {
-                throw new IllegalArgumentException(
-                    "Unknown return format #" + payload.get(8)
-                );
-
-            }
             switch (valueFormat) {
             case RAW_PICKLE:
             case SNAPPY_PICKLE:
@@ -8913,55 +8905,6 @@ public abstract class PJRmi
                 return new byte[1024 * 1024];
             }
         };
-
-    /**
-     * Sort the given Methods into a reasonable ordering. This is the
-     * entry-point to the actual methodSort().
-     *
-     * <p>See the JavaDoc of MethodComparator for caveats.
-     */
-    private static void methodSort(final Method[] methods)
-    {
-        // Duplicate the input and sort _that duplicate_ back into the original
-        // input. Hand off the recursive call directly.
-        final int length = methods.length;
-        methodSort(Arrays.copyOf(methods, length), methods, 0, length);
-    }
-
-    /**
-     * The recursive step of methodSort(), which is a form of merge-sort.
-     *
-     * <p>Do not call this directly.
-     */
-    private static void methodSort(final Method[] src,
-                                   final Method[] dst,
-                                   final int      low,
-                                   final int      high)
-    {
-        final int length = high - low;
-
-        // If we have fewer than two elements then we're trivially done
-        if (length < 2) {
-            return;
-        }
-
-        // The recursion step
-        final int mid = (low + high) >>> 1;
-        methodSort(dst, src, low, mid);
-        methodSort(dst, src, mid, high);
-
-        // And the merge step
-        for (int i = low, j = low, k = mid; i < high; i++) {
-            if (k >= high ||
-                j < mid && MethodComparator.INSTANCE.compare(src[j], src[k]) <= 0)
-            {
-                dst[i] = src[j++];
-            }
-            else {
-                dst[i] = src[k++];
-            }
-        }
-    }
 
     // ---------------------------------------------------------------------- //
 

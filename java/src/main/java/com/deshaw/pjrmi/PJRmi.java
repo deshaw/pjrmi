@@ -935,6 +935,11 @@ public abstract class PJRmi
 
     /**
      * What a type looks like.
+     *
+     * <p>This class describes the shape of a Java class as it will be
+     * comunicated to the Python client. This includes the constructors, methods
+     * and members. If class allow-listing is enabled then any of these which
+     * rely on an unpermitted class will be filtered away.
      */
     private class TypeDescription
     {
@@ -1030,6 +1035,10 @@ public abstract class PJRmi
                 );
             }
 
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest("Creating TypeDescription for " + klass);
+            }
+
             myClass = klass;
 
             myName = klass.getName();
@@ -1096,6 +1105,16 @@ public abstract class PJRmi
             // override one-another.
             final Map<String,Field> fields = new HashMap<>();
             for (Field field : klass.getFields()) {
+                // Ignore any fields which we may not let the Python side see
+                if (!isClassPermitted(field.getType())) {
+                    if (LOG.isLoggable(Level.FINEST)) {
+                        LOG.finest(
+                            "Omitting field with a disallowed class: " + field
+                        );
+                    }
+                    continue;
+                }
+
                 final String   name      = field.getName();
                 final Class<?> container = field.getDeclaringClass();
                 final Field    current   = fields.get(name);
@@ -1114,7 +1133,26 @@ public abstract class PJRmi
             myFields            = fields.values().toArray(new Field[fields.size()]);
             myFieldDescriptions = new FieldDescription[myFields.length];
 
-            myConstructors = klass.getConstructors();
+            // Only allow constructors whose parameters are all permitted
+            final List<Constructor<?>> ctors = new ArrayList<>();
+            for (Constructor<?> ctor : klass.getConstructors()) {
+                boolean permitted = true;
+                for (Class<?> type : ctor.getParameterTypes()) {
+                    if (!isClassPermitted(type)) {
+                        permitted = false;
+                        break;
+                    }
+                }
+                if (permitted) {
+                    ctors.add(ctor);
+                }
+                else if (LOG.isLoggable(Level.FINEST)) {
+                    LOG.finest(
+                        "Omitting constructor with a disallowed class: " + ctor
+                    );
+                }
+            }
+            myConstructors = ctors.toArray(new Constructor<?>[ctors.size()]);
             myConstructorSpecificities = new byte[myConstructors.length][];
             for (int i=0; i < myConstructors.length; i++) {
                 myConstructorSpecificities[i] = new byte[myConstructors.length];
@@ -1138,9 +1176,31 @@ public abstract class PJRmi
             }
 
             // The way we get methods differs depending on whether klass is a
-            // class or an interface
-            myMethods = klass.isInterface() ? findInterfaceMethods(klass)
-                                            : findClassMethods    (klass);
+            // class or an interface. Only allow methods whose return type and
+            // parameters are all permitted.
+            final List<Method> permittedMethods = new ArrayList<>();
+            for (Method method :
+                     klass.isInterface() ? findInterfaceMethods(klass)
+                                         : findClassMethods    (klass))
+            {
+                boolean permitted = true;
+                for (Class<?> type : method.getParameterTypes()) {
+                    if (!isClassPermitted(type)) {
+                        permitted = false;
+                        break;
+                    }
+                }
+                if (permitted && isClassPermitted(method.getReturnType())) {
+                    permittedMethods.add(method);
+                }
+                else if (LOG.isLoggable(Level.FINEST)) {
+                    LOG.finest(
+                        "Omitting method with a disallowed class: " + method
+                    );
+                }
+            }
+            myMethods =
+                permittedMethods.toArray(new Method[permittedMethods.size()]);
 
             myMethodSpecificities = new byte[myMethods.length][];
             for (int i=0; i < myMethods.length; i++) {
@@ -7159,6 +7219,16 @@ public abstract class PJRmi
                 desc = myTypeMapping.getDescription(klass);
             }
 
+            // Second check for the class being permissioned, this time by its
+            // concrete type
+            if (!isClassPermitted(desc.getRepresentedClass())) {
+                final String msg = getClassNotPermittedMessage();
+                throw new SecurityException(
+                    "Access permission denied for class " +
+                    desc.getRepresentedClass() + (msg == null ? "" : ": " + msg)
+                );
+            }
+
             // Send it back
             writeTypeDesc(desc, threadId, reqId, buf);
         }
@@ -8979,6 +9049,7 @@ public abstract class PJRmi
                 "com.deshaw.hypercube.DoubleHypercube",
                 "com.deshaw.hypercube.DoubleMappedHypercube",
                 "com.deshaw.hypercube.DoubleSlicedHypercube",
+                "com.deshaw.hypercube.DoubleTransposedHypercube",
                 "com.deshaw.hypercube.DoubleWrappingHypercube",
                 "com.deshaw.hypercube.FlatRolledHypercube",
                 "com.deshaw.hypercube.Float1dWrappingHypercube",
@@ -9031,22 +9102,32 @@ public abstract class PJRmi
                 "com.deshaw.hypercube.LongSlicedHypercube",
                 "com.deshaw.hypercube.LongWrappingHypercube",
                 "com.deshaw.hypercube.SlicedHypercube",
+                "com.deshaw.hypercube.TransposedHypercube",
                 "com.deshaw.hypercube.WrappingHypercube",
 
                 "com.deshaw.pjrmi.JavaProxyBase",
+                "com.deshaw.pjrmi.PJRmi$ArrayLike",
+                "com.deshaw.pjrmi.PJRmi$PythonItemAssignable",
+                "com.deshaw.pjrmi.PJRmi$PythonSubscriptable",
+                "com.deshaw.pjrmi.PJRmi$WrappedArrayLike",
                 "com.deshaw.pjrmi.PythonFunction",
                 "com.deshaw.pjrmi.PythonKwargsFunction",
                 "com.deshaw.pjrmi.PythonObject",
                 "com.deshaw.pjrmi.PythonSlice",
+
                 "com.deshaw.util.StringUtil",
+
+                "java.io.Serializable",
 
                 "java.lang.AutoCloseable",
                 "java.lang.Boolean",
                 "java.lang.Byte",
                 "java.lang.Character",
+                "java.lang.CharSequence",
                 // Not java.lang.Class since it allows access to any class in
                 // the system, and the methods on it etc.
                 "java.lang.ClassNotFoundException",
+                "java.lang.Cloneable",
                 "java.lang.Comparable",
                 "java.lang.Double",
                 "java.lang.Exception",
@@ -9058,8 +9139,15 @@ public abstract class PJRmi
                 "java.lang.NoSuchMethodException",
                 "java.lang.Number",
                 "java.lang.Object",
+                "java.lang.ReflectiveOperationException",
+                "java.lang.RuntimeException",
+                "java.lang.SecurityException",
                 "java.lang.Short",
                 "java.lang.String",
+                "java.lang.Throwable",
+
+                "java.lang.constant.Constable",
+                "java.lang.constant.ConstantDesc",
 
                 "java.util.Collection",
                 "java.util.Iterator",
@@ -9067,12 +9155,19 @@ public abstract class PJRmi
                 "java.util.Map",
                 "java.util.Map$Entry",
                 "java.util.NoSuchElementException",
+                "java.util.RandomAccess",
                 "java.util.Set",
                 "java.util.concurrent.Future",
                 "java.util.function.BiFunction",
+                "java.util.function.Consumer",
                 "java.util.function.Function",
+                "java.util.function.Supplier",
                 "java.util.logging.Level",
                 "java.util.logging.LogManager",
+                "java.util.stream.DoubleStream",
+                "java.util.stream.IntStream",
+                "java.util.stream.LongStream",
+                "java.util.stream.Stream",
 
                 "sun.misc.Signal"
             )
@@ -9603,6 +9698,15 @@ public abstract class PJRmi
     }
 
     /**
+     * Whether access to a class is permitted or not. A {@code null} class is not.
+     */
+    // Out-of-order method so it's close to its sibling
+    private boolean isClassPermitted(final Class<?> klass)
+    {
+        return (klass != null) && isClassPermitted(klass.getName());
+    }
+
+    /**
      * Get the additional message to add to the {@code SecurityException} that
      * is thrown when a not-permitted class, as determined by
      * {@code isClassPermitted}, is accessed.
@@ -9631,7 +9735,7 @@ public abstract class PJRmi
         // it null then it will return false if the function is active and true
         // otherwise. We should not allow class injection if we have
         // permissioning enabled since it could be used to subvert the security.
-        return isClassPermitted(null);
+        return isClassPermitted((CharSequence)null);
     }
 
     /**

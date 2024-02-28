@@ -696,6 +696,20 @@ only contains the platform-independent Python code and Java JARs; it does not
 come with the C extensions.
 
 
+### Security Model
+
+Access from a remote Python client to a Java server may be controlled using SSL
+keys. This is recommended for any deployment environment since, once connected,
+a client is effectively inside the server process and can execute abitrary code.
+
+The caveat to the above is that a server may choose to have a class allow list
+which restricts the set of Java classes which a Python client may access. This
+limits the capabilities of a client since they may not access classes which, for
+example, allow sub-processes to be spawned. This can be controlled in the server
+processes by overriding the `isClassBlockingOn()` and `isClassPermitted()`
+methods in the `PJRmi` subclass.
+
+
 ### Threading Model
 
 The PJRmi service runs as a separate thread inside the Java process. As such you

@@ -6710,7 +6710,8 @@ public abstract class PJRmi
                     }
                     result = set;
                 }
-                else if (typeDesc.getName().equals("java.util.Collection") ||
+                else if (typeDesc.getName().equals("java.lang.Iterable")   ||
+                         typeDesc.getName().equals("java.util.Collection") ||
                          typeDesc.getName().equals("java.util.List"))
                 {
                     final int count = readInt(bytes, offset);

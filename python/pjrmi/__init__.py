@@ -3443,7 +3443,8 @@ public class TestInjectSource {
 
             elif (hasattr(value, '__iter__') and
                   not isinstance(value, str) and
-                  klass._type_id in (self._java_util_Collection._type_id,
+                  klass._type_id in (self._java_lang_Iterable.  _type_id,
+                                     self._java_util_Collection._type_id,
                                      self._java_util_List.      _type_id)):
                 ok = self._java_lang_Object
                 return (self._ARGUMENT_VALUE +

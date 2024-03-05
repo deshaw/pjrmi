@@ -340,7 +340,8 @@ class TestPJRmi(TestCase):
         # they contain unicode characters.
         for chars in (english_chars, chinese_chars, symbol_chars):
             self.assertEqual(chars,               String.valueOf(chars))
-            self.assertEqual(chars.join(numbers), String.join(chars, numbers))
+            self.assertEqual(chars.join(numbers), String.join['java.lang.CharSequence',
+                                                              '[Ljava.lang.CharSequence;'](chars, numbers))
             self.assertEqual(chars[0],            String.valueOf(chars)[0])
             self.assertEqual(chars[1],            Character.valueOf(chars[1]).charValue())
 

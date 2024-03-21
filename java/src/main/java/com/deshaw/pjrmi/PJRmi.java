@@ -7197,10 +7197,11 @@ public abstract class PJRmi
                 // See if we are allowed to give back this class
                 if (!isClassPermitted(className)) {
                     final String msg = getClassNotPermittedMessage();
-                    throw new SecurityException(
-                        "Access permission denied for class \"" + className + "\"" +
-                        (msg == null ? "" : ": " + msg)
-                    );
+                    final String txt = "Access permission denied for class " +
+                                       "\"" + className + "\"" +
+                                       (msg == null ? "" : ": " + msg);
+                    LOG.warning(txt);
+                    throw new SecurityException(txt);
                 }
 
                 // Okay to give back, handle requests for primitives specially
@@ -7224,10 +7225,11 @@ public abstract class PJRmi
             // concrete type
             if (!isClassPermitted(desc.getRepresentedClass())) {
                 final String msg = getClassNotPermittedMessage();
-                throw new SecurityException(
-                    "Access permission denied for class " +
-                    desc.getRepresentedClass() + (msg == null ? "" : ": " + msg)
-                );
+                final String txt = "Access permission denied for class " +
+                                   desc.getRepresentedClass() +
+                                   (msg == null ? "" : ": " + msg);
+                LOG.warning(txt);
+                throw new SecurityException(txt);
             }
 
             // Send it back
@@ -9915,9 +9917,7 @@ public abstract class PJRmi
                SecurityException
     {
         final Transport transport = myTransportProvider.accept();
-        LOG.info(
-            myName + " Got connection " + transport
-        );
+        LOG.info(myName + " Got connection " + transport);
 
         // Grab its streams
         final InputStream  is = transport.getInputStream();

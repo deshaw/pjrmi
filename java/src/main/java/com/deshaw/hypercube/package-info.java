@@ -22,10 +22,10 @@
  * <p><b>This code is experimental, may be buggy, and its APIs are likely to
  * change in future releases.</b>
  *
- * <p>We use cog.py to provide the different versions of various classes. In
- * order to update the source for them you need to do:</pre>
- *   cog.py -rc BlahBlah.java
- * <pre>
+ * <p>We use cog to provide the different versions of various classes. In
+ * order to update the source for them you need to do:<pre>
+ *   cog -rc BlahBlah.java
+ * </pre>
  *
  * See:<ul>
  *  <li>https://nedbatchelder.com/code/cog</li>

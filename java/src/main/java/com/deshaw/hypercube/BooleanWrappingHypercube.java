@@ -1,6 +1,6 @@
 package com.deshaw.hypercube;
 
-// Recreate with `cog.py -rc BooleanWrappingHypercube.java`
+// Recreate with `cog -rc BooleanWrappingHypercube.java`
 // [[[cog
 //     import cog
 //     import numpy

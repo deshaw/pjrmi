@@ -1,8 +1,8 @@
 package com.deshaw.pjrmi;
 
-// We use cog.py to provide the different versions of the various methods. In
+// We use cog to provide the different versions of the various methods. In
 // order to update this file you need to do:
-//   cog.py -rc AsType.java
+//   cog -rc AsType.java
 //
 // See:  https://nedbatchelder.com/code/cog
 //       https://www.python.org/about/success/cog/

@@ -1,6 +1,6 @@
 package com.deshaw.hypercube;
 
-// Recreate with `cog.py -rc FloatAxisRolledHypercube.java`
+// Recreate with `cog -rc FloatAxisRolledHypercube.java`
 // [[[cog
 //     import cog
 //     import numpy

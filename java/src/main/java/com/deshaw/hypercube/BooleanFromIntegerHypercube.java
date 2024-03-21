@@ -1,6 +1,6 @@
 package com.deshaw.hypercube;
 
-// Recreate with `cog.py -rc BooleanFromIntegerHypercube.java`
+// Recreate with `cog -rc BooleanFromIntegerHypercube.java`
 // [[[cog
 //     import cog
 //     import numpy

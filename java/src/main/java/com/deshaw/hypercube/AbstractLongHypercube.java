@@ -1,6 +1,6 @@
 package com.deshaw.hypercube;
 
-// Recreate with `cog.py -rc AbstractLongHypercube.java`
+// Recreate with `cog -rc AbstractLongHypercube.java`
 // [[[cog
 //     import cog
 //     import numpy

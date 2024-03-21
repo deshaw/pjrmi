@@ -126,12 +126,8 @@ def get_pjrmi():
         'java.lang.reflect.Type',
         'java.util.AbstractCollection',
         'java.util.AbstractList',
-        'java.util.AbstractMap',
-        'java.util.AbstractSet',
         'java.util.ArrayList',
         'java.util.Arrays',
-        'java.util.HashMap',
-        'java.util.HashSet',
         'java.util.Objects'
     ])
 

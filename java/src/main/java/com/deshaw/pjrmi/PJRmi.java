@@ -9160,6 +9160,7 @@ public abstract class PJRmi
                 "java.lang.Short",
                 "java.lang.String",
                 "java.lang.Throwable",
+                "java.lang.UnsupportedOperationException",
                 "java.lang.VirtualMachineError",
 
                 "java.lang.constant.Constable",

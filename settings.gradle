@@ -1,3 +1,11 @@
+plugins {
+  // Plugin provides a repository for downloading JVMs.
+  // Using automatic toolchain downloading without having a repository configured is
+  // deprecated in Gradle 8.
+  // See: https://docs.gradle.org/current/userguide/upgrading_version_7.html#using_automatic_toolchain_downloading_without_having_a_repository_configured
+  id 'org.gradle.toolchains.foojay-resolver-convention' version '0.7.0'
+}
+
 rootProject.name = 'pjrmi'
 
 include(':cpp')

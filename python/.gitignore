@@ -4,3 +4,4 @@
 __pycache__
 /pjrmi/lib
 /pjrmi/extension*.so
+/pjrmi.egg-info

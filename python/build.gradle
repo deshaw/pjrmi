@@ -1,3 +1,8 @@
+plugins {
+    // Provides some tasks and conventions that are common to most builds.
+    id 'base'
+}
+
 // Define custom configurations to manage dependencies on other projects.
 // Appropriate tasks from projects declared in the `dependencies` block would be
 // automatically executed when the configuration is resolved (in `copyArtifacts`).
@@ -12,9 +17,23 @@ configurations {
             // Select release variant.
             attribute(CppBinary.OPTIMIZED_ATTRIBUTE, true)
         }
+        canBeConsumed = false
+        canBeResolved = true
     }
     // For jar dependencies.
-    jars
+    jars {
+        canBeConsumed = false
+        canBeResolved = true
+    }
+    extensionLibraries {
+        description = 'Shared libraries to be used as C/C++ extensions for CPython.'
+        canBeConsumed = true
+        canBeResolved = false
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.NATIVE_RUNTIME))
+            attribute(CppBinary.LINKAGE_ATTRIBUTE, Linkage.SHARED)
+        }
+    }
 }
 
 // Declare dependencies.
@@ -28,7 +47,7 @@ dependencies {
 }
 
 // Copy artifacts to be included in the python package.
-task copyArtifacts(type: Copy) {
+tasks.register('copyArtifacts', Copy) {
     destinationDir = file("$projectDir/pjrmi")
     into("lib/") {
         from configurations.libs
@@ -37,7 +56,7 @@ task copyArtifacts(type: Copy) {
 }
 
 // Generate _config.py containing build information.
-task genConfigFile()  {
+tasks.register('genConfigFile') {
     def configFile = "$projectDir/pjrmi/_config.py"
     outputs.files(configFile)
     // Re-generate when pjrmiVersion property changes.
@@ -54,24 +73,48 @@ PJRMI_VERSION = "${pjrmiVersion}"
     }
 }
 
-task buildExt() {
-    dependsOn copyArtifacts
-    dependsOn genConfigFile
-    doLast {
-        exec {
-            environment "PJRMI_VERSION", pjrmiVersion
-            environment "JAVA_HOME", System.properties['java.home']
-            environment "INCLUDE_PATH", project(":cpp").library.publicHeaderDirs.singleFile
-            environment "LIB_DIRS", [
-                project(":cpp").buildDir.absolutePath + "/lib/main/debug",
-                project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
-            ].join(":")
-            commandLine "./setup.py", "build_ext", "--inplace"
+/**
+ * Utility task that generate files by running commands.
+ */
+abstract class GenerateFileExec extends DefaultTask {
+
+    @OutputFile
+    abstract RegularFileProperty getTarget()
+
+    @Input
+    abstract MapProperty<String, Object> getEnvironmentVariables()
+
+    @Input
+    abstract ListProperty<String> getCommand()
+
+    @TaskAction
+    def build() {
+        project.exec {
+            environment(getEnvironmentVariables().get())
+            commandLine(getCommand().get())
         }
     }
 }
 
-task develop() {
+tasks.register('buildExt', GenerateFileExec) {
+    target = project.layout.buildDirectory.file('lib.linux-x86_64-cpython-311/pjrmi/extension.cpython-311-x86_64-linux-gnu.so')
+    environmentVariables = project.objects.mapProperty(String, Object)
+            .value([
+                    'PJRMI_VERSION': pjrmiVersion,
+                    'JAVA_HOME': System.properties['java.home'],
+                    'INCLUDE_PATH': project(':cpp').library.publicHeaderDirs.singleFile,
+                    'LIB_DIRS': [
+                            project(':cpp').layout.buildDirectory.getAsFile().get().absolutePath + '/lib/main/debug',
+                            project(':java:jni').layout.buildDirectory.getAsFile().get().absolutePath + '/libs/main/shared',
+                    ].join(':')
+            ])
+    command = ['./setup.py', 'build_ext', '--inplace']
+
+    dependsOn copyArtifacts
+    dependsOn genConfigFile
+}
+
+tasks.register('develop') {
     dependsOn buildExt
     doLast {
         exec {
@@ -83,21 +126,22 @@ task develop() {
 }
 
 
-task wheel() {
-    // Use setuptools to build a wheel including the c-extension module
+tasks.register('wheel', GenerateFileExec) {
+    target = file("pjrmi-${pjrmiVersion}-cp311-cp311-linux_x86_64.whl")
+    environmentVariables = project.objects.mapProperty(String, Object)
+            .value([
+                    'PJRMI_VERSION': pjrmiVersion,
+                    'JAVA_HOME': System.properties['java.home'],
+                    'INCLUDE_PATH': project(':cpp').library.publicHeaderDirs.singleFile,
+                    'LIB_DIRS': [
+                            project(':cpp').layout.buildDirectory.getAsFile().get().absolutePath + '/lib/main/debug',
+                            project(':java:jni').layout.buildDirectory.getAsFile().get().absolutePath + '/libs/main/shared',
+                    ].join(':')
+            ])
+    command = ['pip3', 'wheel', '.']
+    outputs.dir('pjrmi.egg-info')
+
     dependsOn buildExt
-    doLast {
-        exec {
-            environment "PJRMI_VERSION", pjrmiVersion
-            environment "JAVA_HOME", System.properties['java.home']
-            environment "INCLUDE_PATH", project(":cpp").library.publicHeaderDirs.singleFile
-            environment "LIB_DIRS", [
-                project(":cpp").buildDir.absolutePath + "/lib/main/debug",
-                project(":java:jni").buildDir.absolutePath + "/libs/main/shared",
-            ].join(":")
-            commandLine "python3", "setup.py", "bdist_wheel"
-        }
-    }
 }
 
 task thin_wheel() {
@@ -116,13 +160,13 @@ task thin_wheel() {
     }
 }
 
-task test() {
+tasks.register('test') {
     dependsOn buildExt
     doLast {
         // Run the tests
         def testFiles = files([
-            "tests/pjrmi_tests.py",
-            "tests/java_python_unpickle.py"
+                "tests/pjrmi_tests.py",
+                "tests/java_python_unpickle.py"
         ])
 
         testFiles.each { testFile ->
@@ -136,16 +180,24 @@ task test() {
     }
 }
 
-// Wrapper build task to build the Python wheel file for distribution
-// and execute the tests.
-task build() {
-    dependsOn wheel, test
+tasks.register('cleanPyCache', Delete) {
+    delete fileTree(dir: '.', include: '**/*__pycache__')
 }
 
-task clean(type: Delete) {
-    delete "$projectDir/build"
-    delete "$projectDir/pjrmi/lib"
-    delete "$projectDir/pjrmi/_config.py"
-    delete "$projectDir/pjrmi/__pycache__"
-    delete fileTree(dir: "$projectDir/pjrmi/", include: "*.so")
+artifacts {
+    extensionLibraries(buildExt.target) {
+        builtBy(buildExt)
+    }
+}
+
+assemble {
+    dependsOn wheel
+}
+
+check {
+    dependsOn test
+}
+
+clean {
+    dependsOn cleanPyCache, cleanWheel, cleanGenConfigFile, cleanBuildExt
 }

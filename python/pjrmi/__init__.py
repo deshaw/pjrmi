@@ -845,6 +845,11 @@ class PJRmi:
         ``ndarray`` makes for vastly more efficient array access patterns on the
         Python side.
 
+        If this method is called in a static context, with ``self`` being
+        explicitly passed as ``None``::
+            PJRmi.value_of(None, java_object)
+        then it will infer the `PJRmi` instance to use from the object.
+
         By default the Java object must be wholly converted to its Python
         equivalent, otherwise an ``UnsupportedOperationException`` will be
         thrown. However, setting the ``best_effort`` kwarg to ``True`` will mean
@@ -873,10 +878,24 @@ class PJRmi:
         if obj is None:
             return None
 
-        # Sanity
+        # Check user inputs
         if not issubclass(obj.__class__, _JavaObject):
             raise TypeError("Given a non-JavaObject %s (%s)" %
                             (str(obj), str(obj.__class__)))
+        if self is not None:
+            if obj._pjrmi_inst is not self:
+                raise KeyError(
+                    "Attempt to use Java object (%s: %s) from connection %s with %s" %
+                    (str(obj.__class__), str(obj),
+                     obj._pjrmi_inst._transport, self._transport)
+                )
+        elif obj._pjrmi_inst is None:
+            raise ValueError("Object has no associated PJRmi instance")
+        else:
+            # We are being called in a static context, as opposed to from the
+            # PJRmi instance. We can use the object's instance as self for the
+            # call.
+            self = obj._pjrmi_inst
 
         if compress:
             if best_effort:

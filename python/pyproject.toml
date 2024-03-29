@@ -15,7 +15,7 @@ artifacts = [ "pjrmi/lib/*.jar",
 [project]
 name = "pjrmi"
 dependencies = [
-    "snappy", "numpy"
+    "python-snappy", "numpy"
 ]
 
 # Using https://peps.python.org/pep-0639/ which is still in draft

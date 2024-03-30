@@ -11,8 +11,8 @@ def PJRMI_VERSION = pjrmiVersion
 version = PJRMI_VERSION
 
 library {
-    // Set the target operating system and architecture for this library
-    targetMachines.add(machines.linux.x86_64)
+    // Set the target operating system for this library
+    targetMachines.add(machines.linux)
 
     // The library name is libpjrmi.so
     baseName = 'pjrmi'

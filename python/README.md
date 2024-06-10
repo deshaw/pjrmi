@@ -45,18 +45,32 @@ implementations are:
     allowing Java to call down into Python. It's purely in-process.
 -   [py4j](https://www.py4j.org/) allows Python to call into Java. It also
     supports Java calling back into Python so that Python clients can implement
-    Java interfaces. It works by communicating over a socket. It is probably
-    the most feature-rich of the these implementations.
+    Java interfaces. It works by communicating over a socket.
 -   [jpy](https://pypi.org/project/jpy/) is another in-process implementation.
     One of its key features is support for fast pass-by-value operations with
     arrays by use of pointer hand-off.
 -   [jpype](https://pypi.org/project/JPype1/) is another in-process
-    implementation. Since it uses internal C-based handoff it's highly
+    implementation. Since it also uses internal C-based handoff it's highly
     performant.
 
 As well as the feature sets of the above, PJRmi supports complex Java
 constructs, has smooth integration of the two languages' type systems, and can
 be used in different modes of operation transparently to the user.
+
+
+## Installing
+
+If you want to try out PJRmi then you have a couple of options:
+
+  1. `pip install pjrmi`
+  2. Clone this repository and run `./gradlew wheel` in it, and `pip install`
+     that.
+
+Note that the version on PyPI is does not contain any C++ extensions, since it
+does not include any platform-specific binaries. A locally built version will
+have these. These extensions are only required if you want to leverage certain
+optimizations, or if you want to run the in-process JVM, and it will work fine
+without them.
 
 
 ## A Simple Example

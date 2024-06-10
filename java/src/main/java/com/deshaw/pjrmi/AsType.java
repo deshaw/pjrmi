@@ -105,7 +105,7 @@ public class AsType
     //     # Do this for all the primitive numbers, and also for Object and
     //     # String, which also can suffer from binding abiguities.
     //     for type in (PRIMITIVE_NUMBERS + ('Object', 'String')):
-    //         for ndim in range(1, 6):
+    //         for ndim in range(6):
     //             cog.outl(identity.format(type=type,
     //                                      ltype=type.lower(),
     //                                      ndim=ndim,
@@ -217,6 +217,18 @@ public class AsType
     }
 
     /**
+     * An identity function for converting a 0-dimension byte value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static byte byte0d(final byte v)
+    {
+        return v;
+    }
+
+    /**
      * An identity function for converting a 1-dimension byte value to itself.
      *
      * @param v The value to return.
@@ -272,6 +284,18 @@ public class AsType
      * @return the value given.
      */
     public static byte[][][][][] byte5d(final byte[][][][][] v)
+    {
+        return v;
+    }
+
+    /**
+     * An identity function for converting a 0-dimension short value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static short short0d(final short v)
     {
         return v;
     }
@@ -337,6 +361,18 @@ public class AsType
     }
 
     /**
+     * An identity function for converting a 0-dimension int value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static int int0d(final int v)
+    {
+        return v;
+    }
+
+    /**
      * An identity function for converting a 1-dimension int value to itself.
      *
      * @param v The value to return.
@@ -392,6 +428,18 @@ public class AsType
      * @return the value given.
      */
     public static int[][][][][] int5d(final int[][][][][] v)
+    {
+        return v;
+    }
+
+    /**
+     * An identity function for converting a 0-dimension long value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static long long0d(final long v)
     {
         return v;
     }
@@ -457,6 +505,18 @@ public class AsType
     }
 
     /**
+     * An identity function for converting a 0-dimension float value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static float float0d(final float v)
+    {
+        return v;
+    }
+
+    /**
      * An identity function for converting a 1-dimension float value to itself.
      *
      * @param v The value to return.
@@ -512,6 +572,18 @@ public class AsType
      * @return the value given.
      */
     public static float[][][][][] float5d(final float[][][][][] v)
+    {
+        return v;
+    }
+
+    /**
+     * An identity function for converting a 0-dimension double value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static double double0d(final double v)
     {
         return v;
     }
@@ -577,6 +649,18 @@ public class AsType
     }
 
     /**
+     * An identity function for converting a 0-dimension Object value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static Object object0d(final Object v)
+    {
+        return v;
+    }
+
+    /**
      * An identity function for converting a 1-dimension Object value to itself.
      *
      * @param v The value to return.
@@ -632,6 +716,18 @@ public class AsType
      * @return the value given.
      */
     public static Object[][][][][] object5d(final Object[][][][][] v)
+    {
+        return v;
+    }
+
+    /**
+     * An identity function for converting a 0-dimension String value to itself.
+     *
+     * @param v The value to return.
+     *
+     * @return the value given.
+     */
+    public static String string0d(final String v)
     {
         return v;
     }
@@ -696,5 +792,5 @@ public class AsType
         return v;
     }
 
-    // [[[end]]] (checksum: 645ac2cb137f0df1c7d65bdc8fe4cf39)
+    // [[[end]]] (checksum: 9d9c96937cf615fa4611501fa42dba8e)
 }

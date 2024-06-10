@@ -9146,6 +9146,7 @@ public abstract class PJRmi
                 "java.lang.Exception",
                 "java.lang.Float",
                 "java.lang.IllegalArgumentException",
+                "java.lang.IllegalStateException",
                 "java.lang.Integer",
                 "java.lang.Iterable",
                 "java.lang.Long",

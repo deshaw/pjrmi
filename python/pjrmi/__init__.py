@@ -878,10 +878,31 @@ class PJRmi:
         if obj is None:
             return None
 
+        # Some things are already their own Python types. We don't bother to
+        # check to see if they are really PJRmi shims since it doesn't really
+        # add much value to the user. Exceptions we'll just make standalone;
+        # ensure basic types are pure.
+        if isinstance(obj, Exception):
+            # We just need to ensure that these have been internally expanded,
+            # by forcing the stacktrace to be rendered. This means that it does
+            # not rely on the Java process to exist in order for the Python side
+            # to do certain things with it (like call str()).
+            str(obj)
+            return obj
+        if isinstance(obj, bool):
+            return obj # bools are a final type, so they just "are"
+        if isinstance(obj, int):
+            return int(obj)
+        if isinstance(obj, float):
+            return float(obj)
+
         # Check user inputs
         if not issubclass(obj.__class__, _JavaObject):
-            raise TypeError("Given a non-JavaObject %s (%s)" %
-                            (str(obj), str(obj.__class__)))
+            if best_effort:
+                return obj
+            else:
+                raise TypeError("Given a non-JavaObject %s (%s)" %
+                                (str(obj), str(obj.__class__)))
         if self is not None:
             if obj._pjrmi_inst is not self:
                 raise KeyError(

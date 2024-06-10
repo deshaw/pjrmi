@@ -4217,7 +4217,7 @@ public class TestInjectSource {
                     msg = "Got%s unexpected keyword argument%s: %s" % (
                         ' an' if len(unexpected_kwargs) == 1 else '',
                         ''    if len(unexpected_kwargs) == 1 else 's',
-                        ', '.join(unexpected_kwargs)
+                        ', '.join("'%s'" % a for a in unexpected_kwargs)
                     )
                     exceptions.append(msg)
                     if log_debug:
@@ -4575,7 +4575,7 @@ public class TestInjectSource {
                     msg = "Got%s unexpected keyword argument%s: %s" % (
                         ' an' if len(unexpected_kwargs) == 1 else '',
                         ''    if len(unexpected_kwargs) == 1 else 's',
-                        ', '.join(unexpected_kwargs)
+                        ', '.join("'%s'" % a for a in unexpected_kwargs)
                     )
                     exceptions.append(msg)
                     if log_debug:

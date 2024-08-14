@@ -352,9 +352,10 @@ void PJRmiPipe::write(int b)
 void PJRmiPipe::check_exception(const char* when)
     noexcept(false)
 {
-    if (_env->ExceptionCheck() == JNI_TRUE ) {
+    if (_env->ExceptionCheck() == JNI_TRUE) {
         jthrowable exceptionObj = _env->ExceptionOccurred();
         _env->ExceptionClear();
+
         std::string errstr("[Unknown error]");
         jclass Throwable = _env->FindClass("java/lang/Throwable");
         if (Throwable != NULL) {

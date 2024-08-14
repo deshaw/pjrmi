@@ -20,6 +20,7 @@ import time
 import weakref
 
 from   builtins         import ascii
+from   collections.abc  import Iterable
 from   inspect          import getfullargspec
 from   threading        import (Condition, Lock, RLock, Thread,
                                 current_thread, local as ThreadLocal)
@@ -773,8 +774,24 @@ class PJRmi:
     def is_instance_of(self, subclass_or_object, superclass):
         """
         Whether the given Java subclass or object is an instance of the given Java
-        superclass.
+        superclass(es).
+
+        Unlike the Python ``isinstance()`` method, this method does not
+        understand ``Union``s for the type argument.
+
+        :param subclass_or_object: The class or object instance which we are
+                                   determining the type of.
+        :param superclass:         The java class (or iterable of classes) which
+                                   we want to check against.
         """
+
+        # If we have been given an iterable as the superclass then test each
+        # element recursively, like Python's isinstance does
+        if isinstance(superclass, Iterable):
+            for el in superclass:
+                if self.is_instance_of(subclass_or_object, el):
+                    return True
+            return False
 
         # If the argument was a JavaObject then unbox it and recurse
         if isinstance(subclass_or_object, _JavaBox):
@@ -3233,7 +3250,7 @@ public class TestInjectSource {
 
             elif klass._type_id in (self._java_lang_float._type_id,
                                     self._java_lang_Float._type_id) and \
-                not hasattr(value, '__iter__'): # <-- "Not collections.Iterable"
+                not hasattr(value, '__iter__'): # <-- "Not collections.abc.Iterable"
                 # If the user has given us a numpy type then we assume that they
                 # know what they are doing when it comes to types, and we
                 # disallow a lossy conversion.

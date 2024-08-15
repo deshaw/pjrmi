@@ -214,9 +214,10 @@ public class SourceInjector
             StringBuilder errorMsg = new StringBuilder();
             for (Diagnostic d : diagnostics.getDiagnostics()) {
                 final int lineNumber = (int)d.getLineNumber();
+
                 errorMsg.append("Compilation error: line ")
                         .append(lineNumber)
-                        .append(' ')
+                        .append('\n')
                         .append(d.getMessage(null));
 
                 // Print the erroneous line (lineNumber is 1-indexed)
@@ -232,16 +233,16 @@ public class SourceInjector
                     else if (line == lineNumber) {
                         if (!found) {
                             found = true;
-                            errorMsg.append(" in: ");
+                            errorMsg.append(" in:\n");
                         }
                         errorMsg.append(c);
                     }
                 }
             }
             throw new ClassNotFoundException(
-                errorMsg + " " +
-                "(Are the className variable, \"" + className + "\", " +
-                "and the class name in the source code the same?)"
+                errorMsg + "\n" +
+                "(Make sure the className variable, \"" + className + "\", " +
+                "and the class name in the source code are the same.)"
             );
         }
 

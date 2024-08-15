@@ -107,6 +107,22 @@ public class FloatArrayHypercube
      * {@inheritDoc}
      */
     @Override
+    public void fill(final float v)
+    {
+        for (int i=0; i < myElements.length(); i++) {
+            float[] elements = myElements.get(i);
+            if (elements == null) {
+                elements = allocForIndex(i);
+                myElements.set(i, elements);
+            }
+            Arrays.fill(elements, v);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void toFlattenedObjs(final long srcPos,
                                 final Float[] dst,
                                 final int dstPos,
@@ -367,6 +383,40 @@ public class FloatArrayHypercube
     }
 
     /**
+     * Copy the contents of given cube into this one.
+     *
+     * @throws IllegalArgumentException if the given cube was not compatible for
+     *                                  some reason.
+     */
+    public void copyFrom(final FloatArrayHypercube that)
+    {
+        if (that == null) {
+            throw new IllegalArgumentException("Given a null cube to copy from");
+        }
+        if (!matches(that)) {
+            throw new IllegalArgumentException("Given cube is not compatible");
+        }
+
+        // We always expect this to be true but, just in case something really
+        // weird is going on, we fall back to the superclass's method. This
+        // override is really just an optimisation anyhow.
+        if (myElements.length() == that.myElements.length()) {
+            for (int i=0; i < myElements.length(); i++) {
+                final float[] els = that.myElements.get(i);
+                if (els == null) {
+                    myElements.set(i, null);
+                }
+                else {
+                    myElements.set(i, Arrays.copyOf(els, els.length));
+                }
+            }
+        }
+        else {
+            super.copyFrom((FloatHypercube)that);
+        }
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -469,4 +519,4 @@ public class FloatArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 2182d3b7f9828e905ea74ef8defbf292)
+// [[[end]]] (checksum: cd3ee8e9023a952a48d3944ab5aedb16)

@@ -630,6 +630,14 @@ public interface Hypercube<T>
     }
 
     /**
+     * Clear out the contents of this hypercube.
+     */
+    public default void clear()
+    {
+        fill(null);
+    }
+
+    /**
      * Flush any cached data.
      */
     public default void flush()
@@ -1038,6 +1046,26 @@ public interface Hypercube<T>
         // Safe to set, do it the slow way by default
         for (long i = dstPos, end = dstPos + length; i < end; i++) {
             setObjectAt(i, readElement(is, bo));
+        }
+    }
+
+    /**
+     * Copy the contents of given cube into this one.
+     *
+     * @throws IllegalArgumentException if the given cube was not compatible for
+     *                                  some reason.
+     */
+    public default void copyFrom(final Hypercube<T> that)
+    {
+        if (that == null) {
+            throw new IllegalArgumentException("Given a null cube to copy from");
+        }
+        if (!matches(that)) {
+            throw new IllegalArgumentException("Given cube is not compatible");
+        }
+        final long size = getSize();
+        for (long i=0; i < size; i++) {
+            setObjectAt(i, that.getObjectAt(i));
         }
     }
 

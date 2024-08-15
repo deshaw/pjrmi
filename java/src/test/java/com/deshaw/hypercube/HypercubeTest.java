@@ -20,6 +20,7 @@ import com.deshaw.hypercube.Dimension.Roll;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -122,11 +123,45 @@ public class HypercubeTest
      * Test flattening and unflattening.
      */
     @Test
-    public void testGenericFlattening()
+    public void testArrayGenericFlattening()
     {
-        // Create it
-        final Hypercube<String> cube = createGenericArrayHypercube();
+        doTestGenericFlattening(createGenericArrayHypercube());
+    }
 
+    /**
+     * Test the map-backed hypercube.
+     */
+    @Test
+    public void testGenericSparseHypercube()
+    {
+        final Hypercube<String> cube = createGenericSparseHypercube();
+        exercise(cube);
+    }
+
+    /**
+     * Test flattening and unflattening.
+     */
+    @Test
+    public void testSparseGenericFlattening()
+    {
+        doTestGenericFlattening(createGenericSparseHypercube());
+    }
+
+    /**
+     * Test the wrapping hypercube.
+     */
+    @Test
+    public void testGenericWrappingHypercube()
+    {
+        final Hypercube<Long> cube = createGenericWrappingHypercube();
+        exercise(cube);
+    }
+
+    /**
+     * Test flattening and unflattening.
+     */
+    private void doTestGenericFlattening(final Hypercube<String> cube)
+    {
         // Grab a copy of what it looks like
         final String repr = cube.toString();
 
@@ -158,16 +193,6 @@ public class HypercubeTest
         assertArrayEquals(flattened, flattened2);
     }
 
-    /**
-     * Test the wrapping hypercube.
-     */
-    @Test
-    public void testGenericWrappingHypercube()
-    {
-        final Hypercube<Long> cube = createGenericWrappingHypercube();
-        exercise(cube);
-    }
-
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     /**
@@ -178,6 +203,12 @@ public class HypercubeTest
     {
         final DoubleHypercube cube = createDoubleArrayHypercube();
         exercise(cube);
+
+        final DoubleHypercube copy = createDoubleArrayHypercube();
+        copy.clear();
+        assertFalse(cube.contentEquals(copy));
+        copy.copyFrom(cube);
+        assertTrue(cube.contentEquals(copy));
     }
 
     /**
@@ -209,14 +240,44 @@ public class HypercubeTest
     }
 
     /**
+     * Test flattening and unflattening of an array-backed double cube.
+     */
+    @Test
+    public void testDoubleArrayFlattening()
+    {
+        doTestDoubleFlattening(createDoubleArrayHypercube());
+    }
+
+    /**
+     * Test the map-backed sparse hypercube.
+     */
+    @Test
+    public void testDoubleSparseHypercube()
+    {
+        final DoubleHypercube cube = createDoubleSparseHypercube();
+        exercise(cube);
+
+        final DoubleHypercube copy = createDoubleSparseHypercube();
+        copy.clear();
+        assertFalse(cube.contentEquals(copy));
+        copy.copyFrom(cube);
+        assertTrue(cube.contentEquals(copy));
+    }
+
+    /**
      * Test flattening and unflattening.
      */
     @Test
-    public void testDoubleFlattening()
+    public void testDoubleSparseFlattening()
     {
-        // Create it
-        final DoubleHypercube cube = createDoubleArrayHypercube();
+        doTestDoubleFlattening(createDoubleSparseHypercube());
+    }
 
+    /**
+     * Test flattening and unflattening of the given hypercube.
+     */
+    private void doTestDoubleFlattening(DoubleHypercube cube)
+    {
         // Grab a copy of what it looks like
         final String repr = cube.toString();
 
@@ -261,6 +322,12 @@ public class HypercubeTest
     {
         final FloatHypercube cube = createFloatArrayHypercube();
         exercise(cube);
+
+        final FloatHypercube copy = createFloatArrayHypercube();
+        copy.clear();
+        assertFalse(cube.contentEquals(copy));
+        copy.copyFrom(cube);
+        assertTrue(cube.contentEquals(copy));
     }
 
     /**
@@ -316,6 +383,12 @@ public class HypercubeTest
     {
         final LongHypercube cube = createLongArrayHypercube();
         exercise(cube);
+
+        final LongHypercube copy = createLongArrayHypercube();
+        copy.clear();
+        assertFalse(cube.contentEquals(copy));
+        copy.copyFrom(cube);
+        assertTrue(cube.contentEquals(copy));
     }
 
     /**
@@ -360,6 +433,8 @@ public class HypercubeTest
         cube.toFlattened(flattened2);
         assertArrayEquals(flattened, flattened2);
     }
+
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     /**
      * Test cubes of varying dimensions.
@@ -469,6 +544,23 @@ public class HypercubeTest
         return cube;
     }
 
+    /**
+     * Create a {@link String} {@link GenericSparseHypercube}.
+     */
+    private AbstractHypercube<String> createGenericSparseHypercube()
+    {
+        // Create
+        final AbstractHypercube<String> cube =
+            new GenericSparseHypercube<>(DIMENSIONS, String.class);
+
+        // Populate and check
+        populate(cube);
+        check   (cube);
+
+        // Give it back
+        return cube;
+    }
+
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     /**
@@ -515,6 +607,23 @@ public class HypercubeTest
         // Create
         final AbstractDoubleHypercube cube =
             new DoubleArrayHypercube(DIMENSIONS);
+
+        // Populate and check
+        populate(cube);
+        check   (cube);
+
+        // Give it back
+        return cube;
+    }
+
+    /**
+     * Create a {@link DoubleSparseHypercube}.
+     */
+    private AbstractDoubleHypercube createDoubleSparseHypercube()
+    {
+        // Create
+        final AbstractDoubleHypercube cube =
+            new DoubleSparseHypercube(DIMENSIONS);
 
         // Populate and check
         populate(cube);

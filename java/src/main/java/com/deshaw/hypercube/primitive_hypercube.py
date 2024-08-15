@@ -316,7 +316,7 @@ public interface {object_type}Hypercube
             final {primitive_type} thisEl = this.getAt(i);
             final {primitive_type} thatEl = that.getAt(i);
             if (thisEl != thatEl &&
-                !Double.isNaN(thisEl{num_from_primitive}) && !Double.isNaN(thatEl{num_from_primitive}))
+                !(Double.isNaN(thisEl{num_from_primitive}) && Double.isNaN(thatEl{num_from_primitive})))
             {{
                 return false;
             }}
@@ -412,6 +412,15 @@ public interface {object_type}Hypercube
         for (long i=0, size = getSize(); i < size; i++) {{
             setAt(i, v);
         }}
+    }}
+
+    /**
+     * {{@inheritDoc}}
+     */
+    @Override
+    public default void clear()
+    {{
+        fill({primitive_from_null});
     }}
 
     /**
@@ -742,6 +751,26 @@ public interface {object_type}Hypercube
             for (long i = dstPos, end = dstPos + length; i < end; i++) {{
                 setAt(i, readLittleEndian(is));
             }}
+        }}
+    }}
+
+    /**
+     * Copy the contents of given cube into this one.
+     *
+     * @throws IllegalArgumentException if the given cube was not compatible for
+     *                                  some reason.
+     */
+    public default void copyFrom(final {object_type}Hypercube that)
+    {{
+        if (that == null) {{
+            throw new IllegalArgumentException("Given a null cube to copy from");
+        }}
+        if (!matches(that)) {{
+            throw new IllegalArgumentException("Given cube is not compatible");
+        }}
+        final long size = getSize();
+        for (long i=0; i < size; i++) {{
+            setAt(i, that.getAt(i));
         }}
     }}
 

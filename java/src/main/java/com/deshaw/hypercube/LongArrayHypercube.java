@@ -107,6 +107,22 @@ public class LongArrayHypercube
      * {@inheritDoc}
      */
     @Override
+    public void fill(final long v)
+    {
+        for (int i=0; i < myElements.length(); i++) {
+            long[] elements = myElements.get(i);
+            if (elements == null) {
+                elements = allocForIndex(i);
+                myElements.set(i, elements);
+            }
+            Arrays.fill(elements, v);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void toFlattenedObjs(final long srcPos,
                                 final Long[] dst,
                                 final int dstPos,
@@ -367,6 +383,40 @@ public class LongArrayHypercube
     }
 
     /**
+     * Copy the contents of given cube into this one.
+     *
+     * @throws IllegalArgumentException if the given cube was not compatible for
+     *                                  some reason.
+     */
+    public void copyFrom(final LongArrayHypercube that)
+    {
+        if (that == null) {
+            throw new IllegalArgumentException("Given a null cube to copy from");
+        }
+        if (!matches(that)) {
+            throw new IllegalArgumentException("Given cube is not compatible");
+        }
+
+        // We always expect this to be true but, just in case something really
+        // weird is going on, we fall back to the superclass's method. This
+        // override is really just an optimisation anyhow.
+        if (myElements.length() == that.myElements.length()) {
+            for (int i=0; i < myElements.length(); i++) {
+                final long[] els = that.myElements.get(i);
+                if (els == null) {
+                    myElements.set(i, null);
+                }
+                else {
+                    myElements.set(i, Arrays.copyOf(els, els.length));
+                }
+            }
+        }
+        else {
+            super.copyFrom((LongHypercube)that);
+        }
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -469,4 +519,4 @@ public class LongArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: e4d8457aab4cebcb5aaea581adfd4cad)
+// [[[end]]] (checksum: 75b9bf9c134058e46f2a3f264a4e32ba)

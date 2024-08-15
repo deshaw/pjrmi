@@ -190,7 +190,7 @@ public class GenericArrayHypercube<T>
     public T getObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        if (index > Integer.MAX_VALUE) {
+        if (index < 0 || index > Integer.MAX_VALUE) {
             throw new IndexOutOfBoundsException("Bad index: " + index);
         }
         preRead();
@@ -204,7 +204,7 @@ public class GenericArrayHypercube<T>
     public void setObjectAt(final long index, final T obj)
         throws IndexOutOfBoundsException
     {
-        if (index > Integer.MAX_VALUE) {
+        if (index < 0 || index > Integer.MAX_VALUE) {
             throw new IndexOutOfBoundsException("Bad index: " + index);
         }
         myElements[(int)index] = obj;

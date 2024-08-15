@@ -334,7 +334,7 @@ public interface BooleanHypercube
             final boolean thisEl = this.getAt(i);
             final boolean thatEl = that.getAt(i);
             if (thisEl != thatEl &&
-                !Double.isNaN(thisEl ? (byte)1 : (byte)0) && !Double.isNaN(thatEl ? (byte)1 : (byte)0))
+                !(Double.isNaN(thisEl ? (byte)1 : (byte)0) && Double.isNaN(thatEl ? (byte)1 : (byte)0)))
             {
                 return false;
             }
@@ -430,6 +430,15 @@ public interface BooleanHypercube
         for (long i=0, size = getSize(); i < size; i++) {
             setAt(i, v);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default void clear()
+    {
+        fill(false);
     }
 
     /**
@@ -760,6 +769,26 @@ public interface BooleanHypercube
             for (long i = dstPos, end = dstPos + length; i < end; i++) {
                 setAt(i, readLittleEndian(is));
             }
+        }
+    }
+
+    /**
+     * Copy the contents of given cube into this one.
+     *
+     * @throws IllegalArgumentException if the given cube was not compatible for
+     *                                  some reason.
+     */
+    public default void copyFrom(final BooleanHypercube that)
+    {
+        if (that == null) {
+            throw new IllegalArgumentException("Given a null cube to copy from");
+        }
+        if (!matches(that)) {
+            throw new IllegalArgumentException("Given cube is not compatible");
+        }
+        final long size = getSize();
+        for (long i=0; i < size; i++) {
+            setAt(i, that.getAt(i));
         }
     }
 
@@ -1194,4 +1223,4 @@ public interface BooleanHypercube
     }
 }
 
-// [[[end]]] (checksum: 2b243e177c1d9f72930c5dbbe02dc80f)
+// [[[end]]] (checksum: fe9df05fde251e9ee1152d84c571f432)

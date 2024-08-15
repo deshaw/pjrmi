@@ -107,6 +107,22 @@ public class IntegerArrayHypercube
      * {@inheritDoc}
      */
     @Override
+    public void fill(final int v)
+    {
+        for (int i=0; i < myElements.length(); i++) {
+            int[] elements = myElements.get(i);
+            if (elements == null) {
+                elements = allocForIndex(i);
+                myElements.set(i, elements);
+            }
+            Arrays.fill(elements, v);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void toFlattenedObjs(final long srcPos,
                                 final Integer[] dst,
                                 final int dstPos,
@@ -367,6 +383,40 @@ public class IntegerArrayHypercube
     }
 
     /**
+     * Copy the contents of given cube into this one.
+     *
+     * @throws IllegalArgumentException if the given cube was not compatible for
+     *                                  some reason.
+     */
+    public void copyFrom(final IntegerArrayHypercube that)
+    {
+        if (that == null) {
+            throw new IllegalArgumentException("Given a null cube to copy from");
+        }
+        if (!matches(that)) {
+            throw new IllegalArgumentException("Given cube is not compatible");
+        }
+
+        // We always expect this to be true but, just in case something really
+        // weird is going on, we fall back to the superclass's method. This
+        // override is really just an optimisation anyhow.
+        if (myElements.length() == that.myElements.length()) {
+            for (int i=0; i < myElements.length(); i++) {
+                final int[] els = that.myElements.get(i);
+                if (els == null) {
+                    myElements.set(i, null);
+                }
+                else {
+                    myElements.set(i, Arrays.copyOf(els, els.length));
+                }
+            }
+        }
+        else {
+            super.copyFrom((IntegerHypercube)that);
+        }
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -469,4 +519,4 @@ public class IntegerArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: b147d7cc1d9dc5b1e196b0c5829d0754)
+// [[[end]]] (checksum: 728e8e2b1ce42dbeeae36b4551734fea)

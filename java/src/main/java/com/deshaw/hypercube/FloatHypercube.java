@@ -331,7 +331,7 @@ public interface FloatHypercube
             final float thisEl = this.getAt(i);
             final float thatEl = that.getAt(i);
             if (thisEl != thatEl &&
-                !Double.isNaN(thisEl) && !Double.isNaN(thatEl))
+                !(Double.isNaN(thisEl) && Double.isNaN(thatEl)))
             {
                 return false;
             }
@@ -427,6 +427,15 @@ public interface FloatHypercube
         for (long i=0, size = getSize(); i < size; i++) {
             setAt(i, v);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default void clear()
+    {
+        fill(Float.NaN);
     }
 
     /**
@@ -757,6 +766,26 @@ public interface FloatHypercube
             for (long i = dstPos, end = dstPos + length; i < end; i++) {
                 setAt(i, readLittleEndian(is));
             }
+        }
+    }
+
+    /**
+     * Copy the contents of given cube into this one.
+     *
+     * @throws IllegalArgumentException if the given cube was not compatible for
+     *                                  some reason.
+     */
+    public default void copyFrom(final FloatHypercube that)
+    {
+        if (that == null) {
+            throw new IllegalArgumentException("Given a null cube to copy from");
+        }
+        if (!matches(that)) {
+            throw new IllegalArgumentException("Given cube is not compatible");
+        }
+        final long size = getSize();
+        for (long i=0; i < size; i++) {
+            setAt(i, that.getAt(i));
         }
     }
 
@@ -1573,4 +1602,4 @@ public interface FloatHypercube
     }
 }
 
-// [[[end]]] (checksum: d69d8e308341df8a436688620f3cca7b)
+// [[[end]]] (checksum: e31212b3e9d67a04d22f3ed40c0c41b6)

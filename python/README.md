@@ -28,8 +28,9 @@ Some headline features of PJRmi are:
 -   Thread-safe execution, with built-in locking support and asynchronous
     execution via futures.
 -   Realtime code injection.
--   A [numpy](https://numpy.org/)-like math library for Java, which is also
-    directly interoperable with Python.
+-   A [numpy](https://numpy.org/) equivalent math library for Java, which is
+    directly interoperable with Python. This includes `ndarray` implementations
+    in native Java which duck-type as their Python equivalents.
 
 Use-case examples:
 -   Scriptification of Java applications.

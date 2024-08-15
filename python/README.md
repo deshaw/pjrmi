@@ -12,7 +12,8 @@ PJRmi does everything by reflection so all you need to implement, as a
 service-provider, is the `getObjectInstance()` method for it (see below).
 
 As well as the examples below, you can try out the Jupyter
-[notebook](python/tests/pjrmi.ipynb) for live versions.
+[notebook](https://github.com/deshaw/pjrmi/blob/main/python/tests/pjrmi.ipynb)
+for live versions.
 
 
 ### Highlights

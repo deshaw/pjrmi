@@ -65,8 +65,8 @@ be used in different modes of operation transparently to the user.
 If you want to try out PJRmi then you have a couple of options:
 
   1. `pip install pjrmi`
-  2. Clone this repository and run `./gradlew wheel` in it, and `pip install`
-     that.
+  2. Clone [this](https://github.com/deshaw/pjrmi) repository, run
+     `./gradlew wheel` in it, and `pip install` the resultant wheel file.
 
 Note that the version on PyPI is does not contain any C++ extensions, since it
 does not include any platform-specific binaries. A locally built version will

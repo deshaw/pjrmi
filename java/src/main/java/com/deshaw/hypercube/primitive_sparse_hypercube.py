@@ -19,14 +19,14 @@ public class {object_type}SparseHypercube
     extends Abstract{object_type}Hypercube
 {{
     /**
-     * The primitive null value as a long.
-     */
-    private static final long NULL = {primitive_type}2long({primitive_from_null});
-
-    /**
      * The map which we use to store the values.
      */
     private final LongToLongConcurrentCuckooHashMap myMap;
+
+    /**
+     * The {{@code {primitive_type}}} null value as a {{@code long}}.
+     */
+    private final long myNull;
 
     // ----------------------------------------------------------------------
 
@@ -92,30 +92,43 @@ public class {object_type}SparseHypercube
     // ----------------------------------------------------------------------
 
     /**
-     * Constructor with a default loading of {{@code 0.1}}.
+     * Constructor with a default {{@code null}} value, and a loading of
+     * {{@code 0.1}}.
      */
     public {object_type}SparseHypercube(final Dimension<?>[] dimensions)
         throws IllegalArgumentException,
                NullPointerException
     {{
-        this(dimensions, 0.1);
+        this(dimensions, {primitive_from_null}, 0.1);
     }}
 
     /**
-     * Constructor with a given loading.
+     * Constructor with a given {{@code null}} value and loading.
+     *
+     * @param nullValue  The value used to for missing entries.
+     * @param loading    The value used to determine the initial backing space
+     *                   capacity as a function of the logical size of the
+     *                   hypercube.
      */
-    public {object_type}SparseHypercube(final Dimension<?>[] dimensions, final double loading)
+    public {object_type}SparseHypercube(
+        final Dimension<?>[] dimensions,
+        final {primitive_type} nullValue,
+        final double loading
+    )
         throws IllegalArgumentException,
                NullPointerException
     {{
         super(dimensions);
 
+        if (Double.isNaN(loading)) {{
+            throw new IllegalArgumentException("Given a NaN loading value");
+        }}
         final int capacity =
             (int)Math.max(13,
                           Math.min(Integer.MAX_VALUE,
                                    getSize() * Math.max(0.0, Math.min(1.0, loading))));
         myMap = new LongToLongConcurrentCuckooHashMap(capacity);
-
+        myNull = {primitive_type}2long(nullValue);
     }}
 
     /**
@@ -218,7 +231,7 @@ public class {object_type}SparseHypercube
 
         preRead();
         for (int i=0; i < length; i++) {{
-            dst[dstPos + i] = long2{primitive_type}(myMap.get(srcPos + i, NULL));
+            dst[dstPos + i] = long2{primitive_type}(myMap.get(srcPos + i, myNull));
         }}
     }}
 
@@ -311,7 +324,7 @@ public class {object_type}SparseHypercube
             );
         }}
         preRead();
-        return long2{primitive_type}(myMap.get(index, NULL));
+        return long2{primitive_type}(myMap.get(index, myNull));
     }}
 
     /**
@@ -346,13 +359,13 @@ public class {object_type}SparseHypercube
     }}
 
    /**
-    * Put a value into the map, in such a way that understand NULLs.
+    * Put a value into the map, in such a way that understand null values.
     */
     private void mapPut(final long index, final long value)
     {{
-        // If we happen to be inserting a NULL then that really means we are
+        // If we happen to be inserting a null then that really means we are
         // removing an entry from the sparse map
-        if (value == NULL) {{
+        if (value == myNull) {{
             myMap.remove(index);
         }}
         else {{

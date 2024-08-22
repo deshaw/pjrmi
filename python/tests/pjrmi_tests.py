@@ -1419,6 +1419,21 @@ public class TestInjectSource {
         self.assertTrue(numpy.all(CubeMath.roll(nda, (1,2), axis=(0,1)) ==
                                   numpy   .roll(nda, (1,2), axis=(0,1))))
 
+        # Subcube operations. These effectively walk the binary operation of one
+        # subcube over the container cube.
+        a3   = numpy.arange(3**1)
+        a33  = numpy.arange(3**2).reshape(  3,3)
+        a333 = numpy.arange(3**3).reshape(3,3,3)
+        c3   = CubeMath.copy(  a3)
+        c33  = CubeMath.copy( a33)
+        c333 = CubeMath.copy(a333)
+        self.assertTrue(numpy.all( a3 + a333 == a333 +  a3))
+        self.assertTrue(numpy.all( c3 + c333 == c333 +  c3))
+        self.assertTrue(numpy.all( a3 + a333 == c333 +  c3))
+        self.assertTrue(numpy.all(a33 + a333 == a333 + a33))
+        self.assertTrue(numpy.all(c33 + c333 == c333 + c33))
+        self.assertTrue(numpy.all(a33 + a333 == c333 + c33))
+
 
     @classmethod
     def tearDownClass(cls):

@@ -4694,12 +4694,6 @@ public class CubeMath
         if (b == null) {
             throw new NullPointerException("Given a null cube, 'b'");
         }
-        if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
-        }
-        if (w != null && !a.matchesInShape(w)) {
-            throw new IllegalArgumentException("Given an incompatible 'w' cube");
-        }
 
         // See if we can do it
         if (a.getElementType().equals(Double.class)) {
@@ -4764,9 +4758,81 @@ public class CubeMath
         if (r == null) {
             throw new NullPointerException("Given a null cube, 'r'");
         }
+
         if (!a.matches(b) || !a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            // The don't exactly match, so let's see if one is a sub-cube of the
+            // other and that we can map into the result nicely
+            if (a.submatches(b) && a.matches(r)) {
+                // If we have weights then they need to match 'a' in shape
+                if (w != null && !a.matchesInShape(w)) {
+                    throw new IllegalArgumentException(
+                        "Given an incompatible 'w' cube"
+                    );
+                }
+
+                // How we will slice up the 'a' and 'r' cubes so that we can
+                // recurse using 'b' directly
+                final Dimension<?>[] aDims = a.getDimensions();
+                final Dimension.Accessor<?>[] aAccessors =
+                    new Dimension.Accessor<?>[aDims.length];
+                final Dimension<?>[] wDims =
+                    (w == null) ? null : w.getDimensions();
+                final Dimension.Accessor<?>[] wAccessors =
+                    (w == null) ? null : new Dimension.Accessor<?>[wDims.length];
+                final Dimension<?> aDim = aDims[0];
+                final Dimension<?> wDim = (w == null) ? null : wDims[0];
+
+                // Slice with each part of the dimension and recurse on the
+                // resultant subcubes
+                for (long i=0; i < aDim.length(); i++) {
+                    aAccessors[0] = aDim.at(i);
+                    if (w != null) {
+                        wAccessors[0] = wDim.at(i);
+                    }
+                    binaryOp(
+                        a.slice(aAccessors),
+                        b,
+                        r.slice(aAccessors),
+                        (w == null) ? null : w.slice(wAccessors),
+                        op
+                    );
+                }
+                return r;
+            }
+
+            // The converse case to the above
+            if (b.submatches(a) && b.matches(r)) {
+                if (w != null && !b.matchesInShape(w)) {
+                    throw new IllegalArgumentException(
+                        "Given an incompatible 'w' cube"
+                    );
+                }
+                final Dimension<?>[] bDims = b.getDimensions();
+                final Dimension.Accessor<?>[] bAccessors =
+                    new Dimension.Accessor<?>[bDims.length];
+                final Dimension<?>[] wDims =
+                    (w == null) ? null : w.getDimensions();
+                final Dimension.Accessor<?>[] wAccessors =
+                    (w == null) ? null : new Dimension.Accessor<?>[wDims.length];
+                final Dimension<?> bDim = bDims[0];
+                final Dimension<?> wDim = (w == null) ? null : wDims[0];
+                for (long i=0; i < bDim.length(); i++) {
+                    bAccessors[0] = bDim.at(i);
+                    if (w != null) {
+                        wAccessors[0] = wDim.at(i);
+                    }
+                    binaryOp(
+                        a,
+                        b.slice(bAccessors),
+                        r.slice(bAccessors),
+                        (w == null) ? null : w.slice(wAccessors),
+                        op
+                    );
+                }
+                return r;
+            }
         }
+
         if (w != null && !a.matchesInShape(w)) {
             throw new IllegalArgumentException("Given an incompatible 'w' cube");
         }
@@ -9370,12 +9436,18 @@ public class CubeMath
         if (b == null) {
             throw new NullPointerException("Given a null cube, 'b'");
         }
-        if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+
+        // Depending on which cube is a non-strict supercube of the other, create a simple
+        // BitSet destination one
+        if (a.submatches(b)) {
+            return binaryOp(a, b, new BooleanBitSetHypercube(a.getDimensions()), dw, op);
+        }
+        if (b.submatches(a)) {
+            return binaryOp(a, b, new BooleanBitSetHypercube(b.getDimensions()), dw, op);
         }
 
-        // Create the destination, a simple BitSet one by default
-        return binaryOp(a, b, new BooleanBitSetHypercube(a.getDimensions()), dw, op);
+        // No match between the cubes
+        throw new IllegalArgumentException("Given incompatible cubes");
     }
 
     /**
@@ -10906,12 +10978,18 @@ public class CubeMath
         if (b == null) {
             throw new NullPointerException("Given a null cube, 'b'");
         }
-        if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+
+        // Depending on which cube is a non-strict supercube of the other, create a simple
+        // Array destination one
+        if (a.submatches(b)) {
+            return binaryOp(a, b, new IntegerArrayHypercube(a.getDimensions()), dw, op);
+        }
+        if (b.submatches(a)) {
+            return binaryOp(a, b, new IntegerArrayHypercube(b.getDimensions()), dw, op);
         }
 
-        // Create the destination, a simple Array one by default
-        return binaryOp(a, b, new IntegerArrayHypercube(a.getDimensions()), dw, op);
+        // No match between the cubes
+        throw new IllegalArgumentException("Given incompatible cubes");
     }
 
     /**
@@ -12454,12 +12532,18 @@ public class CubeMath
         if (b == null) {
             throw new NullPointerException("Given a null cube, 'b'");
         }
-        if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+
+        // Depending on which cube is a non-strict supercube of the other, create a simple
+        // Array destination one
+        if (a.submatches(b)) {
+            return binaryOp(a, b, new LongArrayHypercube(a.getDimensions()), dw, op);
+        }
+        if (b.submatches(a)) {
+            return binaryOp(a, b, new LongArrayHypercube(b.getDimensions()), dw, op);
         }
 
-        // Create the destination, a simple Array one by default
-        return binaryOp(a, b, new LongArrayHypercube(a.getDimensions()), dw, op);
+        // No match between the cubes
+        throw new IllegalArgumentException("Given incompatible cubes");
     }
 
     /**
@@ -13999,12 +14083,18 @@ public class CubeMath
         if (b == null) {
             throw new NullPointerException("Given a null cube, 'b'");
         }
-        if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+
+        // Depending on which cube is a non-strict supercube of the other, create a simple
+        // Array destination one
+        if (a.submatches(b)) {
+            return binaryOp(a, b, new FloatArrayHypercube(a.getDimensions()), dw, op);
+        }
+        if (b.submatches(a)) {
+            return binaryOp(a, b, new FloatArrayHypercube(b.getDimensions()), dw, op);
         }
 
-        // Create the destination, a simple Array one by default
-        return binaryOp(a, b, new FloatArrayHypercube(a.getDimensions()), dw, op);
+        // No match between the cubes
+        throw new IllegalArgumentException("Given incompatible cubes");
     }
 
     /**
@@ -15563,12 +15653,18 @@ public class CubeMath
         if (b == null) {
             throw new NullPointerException("Given a null cube, 'b'");
         }
-        if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+
+        // Depending on which cube is a non-strict supercube of the other, create a simple
+        // Array destination one
+        if (a.submatches(b)) {
+            return binaryOp(a, b, new DoubleArrayHypercube(a.getDimensions()), dw, op);
+        }
+        if (b.submatches(a)) {
+            return binaryOp(a, b, new DoubleArrayHypercube(b.getDimensions()), dw, op);
         }
 
-        // Create the destination, a simple Array one by default
-        return binaryOp(a, b, new DoubleArrayHypercube(a.getDimensions()), dw, op);
+        // No match between the cubes
+        throw new IllegalArgumentException("Given incompatible cubes");
     }
 
     /**
@@ -16572,4 +16668,4 @@ public class CubeMath
     }
 }
 
- // [[[end]]] (checksum: 7d429fc88498b76e3459643a3e08a022)
+ // [[[end]]] (checksum: d6f3bef31cdaaf690de998752896891e)

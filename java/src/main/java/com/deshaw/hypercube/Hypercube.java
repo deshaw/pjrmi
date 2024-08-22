@@ -246,6 +246,38 @@ public interface Hypercube<T>
     }
 
     /**
+     * Whether this hypercube instance matches the given one in the higher
+     * dimensions. This is essentially saying whether {@code that} is a
+     * compatible non-strict subcube of this one.
+     */
+    public default boolean submatches(final Hypercube<T> that)
+    {
+        // Similar to matches(), since simple checks
+        if (this == that) {
+            return true;
+        }
+        if (that == null                                    ||
+            !getElementType().equals(that.getElementType()) ||
+            getNDim() < that.getNDim())
+        {
+            return false;
+        }
+
+        // Now we want to compare the higher dimensions
+        final Dimension<?>[] thisDim = this.getDimensions();
+        final Dimension<?>[] thatDim = that.getDimensions();
+        for (int i = 1; i <= thatDim.length; i++) {
+            if (!thisDim[thisDim.length-i].equals(
+                    thatDim[thatDim.length-i]
+                ))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Whether this hypercube instance matches the given one in shape. For this
      * to be true, the following properties must match between the two cubes:<ol>
      *   <li>The shape.

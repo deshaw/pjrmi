@@ -85,7 +85,7 @@ public class MappedIndex<T>
      * {@inheritDoc}
      */
     @Override
-    public T indexOf(final long index)
+    public T keyOf(final long index)
     {
         return (0 <= index && index < myKeys.length) ? myKeys[(int)index] : null;
     }

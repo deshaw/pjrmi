@@ -77,7 +77,7 @@ public abstract class AbstractIndex<T>
             return false;
         }
         for (long i=0; i < size; i++) {
-            if (!Objects.equals(this.indexOf(i), that.indexOf(i))) {
+            if (!Objects.equals(this.keyOf(i), that.keyOf(i))) {
                 return false;
             }
         }

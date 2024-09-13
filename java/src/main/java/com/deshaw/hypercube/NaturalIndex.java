@@ -47,7 +47,7 @@ public class NaturalIndex
      * {@inheritDoc}
      */
     @Override
-    public Long indexOf(final long index)
+    public Long keyOf(final long index)
     {
         return (0 <= index && index < mySize) ? index : null;
     }

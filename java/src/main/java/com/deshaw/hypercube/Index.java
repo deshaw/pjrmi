@@ -27,7 +27,7 @@ public interface Index<T>
      * @return {@code null} if the index value was not in the {@link Index}'s
      *         range.
      */
-    public T indexOf(final long index);
+    public T keyOf(final long index);
 
     /**
      * The number of elements in this index.

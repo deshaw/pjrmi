@@ -116,11 +116,11 @@ public class SubIndex<T>
      * {@inheritDoc}
      */
     @Override
-    public T indexOf(final long index)
+    public T keyOf(final long index)
     {
         // If our range is reversed then we go in the other direction
-        return (myStart < myEnd) ? myIndex.indexOf(myStart + index)
-                                 : myIndex.indexOf(myStart - index);
+        return (myStart < myEnd) ? myIndex.keyOf(myStart + index)
+                                 : myIndex.keyOf(myStart - index);
     }
 
     /**

@@ -332,7 +332,8 @@ public class SlicedHypercube<T>
             else {
                 throw new IllegalArgumentException(
                     "Unhandled Accessor type: " + accessor
-                );            }
+                );
+            }
 
             // Now we simply flatten from the cube into the result array
             getWrapped().fromFlattenedObjs(src,

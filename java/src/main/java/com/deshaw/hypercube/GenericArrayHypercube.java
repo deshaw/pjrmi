@@ -43,7 +43,7 @@ public class GenericArrayHypercube<T>
 
         if (size > Integer.MAX_VALUE) {
             throw new IllegalArgumentException(
-                "Unable to represent a cube of size " + size + " with an array" 
+                "Unable to represent a cube of size " + size + " with an array"
             );
         }
 

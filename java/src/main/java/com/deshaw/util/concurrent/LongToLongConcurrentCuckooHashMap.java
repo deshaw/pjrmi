@@ -9,13 +9,13 @@ import java.util.function.LongUnaryOperator;
 
 /**
  * A long-to-long map which is thread-safe and does not employ locks.
- * 
+ *
  * <p>We use a variant on <a href="http://en.wikipedia.org/wiki/Cuckoo_hashing">
  * cuckoo hashing</a> to achieve this.
- * 
+ *
  * <p>Size operations are potentially noisy and expensive on this map so we
  * choose not to support them.
- * 
+ *
  * <p>Users should be aware that rehashing the table is a garbagy and time
  * consuming operation. As such, it is advised that a good initial size is
  * chosen if rehashing is to be avoided. A good rule of thumb is seems to be

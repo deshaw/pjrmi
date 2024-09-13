@@ -53,7 +53,7 @@ $ ./gradlew wheel
 [...]
 $ mkdir /tmp/mypythonlib
 $ cd /tmp/mypythonlib
-$ unzip /path/to/pjrmi/python/pjrmi-blah-blah.whl 
+$ unzip /path/to/pjrmi/python/pjrmi-blah-blah.whl
 [...]
 $ PYTHONPATH=/tmp/mypythonlib python -c 'import pjrmi;print(pjrmi.PJRMI_VERSION)'
 1.23.4

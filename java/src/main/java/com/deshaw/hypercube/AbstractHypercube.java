@@ -642,7 +642,7 @@ public abstract class AbstractHypercube<T>
      * {@inheritDoc}
      */
     @Override
-    @SuppressWarnings("unchecked")    
+    @SuppressWarnings("unchecked")
     public boolean equals(final Object that)
     {
         if (!(that instanceof Hypercube)) {

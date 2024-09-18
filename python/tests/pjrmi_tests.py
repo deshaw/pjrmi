@@ -1434,6 +1434,26 @@ public class TestInjectSource {
         self.assertTrue(numpy.all(c33 + c333 == c333 + c33))
         self.assertTrue(numpy.all(a33 + a333 == c333 + c33))
 
+        # Matrix operations. These should have numpy.matmul() semantics.
+        a234 = numpy.arange(24).reshape((2,3,4))
+        a243 = numpy.arange(24).reshape((2,4,3))
+        c234 = CubeMath.copy(a234)
+        c243 = CubeMath.copy(a243)
+        a43  = a243[0,]
+        c43  = c243[0,]
+        self.assertTrue(numpy.all(         c43  ==           a43))
+        self.assertTrue(numpy.all((  c3 @   c3) == (  a3 @   a3)))
+        self.assertTrue(numpy.all((  c3 @  c33) == (  a3 @  a33)))
+        self.assertTrue(numpy.all((  c3 @ c333) == (  a3 @ a333)))
+        self.assertTrue(numpy.all(( c33 @   c3) == ( a33 @   a3)))
+        self.assertTrue(numpy.all(( c33 @  c33) == ( a33 @  a33)))
+        self.assertTrue(numpy.all(( c33 @ c333) == ( a33 @ a333)))
+        self.assertTrue(numpy.all((c333 @   c3) == (a333 @   a3)))
+        self.assertTrue(numpy.all((c333 @  c33) == (a333 @  a33)))
+        self.assertTrue(numpy.all((c333 @ c333) == (a333 @ a333)))
+        self.assertTrue(numpy.all((c234 @  c43) == (a234 @  a43)))
+        self.assertTrue(numpy.all((c234 @ c243) == (a234 @ a243)))
+
 
     @classmethod
     def tearDownClass(cls):

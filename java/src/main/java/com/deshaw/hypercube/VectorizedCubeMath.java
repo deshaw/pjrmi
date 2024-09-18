@@ -3627,6 +3627,95 @@ public class VectorizedCubeMath
         }
     }
 
+    /**
+     * Handle a vector dot product operation, resulting in a scalar.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T dotprod(final Hypercube<T> a, final Hypercube<T> b)
+        throws IllegalArgumentException,
+               NullPointerException,
+               UnsupportedOperationException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+
+        // See if we can do it
+        if (a.getElementType().equals(Double.class)) {
+            return (T)Double.valueOf(
+                doubleDotProd((Hypercube<Double>)a, (Hypercube<Double>)b)
+            );
+        }
+        else if (a.getElementType().equals(Float.class)) {
+            return (T)Float.valueOf(
+                floatDotProd((Hypercube<Float>)a, (Hypercube<Float>)b)
+            );
+        }
+        else if (a.getElementType().equals(Integer.class)) {
+            return (T)Integer.valueOf(
+                intDotProd((Hypercube<Integer>)a, (Hypercube<Integer>)b)
+            );
+        }
+        else if (a.getElementType().equals(Long.class)) {
+            return (T)Long.valueOf(
+                longDotProd((Hypercube<Long>)a, (Hypercube<Long>)b)
+            );
+        }
+        else {
+            throw new UnsupportedOperationException(
+                "Don't know how to matrix multiply cubes with element type " +
+                a.getElementType().getSimpleName()
+            );
+        }
+    }
+
+    /**
+     * Handle a matrix multiply.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Hypercube<T> matmul(final Hypercube<T> a,
+                                          final Hypercube<T> b)
+        throws IllegalArgumentException,
+               NullPointerException,
+               UnsupportedOperationException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+
+        // See if we can do it
+        if (a.getElementType().equals(Double.class)) {
+            return (Hypercube<T>)doubleMatMul((Hypercube<Double>)a,
+                                              (Hypercube<Double>)b);
+        }
+        else if (a.getElementType().equals(Float.class)) {
+            return (Hypercube<T>)floatMatMul((Hypercube<Float>)a,
+                                             (Hypercube<Float>)b);
+        }
+        else if (a.getElementType().equals(Integer.class)) {
+            return (Hypercube<T>)intMatMul((Hypercube<Integer>)a,
+                                           (Hypercube<Integer>)b);
+        }
+        else if (a.getElementType().equals(Long.class)) {
+            return (Hypercube<T>)longMatMul((Hypercube<Long>)a,
+                                            (Hypercube<Long>)b);
+        }
+        else {
+            throw new UnsupportedOperationException(
+                "Don't know how to matrix multiply cubes with element type " +
+                a.getElementType().getSimpleName()
+            );
+        }
+    }
+
     // -------------------------------------------------------------------------
 
     /**
@@ -5170,7 +5259,7 @@ public class VectorizedCubeMath
         }
 
         if (!a.matches(b) || !a.matches(r)) {
-            // The don't exactly match, so let's see if one is a sub-cube of the
+            // They don't exactly match, so let's see if one is a sub-cube of the
             // other and that we can map into the result nicely
             if (a.submatches(b) && a.matches(r)) {
                 // If we have weights then they need to match 'a' in shape
@@ -5210,7 +5299,8 @@ public class VectorizedCubeMath
                 return r;
             }
 
-            // The converse case to the above
+            // The converse case to the above. Code is "duplicated" since certain
+            // operations are not commutative.
             if (b.submatches(a) && b.matches(r)) {
                 if (w != null && !b.matchesInShape(w)) {
                     throw new IllegalArgumentException(
@@ -5905,6 +5995,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -5932,6 +6023,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -6042,6 +6139,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -6069,6 +6167,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -6179,6 +6283,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -6206,6 +6311,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -6316,6 +6427,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -6343,6 +6455,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -6453,6 +6571,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -6480,6 +6599,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -6676,6 +6801,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -6703,6 +6829,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -6813,6 +6945,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -6840,6 +6973,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -6950,6 +7089,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -6977,6 +7117,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -7087,6 +7233,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -7114,6 +7261,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -7224,6 +7377,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -7251,6 +7405,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -7447,6 +7607,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -7474,6 +7635,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -7584,6 +7751,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -7611,6 +7779,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -7721,6 +7895,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -7748,6 +7923,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -7858,6 +8039,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -7885,6 +8067,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -7995,6 +8183,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -8022,6 +8211,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -8218,6 +8413,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -8245,6 +8441,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -8355,6 +8557,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -8382,6 +8585,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -8492,6 +8701,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -8519,6 +8729,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -8629,6 +8845,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -8656,6 +8873,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -8766,6 +8989,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -8793,6 +9017,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -8989,6 +9219,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -9016,6 +9247,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -9126,6 +9363,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -9153,6 +9391,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -9263,6 +9507,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -9290,6 +9535,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -9400,6 +9651,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -9427,6 +9679,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -9537,6 +9795,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -9564,6 +9823,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -9676,6 +9941,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -9708,6 +9974,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = start; i < end; i++) {
                 // No need to handle missing values separately
@@ -9876,7 +10148,7 @@ public class VectorizedCubeMath
         }
 
         // Depending on which cube is a non-strict supercube of the other, create a simple
-        // BitSet destination one
+        // BitSet destination one as a copy of the appropriate argument
         if (a.submatches(b)) {
             return binaryOp(a, b, new BooleanBitSetHypercube(a.getDimensions()), dw, op);
         }
@@ -9948,6 +10220,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -9975,6 +10248,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -10124,6 +10403,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -10151,6 +10431,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -10352,6 +10638,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -10379,6 +10666,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -10690,6 +10983,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -10727,6 +11021,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -10894,6 +11194,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -10924,6 +11225,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, j=0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -11007,6 +11314,496 @@ public class VectorizedCubeMath
             cube.setAt(i, (int)(start + step * i));
         }
         return cube;
+    }
+
+    /**
+     * Handle a vector multiply, also known as a dot product.
+     */
+    public static int intDotProd(
+        final Hypercube<Integer> a,
+        final Hypercube<Integer> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (a.getNDim() != 1 || !a.matches(b)) {
+            throw new IllegalArgumentException(
+                "Given incompatible or multi-dimensional cubes"
+            );
+        }
+
+        try {
+            final IntegerHypercube da = (IntegerHypercube)a;
+            final IntegerHypercube db = (IntegerHypercube)b;
+
+            // Only use multithreading if it is enabled and if the
+            // cubes are large enough to justify the overhead.
+            if (ourExecutorService == null || a.getSize() < THREADING_THRESHOLD) {
+                final AtomicReference<Integer> r = new AtomicReference<Integer>();
+                intDotProdHelper(da, db, r, 0, a.getSize());
+                return r.get();
+            }
+            else {
+                // Initialize a countdown to wait for all threads to finish processing.
+                final CountDownLatch latch = new CountDownLatch(NUM_THREADS);
+
+                // Bucket size for each thread.
+                // Make sure to be a multiple of 32 for cache efficiency.
+                final long bucket = (a.getSize() / NUM_THREADS / 32 + 1) * 32;
+
+                // Atomic exception reference for handling a thrown exception in helper threads
+                final AtomicReference<Exception> exception = new AtomicReference<>();
+                @SuppressWarnings("unchecked") final AtomicReference<Integer>[] r =
+                    (AtomicReference<Integer>[])new AtomicReference<?>[NUM_THREADS];
+                for (int j=0; j < NUM_THREADS; j++) {
+                    final long startIndex = bucket * j;
+                    final long endIndex =
+                        (j == NUM_THREADS-1) ? a.getSize()
+                                             : Math.min(bucket * (j+1), a.getSize());
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+                    final AtomicReference<Integer> rv = new AtomicReference<>();
+                    r[j] = rv;
+
+                    // Submit this subtask to the thread pool
+                    ourExecutorService.submit(() -> {
+                        try {
+                            intDotProdHelper(da, db, rv, startIndex, endIndex);
+                        }
+                        catch (Exception e) {
+                            exception.set(e);
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                latch.await();
+
+                // Propagate a runtime exception, if any.
+                if (exception.get() != null) {
+                    throw exception.get();
+                }
+
+                // And sum up the result
+                int sum = 0;
+                for (AtomicReference<Integer> rv : r) {
+                    sum += rv.get().intValue();
+                }
+                return sum;
+            }
+        }
+        catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
+            // Fall back to the simple version
+            int sum = 0;
+            for (long i = 0, sz = a.getSize(); i < sz; i++) {
+                final Integer va = a.getObjectAt(i);
+                final Integer vb = b.getObjectAt(i);
+                if (va == null || vb == null) {
+                    // For floats nulls are NaNs but they are zeroes for ints.
+                    // Cheesy test to figure out which we are.
+                    if (Double.isNaN(0)) {
+                        return 0;
+                    }
+                }
+                else {
+                    sum += va * vb;
+                }
+            }
+            return sum;
+        }
+    }
+
+    /**
+     * Helper function for {@code intDotProd} that performs the
+     * dot product on two sub-arrays. The sub-arrays are specified by parameters
+     * startIndex and endIndex, and the result is put into a third cube.
+     */
+    @SuppressWarnings("inline")
+    private static void intDotProdHelper(
+        final IntegerHypercube da,
+        final IntegerHypercube db,
+        final AtomicReference<Integer> r,
+        final long     startIndex,
+        final long     endIndex
+    ) throws UnsupportedOperationException
+    {
+        // Stage in here. These arrays don't need to be huge in order to get
+        // the benefit of the loop unrolling.
+        final int[] aa = new int[STAGING_SIZE];
+        final int[] ab = new int[STAGING_SIZE];
+
+        // Now walk and do the op on the chunk
+        for (long i = startIndex; i < endIndex; i += STAGING_SIZE) {
+            // How much to copy for this round. This will be 'STAGING_SIZE' until
+            // we hit the end.
+            final int len = (int)Math.min(endIndex - i, STAGING_SIZE);
+
+            // Copy out
+            da.toFlattened(i, aa, 0, len);
+            db.toFlattened(i, ab, 0, len);
+
+            // Compute the dot product
+            int sum = 0;
+            for (int j=0; j < len; j++) {
+                sum += aa[j] * ab[j];
+            }
+
+            // And give it back via the atomic
+            r.set(Integer.valueOf(sum));
+        }
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Integer> intMatMul(
+        final Hypercube<Integer> a,
+        final Hypercube<Integer> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[1].equals(bDims[0])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { aDims[0] };
+                return intMatMul(a, b, new IntegerArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { bDims[0] };
+                return intMatMul(a, b, new IntegerArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1]) &&
+                aDims[1].equals(bDims[0]))
+            {
+               return intMatMul(
+                    a, b,
+                    new IntegerArrayHypercube(
+                        new Dimension<?>[] { aDims[0], bDims[1] }
+                    )
+                );
+            }
+        }
+        else if (a.getNDim() <= 1 && b.getNDim() <= 1) {
+            // Nothing. We don't handle this case for matrix multiplication.
+        }
+        else if (a.getNDim() > 2 || b.getNDim() > 2) {
+            // These need to be compatible in the corner dimensions like the 2D
+            // case, and then other dimensions just need to match directly
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            final int nADim = aDims.length;
+            final int nBDim = bDims.length;
+            if ((bDims.length == 1 || aDims[nADim-1].equals(bDims[nBDim-2])) &&
+                (aDims.length == 1 || aDims[nADim-2].equals(bDims[nBDim-1])))
+            {
+                final int maxNDim = Math.max(nADim, nBDim);
+                final int minNDim = Math.min(nADim, nBDim);
+                boolean matches = true;
+                for (int i=0; matches && i < minNDim-2; i++) {
+                    if (!aDims[i].equals(bDims[i])) {
+                        matches = false;
+                    }
+                }
+                if (matches) {
+                    final Dimension<?>[] rDims;
+                    final int offset;
+                    if (aDims.length == 1 || bDims.length == 1) {
+                        // We will lose a dimension when multiplying by a vector
+                        rDims = new Dimension<?>[maxNDim-1];
+                        rDims[rDims.length-1] =
+                            (aDims.length == 1) ? bDims[bDims.length-2]
+                                                : aDims[aDims.length-2];
+                        offset = 1;
+                    }
+                    else {
+                        rDims = new Dimension<?>[maxNDim];
+                        rDims[rDims.length-1] = aDims[aDims.length-2];
+                        rDims[rDims.length-2] = bDims[bDims.length-1];
+                        offset = 0;
+                    }
+                    for (int i = 0; i < offset + rDims.length - 2; i++) {
+                        rDims[i] = (aDims.length >= bDims.length) ? aDims[i] : bDims[i];
+                    }
+                    return intMatMul(a, b, new IntegerArrayHypercube(rDims));
+                }
+            }
+        }
+
+        // If we got here then we could not make the cubes match
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Integer> intMatMul(
+        final Hypercube<Integer> a,
+        final Hypercube<Integer> b,
+        final Hypercube<Integer> r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Null checks first
+        if (a == null) {
+            throw new NullPointerException("Given a null cube 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (r == null) {
+            throw new NullPointerException("Given a null cube, 'r'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Input cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+        if (!a.getElementType().equals(r.getElementType())) {
+            throw new NullPointerException(
+                "Input and return cubes have different element types: " +
+                a.getElementType() + " vs " + r.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            IntegerHypercube dr = null;
+            try {
+                dr = (IntegerHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, aDims[1].at(0) };
+            if (a.slice(iSlice).matches(b) && a.slice(jSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        dr.setAt(i, intDotProd(a.slice(iSlice), b));
+                    }
+                }
+                else {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        r.setObjectAt(i, intDotProd(a.slice(iSlice), b));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            IntegerHypercube dr = null;
+            try {
+                dr = (IntegerHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { bDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.matches(b.slice(iSlice)) && b.slice(iSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setAt(i, intDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                else {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setObjectAt(i, intDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.slice(aSlice).matches(b.slice(bSlice))) {
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+
+                try {
+                    final IntegerHypercube da = (IntegerHypercube)a;
+                    final IntegerHypercube db = (IntegerHypercube)b;
+                    final IntegerHypercube dr = (IntegerHypercube)r;
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            int sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                sum += da.get(ai) * db.get(bi);
+                            }
+                            dr.set(sum, ri);
+                        }
+                    }
+                }
+                catch (ClassCastException e) {
+                    // Need to be object-based
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            int sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                final Integer va = a.getObj(ai);
+                                final Integer vb = b.getObj(bi);
+                                if (va == null || vb == null) {
+                                    // For floats nulls are NaNs but they are zeroes for ints.
+                                    // Cheesy test to figure out which we are.
+                                    if (Double.isNaN(0)) {
+                                        sum = 0;
+                                        break;
+                                    }
+                                }
+                                else {
+                                    sum += va * vb;
+                                }
+                            }
+                            r.setObj(sum, ri);
+                        }
+                    }
+                }
+
+                // And give it back
+                return r;
+            }
+        }
+        else if ((a.getNDim() == r.getNDim() || a.getNDim()-1 == r.getNDim()) &&
+                 a.getNDim() > b.getNDim())
+        {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                intMatMul(a.slice(aSlice), b, r.slice(rSlice));
+            }
+            return r;
+        }
+        else if ((b.getNDim() == r.getNDim() || b.getNDim()-1 == r.getNDim()) &&
+                 b.getNDim() > a.getNDim())
+        {
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = bDims[0].length(); i < sz; i++) {
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                intMatMul(a, b.slice(bSlice), r.slice(rSlice));
+            }
+            return r;
+        }
+        else if (a.getNDim() == b.getNDim() && b.getNDim() == r.getNDim()) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                intMatMul(
+                    a.slice(aSlice), b.slice(bSlice), r.slice(rSlice)
+                );
+            }
+            return r;
+        }
+
+        // If we got here then we could not do anything
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -11371,6 +12168,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -11412,6 +12210,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long ii = 0, size = a.getSize(); ii < size; ii++) {
                 // Handle any 'where' clause
@@ -11660,7 +12464,7 @@ public class VectorizedCubeMath
         }
 
         // Depending on which cube is a non-strict supercube of the other, create a simple
-        // Array destination one
+        // Array destination one as a copy of the appropriate argument
         if (a.submatches(b)) {
             return binaryOp(a, b, new IntegerArrayHypercube(a.getDimensions()), dw, op);
         }
@@ -11732,6 +12536,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -11759,6 +12564,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -11928,6 +12739,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -11955,6 +12767,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -12158,6 +12976,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -12185,6 +13004,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -12496,6 +13321,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -12533,6 +13359,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -12700,6 +13532,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -12730,6 +13563,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, j=0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -12813,6 +13652,496 @@ public class VectorizedCubeMath
             cube.setAt(i, (long)(start + step * i));
         }
         return cube;
+    }
+
+    /**
+     * Handle a vector multiply, also known as a dot product.
+     */
+    public static long longDotProd(
+        final Hypercube<Long> a,
+        final Hypercube<Long> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (a.getNDim() != 1 || !a.matches(b)) {
+            throw new IllegalArgumentException(
+                "Given incompatible or multi-dimensional cubes"
+            );
+        }
+
+        try {
+            final LongHypercube da = (LongHypercube)a;
+            final LongHypercube db = (LongHypercube)b;
+
+            // Only use multithreading if it is enabled and if the
+            // cubes are large enough to justify the overhead.
+            if (ourExecutorService == null || a.getSize() < THREADING_THRESHOLD) {
+                final AtomicReference<Long> r = new AtomicReference<Long>();
+                longDotProdHelper(da, db, r, 0, a.getSize());
+                return r.get();
+            }
+            else {
+                // Initialize a countdown to wait for all threads to finish processing.
+                final CountDownLatch latch = new CountDownLatch(NUM_THREADS);
+
+                // Bucket size for each thread.
+                // Make sure to be a multiple of 32 for cache efficiency.
+                final long bucket = (a.getSize() / NUM_THREADS / 32 + 1) * 32;
+
+                // Atomic exception reference for handling a thrown exception in helper threads
+                final AtomicReference<Exception> exception = new AtomicReference<>();
+                @SuppressWarnings("unchecked") final AtomicReference<Long>[] r =
+                    (AtomicReference<Long>[])new AtomicReference<?>[NUM_THREADS];
+                for (int j=0; j < NUM_THREADS; j++) {
+                    final long startIndex = bucket * j;
+                    final long endIndex =
+                        (j == NUM_THREADS-1) ? a.getSize()
+                                             : Math.min(bucket * (j+1), a.getSize());
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+                    final AtomicReference<Long> rv = new AtomicReference<>();
+                    r[j] = rv;
+
+                    // Submit this subtask to the thread pool
+                    ourExecutorService.submit(() -> {
+                        try {
+                            longDotProdHelper(da, db, rv, startIndex, endIndex);
+                        }
+                        catch (Exception e) {
+                            exception.set(e);
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                latch.await();
+
+                // Propagate a runtime exception, if any.
+                if (exception.get() != null) {
+                    throw exception.get();
+                }
+
+                // And sum up the result
+                long sum = 0;
+                for (AtomicReference<Long> rv : r) {
+                    sum += rv.get().longValue();
+                }
+                return sum;
+            }
+        }
+        catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
+            // Fall back to the simple version
+            long sum = 0;
+            for (long i = 0, sz = a.getSize(); i < sz; i++) {
+                final Long va = a.getObjectAt(i);
+                final Long vb = b.getObjectAt(i);
+                if (va == null || vb == null) {
+                    // For floats nulls are NaNs but they are zeroes for ints.
+                    // Cheesy test to figure out which we are.
+                    if (Double.isNaN(0L)) {
+                        return 0L;
+                    }
+                }
+                else {
+                    sum += va * vb;
+                }
+            }
+            return sum;
+        }
+    }
+
+    /**
+     * Helper function for {@code longDotProd} that performs the
+     * dot product on two sub-arrays. The sub-arrays are specified by parameters
+     * startIndex and endIndex, and the result is put into a third cube.
+     */
+    @SuppressWarnings("inline")
+    private static void longDotProdHelper(
+        final LongHypercube da,
+        final LongHypercube db,
+        final AtomicReference<Long> r,
+        final long     startIndex,
+        final long     endIndex
+    ) throws UnsupportedOperationException
+    {
+        // Stage in here. These arrays don't need to be huge in order to get
+        // the benefit of the loop unrolling.
+        final long[] aa = new long[STAGING_SIZE];
+        final long[] ab = new long[STAGING_SIZE];
+
+        // Now walk and do the op on the chunk
+        for (long i = startIndex; i < endIndex; i += STAGING_SIZE) {
+            // How much to copy for this round. This will be 'STAGING_SIZE' until
+            // we hit the end.
+            final int len = (int)Math.min(endIndex - i, STAGING_SIZE);
+
+            // Copy out
+            da.toFlattened(i, aa, 0, len);
+            db.toFlattened(i, ab, 0, len);
+
+            // Compute the dot product
+            long sum = 0;
+            for (int j=0; j < len; j++) {
+                sum += aa[j] * ab[j];
+            }
+
+            // And give it back via the atomic
+            r.set(Long.valueOf(sum));
+        }
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Long> longMatMul(
+        final Hypercube<Long> a,
+        final Hypercube<Long> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[1].equals(bDims[0])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { aDims[0] };
+                return longMatMul(a, b, new LongArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { bDims[0] };
+                return longMatMul(a, b, new LongArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1]) &&
+                aDims[1].equals(bDims[0]))
+            {
+               return longMatMul(
+                    a, b,
+                    new LongArrayHypercube(
+                        new Dimension<?>[] { aDims[0], bDims[1] }
+                    )
+                );
+            }
+        }
+        else if (a.getNDim() <= 1 && b.getNDim() <= 1) {
+            // Nothing. We don't handle this case for matrix multiplication.
+        }
+        else if (a.getNDim() > 2 || b.getNDim() > 2) {
+            // These need to be compatible in the corner dimensions like the 2D
+            // case, and then other dimensions just need to match directly
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            final int nADim = aDims.length;
+            final int nBDim = bDims.length;
+            if ((bDims.length == 1 || aDims[nADim-1].equals(bDims[nBDim-2])) &&
+                (aDims.length == 1 || aDims[nADim-2].equals(bDims[nBDim-1])))
+            {
+                final int maxNDim = Math.max(nADim, nBDim);
+                final int minNDim = Math.min(nADim, nBDim);
+                boolean matches = true;
+                for (int i=0; matches && i < minNDim-2; i++) {
+                    if (!aDims[i].equals(bDims[i])) {
+                        matches = false;
+                    }
+                }
+                if (matches) {
+                    final Dimension<?>[] rDims;
+                    final int offset;
+                    if (aDims.length == 1 || bDims.length == 1) {
+                        // We will lose a dimension when multiplying by a vector
+                        rDims = new Dimension<?>[maxNDim-1];
+                        rDims[rDims.length-1] =
+                            (aDims.length == 1) ? bDims[bDims.length-2]
+                                                : aDims[aDims.length-2];
+                        offset = 1;
+                    }
+                    else {
+                        rDims = new Dimension<?>[maxNDim];
+                        rDims[rDims.length-1] = aDims[aDims.length-2];
+                        rDims[rDims.length-2] = bDims[bDims.length-1];
+                        offset = 0;
+                    }
+                    for (int i = 0; i < offset + rDims.length - 2; i++) {
+                        rDims[i] = (aDims.length >= bDims.length) ? aDims[i] : bDims[i];
+                    }
+                    return longMatMul(a, b, new LongArrayHypercube(rDims));
+                }
+            }
+        }
+
+        // If we got here then we could not make the cubes match
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Long> longMatMul(
+        final Hypercube<Long> a,
+        final Hypercube<Long> b,
+        final Hypercube<Long> r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Null checks first
+        if (a == null) {
+            throw new NullPointerException("Given a null cube 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (r == null) {
+            throw new NullPointerException("Given a null cube, 'r'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Input cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+        if (!a.getElementType().equals(r.getElementType())) {
+            throw new NullPointerException(
+                "Input and return cubes have different element types: " +
+                a.getElementType() + " vs " + r.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            LongHypercube dr = null;
+            try {
+                dr = (LongHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, aDims[1].at(0) };
+            if (a.slice(iSlice).matches(b) && a.slice(jSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        dr.setAt(i, longDotProd(a.slice(iSlice), b));
+                    }
+                }
+                else {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        r.setObjectAt(i, longDotProd(a.slice(iSlice), b));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            LongHypercube dr = null;
+            try {
+                dr = (LongHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { bDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.matches(b.slice(iSlice)) && b.slice(iSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setAt(i, longDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                else {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setObjectAt(i, longDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.slice(aSlice).matches(b.slice(bSlice))) {
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+
+                try {
+                    final LongHypercube da = (LongHypercube)a;
+                    final LongHypercube db = (LongHypercube)b;
+                    final LongHypercube dr = (LongHypercube)r;
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            long sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                sum += da.get(ai) * db.get(bi);
+                            }
+                            dr.set(sum, ri);
+                        }
+                    }
+                }
+                catch (ClassCastException e) {
+                    // Need to be object-based
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            long sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                final Long va = a.getObj(ai);
+                                final Long vb = b.getObj(bi);
+                                if (va == null || vb == null) {
+                                    // For floats nulls are NaNs but they are zeroes for ints.
+                                    // Cheesy test to figure out which we are.
+                                    if (Double.isNaN(0L)) {
+                                        sum = 0L;
+                                        break;
+                                    }
+                                }
+                                else {
+                                    sum += va * vb;
+                                }
+                            }
+                            r.setObj(sum, ri);
+                        }
+                    }
+                }
+
+                // And give it back
+                return r;
+            }
+        }
+        else if ((a.getNDim() == r.getNDim() || a.getNDim()-1 == r.getNDim()) &&
+                 a.getNDim() > b.getNDim())
+        {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                longMatMul(a.slice(aSlice), b, r.slice(rSlice));
+            }
+            return r;
+        }
+        else if ((b.getNDim() == r.getNDim() || b.getNDim()-1 == r.getNDim()) &&
+                 b.getNDim() > a.getNDim())
+        {
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = bDims[0].length(); i < sz; i++) {
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                longMatMul(a, b.slice(bSlice), r.slice(rSlice));
+            }
+            return r;
+        }
+        else if (a.getNDim() == b.getNDim() && b.getNDim() == r.getNDim()) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                longMatMul(
+                    a.slice(aSlice), b.slice(bSlice), r.slice(rSlice)
+                );
+            }
+            return r;
+        }
+
+        // If we got here then we could not do anything
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -13177,6 +14506,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -13218,6 +14548,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long ii = 0, size = a.getSize(); ii < size; ii++) {
                 // Handle any 'where' clause
@@ -13466,7 +14802,7 @@ public class VectorizedCubeMath
         }
 
         // Depending on which cube is a non-strict supercube of the other, create a simple
-        // Array destination one
+        // Array destination one as a copy of the appropriate argument
         if (a.submatches(b)) {
             return binaryOp(a, b, new LongArrayHypercube(a.getDimensions()), dw, op);
         }
@@ -13538,6 +14874,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -13565,6 +14902,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -13734,6 +15077,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -13761,6 +15105,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -13964,6 +15314,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -13991,6 +15342,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -14302,6 +15659,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -14339,6 +15697,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -14506,6 +15870,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -14536,6 +15901,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, j=0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -14619,6 +15990,496 @@ public class VectorizedCubeMath
             cube.setAt(i, (float)(start + step * i));
         }
         return cube;
+    }
+
+    /**
+     * Handle a vector multiply, also known as a dot product.
+     */
+    public static float floatDotProd(
+        final Hypercube<Float> a,
+        final Hypercube<Float> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (a.getNDim() != 1 || !a.matches(b)) {
+            throw new IllegalArgumentException(
+                "Given incompatible or multi-dimensional cubes"
+            );
+        }
+
+        try {
+            final FloatHypercube da = (FloatHypercube)a;
+            final FloatHypercube db = (FloatHypercube)b;
+
+            // Only use multithreading if it is enabled and if the
+            // cubes are large enough to justify the overhead.
+            if (ourExecutorService == null || a.getSize() < THREADING_THRESHOLD) {
+                final AtomicReference<Float> r = new AtomicReference<Float>();
+                floatDotProdHelper(da, db, r, 0, a.getSize());
+                return r.get();
+            }
+            else {
+                // Initialize a countdown to wait for all threads to finish processing.
+                final CountDownLatch latch = new CountDownLatch(NUM_THREADS);
+
+                // Bucket size for each thread.
+                // Make sure to be a multiple of 32 for cache efficiency.
+                final long bucket = (a.getSize() / NUM_THREADS / 32 + 1) * 32;
+
+                // Atomic exception reference for handling a thrown exception in helper threads
+                final AtomicReference<Exception> exception = new AtomicReference<>();
+                @SuppressWarnings("unchecked") final AtomicReference<Float>[] r =
+                    (AtomicReference<Float>[])new AtomicReference<?>[NUM_THREADS];
+                for (int j=0; j < NUM_THREADS; j++) {
+                    final long startIndex = bucket * j;
+                    final long endIndex =
+                        (j == NUM_THREADS-1) ? a.getSize()
+                                             : Math.min(bucket * (j+1), a.getSize());
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+                    final AtomicReference<Float> rv = new AtomicReference<>();
+                    r[j] = rv;
+
+                    // Submit this subtask to the thread pool
+                    ourExecutorService.submit(() -> {
+                        try {
+                            floatDotProdHelper(da, db, rv, startIndex, endIndex);
+                        }
+                        catch (Exception e) {
+                            exception.set(e);
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                latch.await();
+
+                // Propagate a runtime exception, if any.
+                if (exception.get() != null) {
+                    throw exception.get();
+                }
+
+                // And sum up the result
+                float sum = 0;
+                for (AtomicReference<Float> rv : r) {
+                    sum += rv.get().floatValue();
+                }
+                return sum;
+            }
+        }
+        catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
+            // Fall back to the simple version
+            float sum = 0;
+            for (long i = 0, sz = a.getSize(); i < sz; i++) {
+                final Float va = a.getObjectAt(i);
+                final Float vb = b.getObjectAt(i);
+                if (va == null || vb == null) {
+                    // For floats nulls are NaNs but they are zeroes for ints.
+                    // Cheesy test to figure out which we are.
+                    if (Double.isNaN(Float.NaN)) {
+                        return Float.NaN;
+                    }
+                }
+                else {
+                    sum += va * vb;
+                }
+            }
+            return sum;
+        }
+    }
+
+    /**
+     * Helper function for {@code floatDotProd} that performs the
+     * dot product on two sub-arrays. The sub-arrays are specified by parameters
+     * startIndex and endIndex, and the result is put into a third cube.
+     */
+    @SuppressWarnings("inline")
+    private static void floatDotProdHelper(
+        final FloatHypercube da,
+        final FloatHypercube db,
+        final AtomicReference<Float> r,
+        final long     startIndex,
+        final long     endIndex
+    ) throws UnsupportedOperationException
+    {
+        // Stage in here. These arrays don't need to be huge in order to get
+        // the benefit of the loop unrolling.
+        final float[] aa = new float[STAGING_SIZE];
+        final float[] ab = new float[STAGING_SIZE];
+
+        // Now walk and do the op on the chunk
+        for (long i = startIndex; i < endIndex; i += STAGING_SIZE) {
+            // How much to copy for this round. This will be 'STAGING_SIZE' until
+            // we hit the end.
+            final int len = (int)Math.min(endIndex - i, STAGING_SIZE);
+
+            // Copy out
+            da.toFlattened(i, aa, 0, len);
+            db.toFlattened(i, ab, 0, len);
+
+            // Compute the dot product
+            float sum = 0;
+            for (int j=0; j < len; j++) {
+                sum += aa[j] * ab[j];
+            }
+
+            // And give it back via the atomic
+            r.set(Float.valueOf(sum));
+        }
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Float> floatMatMul(
+        final Hypercube<Float> a,
+        final Hypercube<Float> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[1].equals(bDims[0])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { aDims[0] };
+                return floatMatMul(a, b, new FloatArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { bDims[0] };
+                return floatMatMul(a, b, new FloatArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1]) &&
+                aDims[1].equals(bDims[0]))
+            {
+               return floatMatMul(
+                    a, b,
+                    new FloatArrayHypercube(
+                        new Dimension<?>[] { aDims[0], bDims[1] }
+                    )
+                );
+            }
+        }
+        else if (a.getNDim() <= 1 && b.getNDim() <= 1) {
+            // Nothing. We don't handle this case for matrix multiplication.
+        }
+        else if (a.getNDim() > 2 || b.getNDim() > 2) {
+            // These need to be compatible in the corner dimensions like the 2D
+            // case, and then other dimensions just need to match directly
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            final int nADim = aDims.length;
+            final int nBDim = bDims.length;
+            if ((bDims.length == 1 || aDims[nADim-1].equals(bDims[nBDim-2])) &&
+                (aDims.length == 1 || aDims[nADim-2].equals(bDims[nBDim-1])))
+            {
+                final int maxNDim = Math.max(nADim, nBDim);
+                final int minNDim = Math.min(nADim, nBDim);
+                boolean matches = true;
+                for (int i=0; matches && i < minNDim-2; i++) {
+                    if (!aDims[i].equals(bDims[i])) {
+                        matches = false;
+                    }
+                }
+                if (matches) {
+                    final Dimension<?>[] rDims;
+                    final int offset;
+                    if (aDims.length == 1 || bDims.length == 1) {
+                        // We will lose a dimension when multiplying by a vector
+                        rDims = new Dimension<?>[maxNDim-1];
+                        rDims[rDims.length-1] =
+                            (aDims.length == 1) ? bDims[bDims.length-2]
+                                                : aDims[aDims.length-2];
+                        offset = 1;
+                    }
+                    else {
+                        rDims = new Dimension<?>[maxNDim];
+                        rDims[rDims.length-1] = aDims[aDims.length-2];
+                        rDims[rDims.length-2] = bDims[bDims.length-1];
+                        offset = 0;
+                    }
+                    for (int i = 0; i < offset + rDims.length - 2; i++) {
+                        rDims[i] = (aDims.length >= bDims.length) ? aDims[i] : bDims[i];
+                    }
+                    return floatMatMul(a, b, new FloatArrayHypercube(rDims));
+                }
+            }
+        }
+
+        // If we got here then we could not make the cubes match
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Float> floatMatMul(
+        final Hypercube<Float> a,
+        final Hypercube<Float> b,
+        final Hypercube<Float> r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Null checks first
+        if (a == null) {
+            throw new NullPointerException("Given a null cube 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (r == null) {
+            throw new NullPointerException("Given a null cube, 'r'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Input cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+        if (!a.getElementType().equals(r.getElementType())) {
+            throw new NullPointerException(
+                "Input and return cubes have different element types: " +
+                a.getElementType() + " vs " + r.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            FloatHypercube dr = null;
+            try {
+                dr = (FloatHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, aDims[1].at(0) };
+            if (a.slice(iSlice).matches(b) && a.slice(jSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        dr.setAt(i, floatDotProd(a.slice(iSlice), b));
+                    }
+                }
+                else {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        r.setObjectAt(i, floatDotProd(a.slice(iSlice), b));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            FloatHypercube dr = null;
+            try {
+                dr = (FloatHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { bDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.matches(b.slice(iSlice)) && b.slice(iSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setAt(i, floatDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                else {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setObjectAt(i, floatDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.slice(aSlice).matches(b.slice(bSlice))) {
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+
+                try {
+                    final FloatHypercube da = (FloatHypercube)a;
+                    final FloatHypercube db = (FloatHypercube)b;
+                    final FloatHypercube dr = (FloatHypercube)r;
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            float sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                sum += da.get(ai) * db.get(bi);
+                            }
+                            dr.set(sum, ri);
+                        }
+                    }
+                }
+                catch (ClassCastException e) {
+                    // Need to be object-based
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            float sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                final Float va = a.getObj(ai);
+                                final Float vb = b.getObj(bi);
+                                if (va == null || vb == null) {
+                                    // For floats nulls are NaNs but they are zeroes for ints.
+                                    // Cheesy test to figure out which we are.
+                                    if (Double.isNaN(Float.NaN)) {
+                                        sum = Float.NaN;
+                                        break;
+                                    }
+                                }
+                                else {
+                                    sum += va * vb;
+                                }
+                            }
+                            r.setObj(sum, ri);
+                        }
+                    }
+                }
+
+                // And give it back
+                return r;
+            }
+        }
+        else if ((a.getNDim() == r.getNDim() || a.getNDim()-1 == r.getNDim()) &&
+                 a.getNDim() > b.getNDim())
+        {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                floatMatMul(a.slice(aSlice), b, r.slice(rSlice));
+            }
+            return r;
+        }
+        else if ((b.getNDim() == r.getNDim() || b.getNDim()-1 == r.getNDim()) &&
+                 b.getNDim() > a.getNDim())
+        {
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = bDims[0].length(); i < sz; i++) {
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                floatMatMul(a, b.slice(bSlice), r.slice(rSlice));
+            }
+            return r;
+        }
+        else if (a.getNDim() == b.getNDim() && b.getNDim() == r.getNDim()) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                floatMatMul(
+                    a.slice(aSlice), b.slice(bSlice), r.slice(rSlice)
+                );
+            }
+            return r;
+        }
+
+        // If we got here then we could not do anything
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -14983,6 +16844,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -15024,6 +16886,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long ii = 0, size = a.getSize(); ii < size && !Float.isNaN(r); ii++) {
                 // Handle any 'where' clause
@@ -15250,7 +17118,7 @@ public class VectorizedCubeMath
         }
 
         // Depending on which cube is a non-strict supercube of the other, create a simple
-        // Array destination one
+        // Array destination one as a copy of the appropriate argument
         if (a.submatches(b)) {
             return binaryOp(a, b, new FloatArrayHypercube(a.getDimensions()), dw, op);
         }
@@ -15322,6 +17190,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -15349,6 +17218,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -15584,6 +17459,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -15611,6 +17487,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -15825,6 +17707,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -15852,6 +17735,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -16163,6 +18052,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -16200,6 +18090,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -16367,6 +18263,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -16397,6 +18294,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, j=0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -16480,6 +18383,496 @@ public class VectorizedCubeMath
             cube.setAt(i, (double)(start + step * i));
         }
         return cube;
+    }
+
+    /**
+     * Handle a vector multiply, also known as a dot product.
+     */
+    public static double doubleDotProd(
+        final Hypercube<Double> a,
+        final Hypercube<Double> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (a.getNDim() != 1 || !a.matches(b)) {
+            throw new IllegalArgumentException(
+                "Given incompatible or multi-dimensional cubes"
+            );
+        }
+
+        try {
+            final DoubleHypercube da = (DoubleHypercube)a;
+            final DoubleHypercube db = (DoubleHypercube)b;
+
+            // Only use multithreading if it is enabled and if the
+            // cubes are large enough to justify the overhead.
+            if (ourExecutorService == null || a.getSize() < THREADING_THRESHOLD) {
+                final AtomicReference<Double> r = new AtomicReference<Double>();
+                doubleDotProdHelper(da, db, r, 0, a.getSize());
+                return r.get();
+            }
+            else {
+                // Initialize a countdown to wait for all threads to finish processing.
+                final CountDownLatch latch = new CountDownLatch(NUM_THREADS);
+
+                // Bucket size for each thread.
+                // Make sure to be a multiple of 32 for cache efficiency.
+                final long bucket = (a.getSize() / NUM_THREADS / 32 + 1) * 32;
+
+                // Atomic exception reference for handling a thrown exception in helper threads
+                final AtomicReference<Exception> exception = new AtomicReference<>();
+                @SuppressWarnings("unchecked") final AtomicReference<Double>[] r =
+                    (AtomicReference<Double>[])new AtomicReference<?>[NUM_THREADS];
+                for (int j=0; j < NUM_THREADS; j++) {
+                    final long startIndex = bucket * j;
+                    final long endIndex =
+                        (j == NUM_THREADS-1) ? a.getSize()
+                                             : Math.min(bucket * (j+1), a.getSize());
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+                    final AtomicReference<Double> rv = new AtomicReference<>();
+                    r[j] = rv;
+
+                    // Submit this subtask to the thread pool
+                    ourExecutorService.submit(() -> {
+                        try {
+                            doubleDotProdHelper(da, db, rv, startIndex, endIndex);
+                        }
+                        catch (Exception e) {
+                            exception.set(e);
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                latch.await();
+
+                // Propagate a runtime exception, if any.
+                if (exception.get() != null) {
+                    throw exception.get();
+                }
+
+                // And sum up the result
+                double sum = 0;
+                for (AtomicReference<Double> rv : r) {
+                    sum += rv.get().doubleValue();
+                }
+                return sum;
+            }
+        }
+        catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
+            // Fall back to the simple version
+            double sum = 0;
+            for (long i = 0, sz = a.getSize(); i < sz; i++) {
+                final Double va = a.getObjectAt(i);
+                final Double vb = b.getObjectAt(i);
+                if (va == null || vb == null) {
+                    // For floats nulls are NaNs but they are zeroes for ints.
+                    // Cheesy test to figure out which we are.
+                    if (Double.isNaN(Double.NaN)) {
+                        return Double.NaN;
+                    }
+                }
+                else {
+                    sum += va * vb;
+                }
+            }
+            return sum;
+        }
+    }
+
+    /**
+     * Helper function for {@code doubleDotProd} that performs the
+     * dot product on two sub-arrays. The sub-arrays are specified by parameters
+     * startIndex and endIndex, and the result is put into a third cube.
+     */
+    @SuppressWarnings("inline")
+    private static void doubleDotProdHelper(
+        final DoubleHypercube da,
+        final DoubleHypercube db,
+        final AtomicReference<Double> r,
+        final long     startIndex,
+        final long     endIndex
+    ) throws UnsupportedOperationException
+    {
+        // Stage in here. These arrays don't need to be huge in order to get
+        // the benefit of the loop unrolling.
+        final double[] aa = new double[STAGING_SIZE];
+        final double[] ab = new double[STAGING_SIZE];
+
+        // Now walk and do the op on the chunk
+        for (long i = startIndex; i < endIndex; i += STAGING_SIZE) {
+            // How much to copy for this round. This will be 'STAGING_SIZE' until
+            // we hit the end.
+            final int len = (int)Math.min(endIndex - i, STAGING_SIZE);
+
+            // Copy out
+            da.toFlattened(i, aa, 0, len);
+            db.toFlattened(i, ab, 0, len);
+
+            // Compute the dot product
+            double sum = 0;
+            for (int j=0; j < len; j++) {
+                sum += aa[j] * ab[j];
+            }
+
+            // And give it back via the atomic
+            r.set(Double.valueOf(sum));
+        }
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Double> doubleMatMul(
+        final Hypercube<Double> a,
+        final Hypercube<Double> b
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Checks
+        if (a == null) {
+            throw new NullPointerException("Given a null cube, 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[1].equals(bDims[0])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { aDims[0] };
+                return doubleMatMul(a, b, new DoubleArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1])) {
+                final Dimension<?>[] rDims = new Dimension<?>[] { bDims[0] };
+                return doubleMatMul(a, b, new DoubleArrayHypercube(rDims));
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            if (aDims[0].equals(bDims[1]) &&
+                aDims[1].equals(bDims[0]))
+            {
+               return doubleMatMul(
+                    a, b,
+                    new DoubleArrayHypercube(
+                        new Dimension<?>[] { aDims[0], bDims[1] }
+                    )
+                );
+            }
+        }
+        else if (a.getNDim() <= 1 && b.getNDim() <= 1) {
+            // Nothing. We don't handle this case for matrix multiplication.
+        }
+        else if (a.getNDim() > 2 || b.getNDim() > 2) {
+            // These need to be compatible in the corner dimensions like the 2D
+            // case, and then other dimensions just need to match directly
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension<?>[] bDims = b.getDimensions();
+            final int nADim = aDims.length;
+            final int nBDim = bDims.length;
+            if ((bDims.length == 1 || aDims[nADim-1].equals(bDims[nBDim-2])) &&
+                (aDims.length == 1 || aDims[nADim-2].equals(bDims[nBDim-1])))
+            {
+                final int maxNDim = Math.max(nADim, nBDim);
+                final int minNDim = Math.min(nADim, nBDim);
+                boolean matches = true;
+                for (int i=0; matches && i < minNDim-2; i++) {
+                    if (!aDims[i].equals(bDims[i])) {
+                        matches = false;
+                    }
+                }
+                if (matches) {
+                    final Dimension<?>[] rDims;
+                    final int offset;
+                    if (aDims.length == 1 || bDims.length == 1) {
+                        // We will lose a dimension when multiplying by a vector
+                        rDims = new Dimension<?>[maxNDim-1];
+                        rDims[rDims.length-1] =
+                            (aDims.length == 1) ? bDims[bDims.length-2]
+                                                : aDims[aDims.length-2];
+                        offset = 1;
+                    }
+                    else {
+                        rDims = new Dimension<?>[maxNDim];
+                        rDims[rDims.length-1] = aDims[aDims.length-2];
+                        rDims[rDims.length-2] = bDims[bDims.length-1];
+                        offset = 0;
+                    }
+                    for (int i = 0; i < offset + rDims.length - 2; i++) {
+                        rDims[i] = (aDims.length >= bDims.length) ? aDims[i] : bDims[i];
+                    }
+                    return doubleMatMul(a, b, new DoubleArrayHypercube(rDims));
+                }
+            }
+        }
+
+        // If we got here then we could not make the cubes match
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
+    }
+
+    /**
+     * Handle a matrix multiply per {@code matmul()} semantics.
+     */
+    public static Hypercube<Double> doubleMatMul(
+        final Hypercube<Double> a,
+        final Hypercube<Double> b,
+        final Hypercube<Double> r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        // Null checks first
+        if (a == null) {
+            throw new NullPointerException("Given a null cube 'a'");
+        }
+        if (b == null) {
+            throw new NullPointerException("Given a null cube, 'b'");
+        }
+        if (r == null) {
+            throw new NullPointerException("Given a null cube, 'r'");
+        }
+        if (!a.getElementType().equals(b.getElementType())) {
+            throw new NullPointerException(
+                "Input cubes have different element types: " +
+                a.getElementType() + " vs " + b.getElementType()
+            );
+        }
+        if (!a.getElementType().equals(r.getElementType())) {
+            throw new NullPointerException(
+                "Input and return cubes have different element types: " +
+                a.getElementType() + " vs " + r.getElementType()
+            );
+        }
+
+        // Shape is important for matrix operations. Hence some "duplicated"
+        // code in the below.
+        if (a.getNDim() == 2 && b.getNDim() == 1) {
+            DoubleHypercube dr = null;
+            try {
+                dr = (DoubleHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, aDims[1].at(0) };
+            if (a.slice(iSlice).matches(b) && a.slice(jSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        dr.setAt(i, doubleDotProd(a.slice(iSlice), b));
+                    }
+                }
+                else {
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        iSlice[0] = aDims[0].at(i);
+                        r.setObjectAt(i, doubleDotProd(a.slice(iSlice), b));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 1 && b.getNDim() == 2) {
+            DoubleHypercube dr = null;
+            try {
+                dr = (DoubleHypercube)r;
+            }
+            catch (ClassCastException e) {
+                // Nothing
+            }
+
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] iSlice =
+                new Dimension.Accessor<?>[] { bDims[0].at(0), null };
+            final Dimension.Accessor<?>[] jSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.matches(b.slice(iSlice)) && b.slice(iSlice).matches(r)) {
+                if (dr != null) {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setAt(i, doubleDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                else {
+                    for (long i=0; i < bDims[1].length(); i++) {
+                        jSlice[1] = bDims[1].at(i);
+                        dr.setObjectAt(i, doubleDotProd(a, b.slice(jSlice)));
+                    }
+                }
+                return r;
+            }
+        }
+        else if (a.getNDim() == 2 && b.getNDim() == 2) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[] { aDims[0].at(0), null };
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[] { null, bDims[1].at(0) };
+            if (a.slice(aSlice).matches(b.slice(bSlice))) {
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+
+                try {
+                    final DoubleHypercube da = (DoubleHypercube)a;
+                    final DoubleHypercube db = (DoubleHypercube)b;
+                    final DoubleHypercube dr = (DoubleHypercube)r;
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            double sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                sum += da.get(ai) * db.get(bi);
+                            }
+                            dr.set(sum, ri);
+                        }
+                    }
+                }
+                catch (ClassCastException e) {
+                    // Need to be object-based
+                    for (long i=0; i < aDims[0].length(); i++) {
+                        ai[0] = ri[0] = i;
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            double sum = 0;
+                            for (long k=0; k < bDims[0].length(); k++) {
+                                ai[1] = bi[0] = k;
+                                final Double va = a.getObj(ai);
+                                final Double vb = b.getObj(bi);
+                                if (va == null || vb == null) {
+                                    // For floats nulls are NaNs but they are zeroes for ints.
+                                    // Cheesy test to figure out which we are.
+                                    if (Double.isNaN(Double.NaN)) {
+                                        sum = Double.NaN;
+                                        break;
+                                    }
+                                }
+                                else {
+                                    sum += va * vb;
+                                }
+                            }
+                            r.setObj(sum, ri);
+                        }
+                    }
+                }
+
+                // And give it back
+                return r;
+            }
+        }
+        else if ((a.getNDim() == r.getNDim() || a.getNDim()-1 == r.getNDim()) &&
+                 a.getNDim() > b.getNDim())
+        {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                doubleMatMul(a.slice(aSlice), b, r.slice(rSlice));
+            }
+            return r;
+        }
+        else if ((b.getNDim() == r.getNDim() || b.getNDim()-1 == r.getNDim()) &&
+                 b.getNDim() > a.getNDim())
+        {
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = bDims[0].length(); i < sz; i++) {
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                doubleMatMul(a, b.slice(bSlice), r.slice(rSlice));
+            }
+            return r;
+        }
+        else if (a.getNDim() == b.getNDim() && b.getNDim() == r.getNDim()) {
+            final Dimension<?>[] aDims = a.getDimensions();
+            final Dimension.Accessor<?>[] aSlice =
+                new Dimension.Accessor<?>[aDims.length];
+            aSlice[0] = aDims[0].at(0);
+            final Dimension<?>[] bDims = b.getDimensions();
+            final Dimension.Accessor<?>[] bSlice =
+                new Dimension.Accessor<?>[bDims.length];
+            bSlice[0] = bDims[0].at(0);
+            final Dimension<?>[] rDims = r.getDimensions();
+            final Dimension.Accessor<?>[] rSlice =
+                new Dimension.Accessor<?>[rDims.length];
+            for (long i = 0, sz = aDims[0].length(); i < sz; i++) {
+                aSlice[0] = aDims[0].at(i);
+                bSlice[0] = bDims[0].at(i);
+                rSlice[0] = rDims[0].at(i);
+                doubleMatMul(
+                    a.slice(aSlice), b.slice(bSlice), r.slice(rSlice)
+                );
+            }
+            return r;
+        }
+
+        // If we got here then we could not do anything
+        throw new IllegalArgumentException(
+            "Given incompatible (sub)cubes: " +
+            Arrays.toString(a.getShape()) + " vs " +
+            Arrays.toString(b.getShape()) + " "    +
+            (Arrays.toString(a.getDimensions()) + " vs " +
+             Arrays.toString(b.getDimensions()))
+        );
     }
 
     // -------------------------------------------------------------------------
@@ -16844,6 +19237,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -16885,6 +19279,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long ii = 0, size = a.getSize(); ii < size && !Double.isNaN(r); ii++) {
                 // Handle any 'where' clause
@@ -17111,7 +19511,7 @@ public class VectorizedCubeMath
         }
 
         // Depending on which cube is a non-strict supercube of the other, create a simple
-        // Array destination one
+        // Array destination one as a copy of the appropriate argument
         if (a.submatches(b)) {
             return binaryOp(a, b, new DoubleArrayHypercube(a.getDimensions()), dw, op);
         }
@@ -17183,6 +19583,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -17210,6 +19611,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -17445,6 +19852,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -17472,6 +19880,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -17686,6 +20100,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -17713,6 +20128,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -18024,6 +20445,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -18061,6 +20483,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -18228,6 +20656,7 @@ public class VectorizedCubeMath
 
                     // Redundancy to avoid submitting empty tasks
                     if (startIndex == endIndex) {
+                        latch.countDown();
                         continue;
                     }
 
@@ -18258,6 +20687,12 @@ public class VectorizedCubeMath
             }
         }
         catch (Exception e) {
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest(
+                    "Falling back to the naive version due to exception: " + e
+                );
+            }
+
             // Just do a linear waltz
             for (long i = 0, j=0, size = a.getSize(); i < size; i++) {
                 // Need to handle missing values
@@ -18274,4 +20709,4 @@ public class VectorizedCubeMath
     }
 }
 
-// [[[end]]] (checksum: f34eb7f2267f86c1eb5ea13943599791)
+// [[[end]]] (checksum: 6bc4a24e22a374cc70ca58fee7aaf7a3)

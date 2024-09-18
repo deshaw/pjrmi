@@ -249,6 +249,11 @@ public interface Hypercube<T>
      * Whether this hypercube instance matches the given one in the higher
      * dimensions. This is essentially saying whether {@code that} is a
      * compatible non-strict subcube of this one.
+     *
+     * <p>Note that the semantics of this are like those of Java
+     * {@code Collection::contains(that)}, where we are seeing this {@code this}
+     * contains {@code that}. This is oppositre from the Python convention for
+     * things like {@code set::issubset(that)}.
      */
     public default boolean submatches(final Hypercube<T> that)
     {
@@ -2170,6 +2175,24 @@ public interface Hypercube<T>
                UnsupportedOperationException
     {
         return CubeMath.multiply(this, that);
+    }
+
+    /**
+     * Perform a matrix multiple with this cube and the given one and return the
+     * result as a newly-created instance or a scalar value, depending on the
+     * shape of the given cubes.
+     *
+     * <p>Optional operation.
+     */
+    @GenericReturnType
+    public default Object __matmul__(final Hypercube<T> that)
+        throws IllegalArgumentException,
+               NullPointerException,
+               UnsupportedOperationException
+    {
+        return (getNDim() == 1 && that != null && that.getNDim() == 1)
+            ? CubeMath.dotprod(this, that)
+            : CubeMath.matmul (this, that);
     }
 
     /**

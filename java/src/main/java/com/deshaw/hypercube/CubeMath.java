@@ -954,7 +954,7 @@ public class CubeMath
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li> -- The type for the cube.</li>
+     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {@code null}.
@@ -1011,7 +1011,7 @@ public class CubeMath
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li> -- The type for the cube.</li>
+     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {@code null}.
@@ -1067,7 +1067,7 @@ public class CubeMath
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li> -- The type for the cube.</li>
+     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {@code null}.
@@ -1222,7 +1222,7 @@ public class CubeMath
      * @param shift   The (signed) number of elements to roll this cube by or,
      *                if an array, in each axis.
      * @param kwargs  <ul>
-     *                  <li> -- The axis to roll or, if {@code shift}
+     *                  <li>{@code axis=0} -- The axis to roll or, if {@code shift}
      *                      is an array, a matching array of axes.</li>
      *                </ul>
      *
@@ -19110,4 +19110,4 @@ public class CubeMath
     }
 }
 
- // [[[end]]] (checksum: 8ea171260fd529f3ec2fd754a2626cfc)
+ // [[[end]]] (checksum: b443f5bc78a350467ba95f44eec88238)

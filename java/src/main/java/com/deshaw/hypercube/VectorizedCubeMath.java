@@ -1064,7 +1064,7 @@ public class VectorizedCubeMath
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li> -- The type for the cube.</li>
+     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {@code null}.
@@ -1121,7 +1121,7 @@ public class VectorizedCubeMath
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li> -- The type for the cube.</li>
+     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {@code null}.
@@ -1177,7 +1177,7 @@ public class VectorizedCubeMath
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li> -- The type for the cube.</li>
+     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {@code null}.
@@ -1332,7 +1332,7 @@ public class VectorizedCubeMath
      * @param shift   The (signed) number of elements to roll this cube by or,
      *                if an array, in each axis.
      * @param kwargs  <ul>
-     *                  <li> -- The axis to roll or, if {@code shift}
+     *                  <li>{@code axis=0} -- The axis to roll or, if {@code shift}
      *                      is an array, a matching array of axes.</li>
      *                </ul>
      *
@@ -20709,4 +20709,4 @@ public class VectorizedCubeMath
     }
 }
 
-// [[[end]]] (checksum: 6bc4a24e22a374cc70ca58fee7aaf7a3)
+// [[[end]]] (checksum: a2a4afb92926291f893725534f0592de)

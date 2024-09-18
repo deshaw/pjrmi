@@ -486,7 +486,7 @@ public class {class_name}
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
+     *                  <li>{{@code dtype='float'}} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {{@code null}}.
@@ -543,7 +543,7 @@ public class {class_name}
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
+     *                  <li>{{@code dtype='float'}} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {{@code null}}.
@@ -599,7 +599,7 @@ public class {class_name}
      *
      * @param shape   The shape of the cube to return.
      * @param kwargs  <ul>
-     *                  <li>{@code dtype='float'} -- The type for the cube.</li>
+     *                  <li>{{@code dtype='float'}} -- The type for the cube.</li>
      *                </ul>
      *
      * @throws NullPointerException          If any given cube was {{@code null}}.
@@ -754,7 +754,7 @@ public class {class_name}
      * @param shift   The (signed) number of elements to roll this cube by or,
      *                if an array, in each axis.
      * @param kwargs  <ul>
-     *                  <li>{@code axis=0} -- The axis to roll or, if {{@code shift}}
+     *                  <li>{{@code axis=0}} -- The axis to roll or, if {{@code shift}}
      *                      is an array, a matching array of axes.</li>
      *                </ul>
      *

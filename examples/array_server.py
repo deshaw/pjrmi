@@ -70,7 +70,7 @@ def unflatten(src, dst, chunk_size=4096):
     # using the Java socket in the window between its creation and the
     # connection from the Python client.
 
-    # This method realies on the source and destination matching in shape
+    # This method relies on the source and destination matching in shape
     if tuple(src.shape) != tuple(dst.shape):
         raise ValueError(
             "Source shape, %s, does not match the destination shape, %s" % (

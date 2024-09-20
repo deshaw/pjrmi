@@ -39,7 +39,7 @@ Socket               = c.class_for_name('java.net.Socket')
 
 # The methods which the client calls to interact with the server. Notice that
 # the client effectively builds everything which it needs in each case; the
-# server is completely passive and doesn't actually have any specialised
+# server is completely passive and doesn't actually have any specialized
 # networking code etc.
 
 def unflatten(src, dst, chunk_size=4096):
@@ -144,7 +144,7 @@ def flatten(src, dst, chunk_size=4096):
     host = 'localhost'
     port = ss.getLocalPort()
 
-    # Start sending from the Java server, this will block under the Python
+    # Start sending from the Java server, this will block until the Python
     # client connects
     def write():
         try:

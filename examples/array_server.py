@@ -26,11 +26,11 @@ SIZE = 512
 # child-based one. Nothing else changes though.
 c = pjrmi.connect_to_child_jvm(stdout=None, stderr=None)
 
-Dimension            = c.class_for_name('com.deshaw.hypercube.Dimension')
 BufferedInputStream  = c.class_for_name('java.io.BufferedInputStream')
 BufferedOutputStream = c.class_for_name('java.io.BufferedOutputStream')
 DataInputStream      = c.class_for_name('java.io.DataInputStream')
 DataOutputStream     = c.class_for_name('java.io.DataOutputStream')
+Dimension            = c.class_for_name('com.deshaw.hypercube.Dimension')
 DoubleArrayHypercube = c.class_for_name('com.deshaw.hypercube.DoubleArrayHypercube')
 ServerSocket         = c.class_for_name('java.net.ServerSocket')
 Socket               = c.class_for_name('java.net.Socket')

@@ -6548,7 +6548,7 @@ class UnixFifoTransport:
                 os.execlp(java_executable, *cmd)
 
             # Since we have exec()'d above, this line is never reached
-            assert(False)
+            assert False, "Never reached"
 
         # We are the parent
         self._pid = pid

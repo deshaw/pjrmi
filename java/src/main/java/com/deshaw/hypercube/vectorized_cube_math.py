@@ -62,6 +62,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import jdk.incubator.vector.*;
 ''',
@@ -108,6 +110,11 @@ import jdk.incubator.vector.*;
  */
 public class {class_name}
 {{
+    /**
+     * The logger for all the Hypercube code.
+     */
+    private static final Logger LOG = Logger.getLogger("com.deshaw.hypercube");
+
 ''',
 
     # Helper cog code to generate all additional static declarations for Vector API.

@@ -20,6 +20,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import jdk.incubator.vector.*;
 
@@ -98,6 +100,11 @@ import jdk.incubator.vector.*;
  */
 public class VectorizedCubeMath
 {
+    /**
+     * The logger for all the Hypercube code.
+     */
+    private static final Logger LOG = Logger.getLogger("com.deshaw.hypercube");
+
     /**
      * An immutable single-valued boolean cube representation, that is
      * internally useful for cube-with-value operations.
@@ -20951,4 +20958,4 @@ public class VectorizedCubeMath
     }
 }
 
-// [[[end]]] (checksum: 54721bccc27551605f054e174274e96e)
+// [[[end]]] (checksum: a0fed4701c98675cbe73ddb55dfd54e9)

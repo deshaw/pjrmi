@@ -373,7 +373,7 @@ public class Dimension<T>
         if (s >= e) {
             throw new IllegalArgumentException(
                 "Slice range, " +
-                "[" + start + ":" + end + "] ([ " + s + ":" + e + "], " +
+                "[" + start + ":" + end + "] ([" + s + ":" + e + "]), " +
                 "was empty or reversed"
             );
         }

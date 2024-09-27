@@ -44,6 +44,10 @@ public interface Index<T>
 
     /**
      * Create a sub-index of this one.
+     *
+     * @param name  The name of the new index.
+     * @param start The start of the range, inclusive.
+     * @param end   The end of the range, exclusive.
      */
     public default Index<T> subIndex(final String name,
                                      final long   start,

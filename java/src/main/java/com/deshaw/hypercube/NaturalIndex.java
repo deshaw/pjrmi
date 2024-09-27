@@ -81,6 +81,26 @@ public class NaturalIndex
      * {@inheritDoc}
      */
     @Override
+    public Index<Long> subIndex(final String name,
+                                final long   start,
+                                final long   end)
+        throws IllegalArgumentException,
+               NullPointerException
+    {
+        // A sub-index of a NaturalIndex remains natural, otherwise slicing does
+        // not work in a intuitive manner
+        if (start >= end) {
+            throw new IllegalArgumentException(
+                "Start, " + start + " was not before end, " + end
+            );
+        }
+        return new NaturalIndex(name, end - start);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public boolean equals(final Object o)
     {
         if (o == this) {

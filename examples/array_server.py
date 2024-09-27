@@ -247,3 +247,23 @@ print("  Copying a %s sub-cube with %d elements into a sliced ndarray took %0.2f
        t,
        dst.size / 1000**2 / t,
        dst.size * 8 / 1024**2 / t))
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# Create a masked versions of the cube and copy it down into a local instance
+mask = [((i & 1) == 0) for i in range(SIZE)]
+src = cube[mask,]
+dst = numpy.ndarray(src.shape, dtype=numpy.float64)
+
+# Do a read for a masked cube
+print("Flattening down a masked cube...")
+s = time.time()
+flatten(src, dst)
+e = time.time()
+t = e - s
+print("  Copying a %s masked cube with %d elements into an ndarray took %0.2fs, %0.2fM el/s, %dMb/s" %
+      ('x'.join(map(str, src.shape)),
+       dst.size,
+       t,
+       dst.size / 1000**2 / t,
+       dst.size * 8 / 1024**2 / t))

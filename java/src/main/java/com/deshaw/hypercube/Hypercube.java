@@ -9,6 +9,8 @@ import com.deshaw.pjrmi.PJRmi.Kwargs;
 import com.deshaw.pjrmi.KwargUtil;
 import com.deshaw.pjrmi.PythonSlice;
 import com.deshaw.python.DType;
+import com.deshaw.util.LongBitSet;
+import com.deshaw.util.StringUtil;
 
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -305,7 +307,7 @@ public interface Hypercube<T>
     /**
      * Whether this cube matches another one.
      */
-    @SuppressWarnings("unchecked")    
+    @SuppressWarnings("unchecked")
     public default boolean cubeEquals(final Hypercube<?> that)
     {
         if (!(that instanceof Hypercube)) {
@@ -1608,6 +1610,77 @@ public interface Hypercube<T>
     }
 
     /**
+     * Extract the items of this cube using the given boolean cube as a
+     * selector. Unless this is a masking, this will always return a flattened
+     * cube, per numpy semantics.
+     */
+    @GenericReturnType
+    public default Hypercube<T> mask(final Hypercube<Boolean> mask)
+    {
+        // Make sure it's compatible
+        if (matchesInShape(mask)) {
+            return CubeMath.extract(mask, this);
+        }
+        else if (mask.getNDim() == 1 &&
+                 mask.length(0) == length(0))
+        {
+            // A simple masking. Copy out the mask from the given cube and hand
+            // off.
+            final BooleanHypercube bhc =
+                BooleanHypercube.asBooleanHypercube(mask);
+            if (bhc != null) {
+                final LongBitSet bs = new LongBitSet(mask.getSize());
+                bhc.toFlattened(0, bs, 0, mask.getSize());
+                return mask(bs);
+            }
+        }
+
+        // Could not convert
+        throw new IllegalArgumentException(
+            "Given an incompatible mask; " +
+            "this cube has shape " + Arrays.toString(     getShape()) + ", " +
+            "mask has shape "      + Arrays.toString(mask.getShape()) + "; " +
+            "or mask could not be converted to a BooleanHypercube"
+        );
+    }
+
+    /**
+     * Extract the items of this cube using the given boolean array as a mask.
+     */
+    @GenericReturnType
+    public default Hypercube<T> mask(final boolean[] mask)
+    {
+        // Make sure it's compatible
+        if (mask == null) {
+            throw new NullPointerException("Given a null mask");
+        }
+        else if (mask.length == length(0)) {
+            return new MaskedHypercube<T>(this, mask);
+        }
+        else {
+            throw new IllegalArgumentException(
+                "Given mask length, " + mask.length + " " +
+                "did not match first dimension length, " + length(0)
+            );
+        }
+    }
+
+    /**
+     * Extract the items of this cube using the given bitset as a mask.
+     */
+    @GenericReturnType
+    public default Hypercube<T> mask(final LongBitSet mask)
+    {
+        // Make sure it's compatible
+        if (mask == null) {
+            throw new NullPointerException("Given a null mask");
+        }
+        else {
+            return new MaskedHypercube<T>(this, mask);
+        }
+    }
+
+    /**
      * Assign from an arbitrary object.
      *
      * <p>Attempt to set the values in this cube from the given object, whatever
@@ -1880,21 +1953,21 @@ public interface Hypercube<T>
 
     // Python data-model methods
 
+    // We annotate with GenericReturnType since we want a the lowest type on the
+    // Python side, since these are the most fully-featured.
+    //
+    // Don't overload the __getitem__ and __setitem__ methods since it can lead
+    // to annoying misbinding of arguments, since they take an Object[] which is
+    // very general. Instead you should handle the binding internally which is,
+    // ironically, very Pythonic.
+
     /**
-     * Extract the items of this cube using the given boolean cube as a
-     * selector. This will always return a flattened cube, per numpy semantics.
+     * The {@code __getitem__()} version which takes a single key argument.
      */
-    public default Hypercube<T> __getitem__(final Hypercube<Boolean> selection)
+    @GenericReturnType
+    public default Object __getitem__(final Object key)
     {
-        // Make sure it's compatible
-        if (!matchesInShape(selection)) {
-            throw new IllegalArgumentException(
-                "Given an incompatible selection; " +
-                "this cube has shape " + Arrays.toString(getShape()) + ", " +
-                "selection has shape " + Arrays.toString(selection.getShape())
-            );
-        }
-        return CubeMath.extract(selection, this);
+        return __getitem__(new Object[] { key });
     }
 
     /**
@@ -1904,10 +1977,37 @@ public interface Hypercube<T>
     @GenericReturnType
     public default Object __getitem__(final Object[] key)
     {
-        // Make sure it's compatible
+        // Check args before we use them
         if (key == null) {
             throw new NullPointerException("Given a null key");
         }
+
+        // See if this is a masking
+        if (key.length == 1 && key[0] instanceof boolean[]) {
+            return mask((boolean[])key[0]);
+        }
+        if (key.length == 1 && key[0] instanceof Object[]) {
+            final Object[] objects = (Object[])key[0];
+            if (objects.length > 0 && objects[0] instanceof Boolean) {
+                final boolean[] mask = new boolean[objects.length];
+                for (int i=0; i < objects.length; i++) {
+                    mask[i] = Boolean.TRUE.equals(objects[i]);
+                }
+                return mask(mask);
+            }
+        }
+        if (key.length == 1 &&
+            key[0] instanceof Hypercube &&
+            ((Hypercube)key[0]).getElementType().equals(Boolean.class))
+        {
+            @SuppressWarnings("unchecked")
+            final Hypercube<Boolean> mask = (Hypercube<Boolean>)(Hypercube)key[0];
+            return mask(mask);
+        }
+
+        // Looks like a selection.
+
+        // Make sure it's compatible
         if (key.length > getNDim()) {
             throw new ArrayIndexOutOfBoundsException(
                 "Too many indices for array; " +
@@ -1933,6 +2033,15 @@ public interface Hypercube<T>
     }
 
     /**
+     * The {@code __setitem__()} version which takes a single key argument.
+     */
+    public default void __setitem__(final Object key, final Object value)
+        throws IllegalArgumentException
+    {
+        __setitem__(new Object[] { key }, value);
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -1950,6 +2059,34 @@ public interface Hypercube<T>
                 "Setting at " + Arrays.toString(key) + " with " + value
             );
         }
+
+        // See if this is a masking
+        if (key.length == 1 && key[0] instanceof boolean[]) {
+            mask((boolean[])key[0]).assignFrom(value);
+            return;
+        }
+        if (key.length == 1 && key[0] instanceof Object[]) {
+            final Object[] objects = (Object[])key[0];
+            if (objects.length > 0 && objects[0] instanceof Boolean) {
+                final boolean[] mask = new boolean[objects.length];
+                for (int i=0; i < objects.length; i++) {
+                    mask[i] = Boolean.TRUE.equals(objects[i]);
+                }
+                mask(mask).assignFrom(value);
+                return;
+            }
+        }
+        if (key.length == 1 &&
+            key[0] instanceof Hypercube &&
+            ((Hypercube)key[0]).getElementType().equals(Boolean.class))
+        {
+            @SuppressWarnings("unchecked")
+            final Hypercube<Boolean> mask = (Hypercube<Boolean>)(Hypercube)key[0];
+            mask(mask).assignFrom(value);
+            return;
+        }
+
+        // Looks like a selection.
 
         // Check the key looks good
         if (key.length > getNDim()) {
@@ -2575,8 +2712,9 @@ public interface Hypercube<T>
             }
             else {
                 throw new IllegalArgumentException(
-                    "Don't know how to index with " + k + " in key " +
-                    Arrays.toString(key)
+                    "Don't know how to index with '" +
+                    StringUtil.toString(k,   10) + "' in key '" +
+                    StringUtil.toString(key, 10) + "'"
                 );
             }
 

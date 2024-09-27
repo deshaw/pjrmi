@@ -1,5 +1,7 @@
 package com.deshaw.hypercube;
 
+import com.deshaw.util.LongBitSet;
+
 import java.util.Objects;
 
 /**
@@ -28,6 +30,15 @@ public abstract class AbstractIndex<T>
     public String getName()
     {
         return myName;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Index<T> mask(final LongBitSet mask)
+    {
+        return new MaskedIndex<T>(this, mask);
     }
 
     /**

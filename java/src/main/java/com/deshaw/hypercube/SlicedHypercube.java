@@ -383,11 +383,17 @@ public class SlicedHypercube<T>
      */
     protected long[] getWrappedIndices(final long index)
     {
-        final long[] local   = new long[mySlices .length];
-        final long[] wrapped = new long[myMapping.length];
+        final long[] local   = myLocal  .get();
+        final long[] wrapped = myWrapped.get();
         getWrappedIndices(index, local, wrapped);
         return wrapped;
     }
+    /** For use only by getWrappedIndices() */
+    private final ThreadLocal<long[]> myLocal =
+        ThreadLocal.withInitial(() -> new long[getNDim()]);
+    /** For use only by getWrappedIndices() */
+    private final ThreadLocal<long[]> myWrapped =
+        ThreadLocal.withInitial(() -> new long[getWrapped().getNDim()]);
 
     /**
      * Get the wrapped and this hypercube's indices, suitably offset, for the

@@ -1,5 +1,7 @@
 package com.deshaw.hypercube;
 
+import com.deshaw.util.LongBitSet;
+
 /**
  * An index which is a one-to-one mapping with the natural
  * numbers. This is effectively the identity index, but bounded in
@@ -32,6 +34,20 @@ public class NaturalIndex
             );
         }
         mySize = size;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Index<Long> mask(final LongBitSet mask)
+    {
+        if (mask == null) {
+            throw new NullPointerException("Given a null mask");
+        }
+
+        // For a natural index the masking just creates a new natural index
+        return new NaturalIndex(this + "<Masked>", mask.cardinality());
     }
 
     /**

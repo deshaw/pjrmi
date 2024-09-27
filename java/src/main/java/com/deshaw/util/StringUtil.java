@@ -3,6 +3,8 @@ package com.deshaw.util;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
+import java.lang.reflect.Array;
+
 import java.text.ParseException;
 
 /**
@@ -347,5 +349,43 @@ public class StringUtil
                 "'" + s + "' does not describe a boolean value", 0
             );
         }
+    }
+
+    /**
+     * A version of {@code toString()} which will unwind arrays as well.
+     */
+    public static String toString(final Object o)
+    {
+        return toString(o, Integer.MAX_VALUE);
+    }
+
+    /**
+     * A version of {@code toString()} which will unwind arrays as well.
+     */
+    public static String toString(final Object o, final int limit)
+    {
+        // Look for arrays
+        if (o != null) {
+            if (o.getClass().isArray()) {
+                final StringBuilder sb = new StringBuilder("[");
+                for (int i = 0, len = Array.getLength(o); i < len; i++) {
+                    if (i > 0) sb.append(", ");
+                    if (i + 1 >= limit) {
+                        sb.append("...");
+                        break;
+                    }
+                    else {
+                        sb.append(toString(Array.get(o, i)));
+                    }
+                }
+                sb.append(']');
+                return sb.toString();
+            }
+        }
+
+        // Otherwise we just fall back to vanilla toString() mechanism, being
+        // careful to handle nulls. Note that this won't find arrays in
+        // containers, since we don't inspect them.
+        return String.valueOf(o);
     }
 }

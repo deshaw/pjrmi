@@ -9,6 +9,7 @@ import com.deshaw.hypercube.Dimension.Coordinate;
 import com.deshaw.python.DType;
 import com.deshaw.pjrmi.PJRmi.GenericReturnType;
 import com.deshaw.pjrmi.PJRmi.Kwargs;
+import com.deshaw.util.LongBitSet;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -610,6 +611,85 @@ public interface {object_type}Hypercube
     }}
 
     /**
+     * Get a flattened view of this hypercube interpreted as a {{@link LongBitSet}}.
+     * These are flattened "C-style"; this is the same as {{@code numpy}}'s
+     * default.
+     *
+     * @param srcPos  The "flattened" position to start copying values from,
+     *                within the hypercube.
+     * @param dst     Where to put the results.
+     * @param dstPos  The position in dst to start copying values into.
+     * @param length  How many values to copy.
+     *
+     * @throws IllegalArgumentException      If {{@code length}} was negative
+     *                                       or {{@code dst}} was {{@code null}}.
+     * @throws IndexOutOfBoundsException     If {{@code srcPos}} was not within the
+     *                                       bounds of the hypercube, or if
+     *                                       {{@code srcPos + length}} was greater
+     *                                       than the size of the hypercube, or
+     *                                       if {{@code dstPos + length}} was
+     *                                       beyond {{@code dstPos}}'s length.
+     * @throws UnsupportedOperationException If the cube is larger than
+     *                                       {{@link Integer#MAX_VALUE}} in size,
+     *                                       since this cannot be represented in
+     *                                       an array.
+     */
+    public default void toFlattened(final long srcPos,
+                                    final LongBitSet dst,
+                                    final long dstPos,
+                                    final long length)
+        throws IllegalArgumentException,
+               IndexOutOfBoundsException,
+               UnsupportedOperationException
+    {{
+        if (LOG.isLoggable(Level.FINEST)) {{
+            LOG.finest(
+                "Flattening with " +
+                "srcPos=" + srcPos + " dstPos=" + dstPos + " " +
+                "length=" + length
+            );
+        }}
+
+        // Checks
+        if (length < 0) {{
+            throw new IllegalArgumentException("Bad length: " + length);
+        }}
+        if (dst == null) {{
+            throw new IllegalArgumentException("Null destination bitset");
+        }}
+        if (srcPos < 0) {{
+            throw new IndexOutOfBoundsException(
+                "Bad source position: " + srcPos
+            );
+        }}
+        if (dstPos < 0) {{
+            throw new IndexOutOfBoundsException(
+                "Bad destination position: " + dstPos
+            );
+        }}
+        if (srcPos + length > getSize()) {{
+            throw new IndexOutOfBoundsException(
+                "Source position, " + srcPos + ", " +
+                "plus length ," + length + ", " +
+                "was greater than the size, " + getSize()
+            );
+        }}
+
+        // Turn this cube into something which we can push into the bitset. That
+        // means we want it to be a boolean cube. We attempt to coerce it first
+        // and, if that fails, create a copy.
+        BooleanHypercube bools = BooleanHypercube.asBooleanHypercube(this);
+        if (bools == null) {{
+            bools = BooleanHypercube.toBooleanHypercube(this);
+        }}
+
+        // Copy...
+        for (long i=0; i < length; i++) {{
+            dst.set(i + dstPos, bools.getAt(i + srcPos));
+        }}
+    }}
+
+    /**
      * Set the contents of this hypercube with the given array. This is expected
      * to contain values in the order per the semantics of flatten.
      *
@@ -1026,6 +1106,21 @@ public interface {object_type}Hypercube
             }}
         }}
         return false;
+    }}
+
+    /**
+     * Extract the items of this cube using the given boolean array as a mask.
+     */
+    // GenericReturnType since we want a MaskedBlahHypercube if possible
+    @GenericReturnType
+    public default Hypercube<{object_type}> mask(final boolean[] mask)
+    {{
+        if (mask != null && mask.length == length(0)) {{
+            return new {object_type}MaskedHypercube(this, mask);
+        }}
+        else {{
+            return Hypercube.super.mask(mask);
+        }}
     }}
 '''
 

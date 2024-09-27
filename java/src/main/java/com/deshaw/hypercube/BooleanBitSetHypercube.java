@@ -15,9 +15,9 @@ public class BooleanBitSetHypercube
     extends AbstractBooleanHypercube
 {
     /**
-     * The shift for the max bitset size (a full int).
+     * The shift for our max bitset size.
      */
-    private static final int MAX_BITSET_SHIFT = 31;
+    private static final int MAX_BITSET_SHIFT = 30;
 
     /**
      * The largest bitset size.

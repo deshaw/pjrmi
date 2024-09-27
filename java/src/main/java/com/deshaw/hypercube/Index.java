@@ -1,5 +1,7 @@
 package com.deshaw.hypercube;
 
+import com.deshaw.util.LongBitSet;
+
 /**
  * The way in which a dimension is accessed in a {@link Hypercube}. This defines
  * a mapping between the natural numbers, as an index, and an ordered list of
@@ -33,6 +35,12 @@ public interface Index<T>
      * The number of elements in this index.
      */
     public long size();
+
+    /**
+     * Generate a version of this index which is masked by the given array,
+     * where {@code true} denotes a visible value.
+     */
+    public Index<T> mask(final LongBitSet mask);
 
     /**
      * Create a sub-index of this one.

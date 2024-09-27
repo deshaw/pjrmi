@@ -1351,7 +1351,8 @@ public class TestInjectSource {
         Make sure that CubeMath behaves like numpy and that the two inter-operate
         correctly.
         """
-        CubeMath = get_pjrmi().class_for_name('com.deshaw.hypercube.CubeMath')
+        CubeMath                 = get_pjrmi().class_for_name('com.deshaw.hypercube.CubeMath')
+        IllegalArgumentException = get_pjrmi().class_for_name('java.lang.IllegalArgumentException')
 
         # Create an ndarray to work on. We futz with the values a little so that
         # floating point noise doesn't cause some of the comparisons (e.g. the
@@ -1453,6 +1454,36 @@ public class TestInjectSource {
         self.assertTrue(numpy.all((c333 @ c333) == (a333 @ a333)))
         self.assertTrue(numpy.all((c234 @  c43) == (a234 @  a43)))
         self.assertTrue(numpy.all((c234 @ c243) == (a234 @ a243)))
+
+        # Masking. A mask will only affect the first dimension in our current
+        # semantics. We also check that the flattened array looks like we
+        # expect.
+        c8   = CubeMath.arange(numpy.int32(8))
+        mask = (True, False, True)
+        self.assertTrue(numpy.all(  c3[mask,] ==   a3[mask,]))
+        self.assertTrue(numpy.all( c33[mask,] ==  a33[mask,]))
+        self.assertTrue(numpy.all(c333[mask,] == a333[mask,]))
+        self.assertTrue(numpy.all(numpy.array(  c3[mask,].flatten()) ==
+                                                a3[mask,]               ))
+        self.assertTrue(numpy.all(numpy.array( c33[mask,].flatten()) ==
+                                               a33[mask,].reshape(( 6,))))
+        self.assertTrue(numpy.all(numpy.array(c333[mask,].flatten()) ==
+                                              a333[mask,].reshape((18,))))
+        self.assertTrue(numpy.all(c8[(c8 >= 4)] == c8[4:]))
+        self.assertTrue(numpy.all(numpy.array(c8[(c8 >= 4)].flatten()) ==
+                                  numpy.array(c8[4:].flatten())))
+        try:
+            # Attempting to index with a multidimensional boolean array, which
+            # does not match the dimensionality of the cube, is currently not
+            # supported and should throw an exception.
+            mask2 = (mask, mask)
+            _ = c333[mask2]
+            assert False, (
+                "Attempting to index %s with %s should have failed" %
+                (c333, mask2)
+            )
+        except IllegalArgumentException:
+            pass
 
 
     @classmethod

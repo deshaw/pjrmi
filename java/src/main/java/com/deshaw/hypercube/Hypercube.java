@@ -215,11 +215,17 @@ public interface Hypercube<T>
     }
 
     /**
-     * Whether this cube is a singleton value (i.e. it has exactly one element).
+     * Whether this cube is a singleton value; i.e. it has exactly one element
+     * regardless of the number of dimensions.
      */
     public default boolean isSingleton()
     {
-        return getNDim() == 1 && length(0) == 1;
+        for (int i=0; i < getNDim(); i++) {
+            if (length(i) != 1) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -254,7 +260,7 @@ public interface Hypercube<T>
      *
      * <p>Note that the semantics of this are like those of Java
      * {@code Collection::contains(that)}, where we are seeing this {@code this}
-     * contains {@code that}. This is oppositre from the Python convention for
+     * contains {@code that}. This is opposite from the Python convention for
      * things like {@code set::issubset(that)}.
      */
     public default boolean submatches(final Hypercube<T> that)
@@ -273,10 +279,9 @@ public interface Hypercube<T>
         // Now we want to compare the higher dimensions
         final Dimension<?>[] thisDim = this.getDimensions();
         final Dimension<?>[] thatDim = that.getDimensions();
-        for (int i = 1; i <= thatDim.length; i++) {
-            if (!thisDim[thisDim.length-i].equals(
-                    thatDim[thatDim.length-i]
-                ))
+        for (int i = 1; i < thatDim.length; i++) {
+            if (thisDim[thisDim.length-i].length() !=
+                thatDim[thatDim.length-i].length())
             {
                 return false;
             }
@@ -1948,6 +1953,23 @@ public interface Hypercube<T>
             save(os);
         }
     }
+
+    /**
+     * Give back a {@link String} which describes this hypercube.
+     */
+    public default String toDescriptiveString()
+    {
+        final StringBuilder sb =
+            new StringBuilder(getClass().getSimpleName().toString());
+        sb.append('<').append(getElementType().getSimpleName()).append(">[");
+        for (int i=0; i < getNDim(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(dim(i));
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
 
     // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 

@@ -1182,7 +1182,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -4742,7 +4745,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'a'");
         }
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " + a.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -5039,7 +5045,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -5177,7 +5186,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'b'");
         }
         if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -5238,7 +5250,12 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matches(b) || !a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -5472,7 +5489,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -5559,7 +5579,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -5703,7 +5726,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -5847,7 +5873,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -5991,7 +6020,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -6135,7 +6167,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -6278,7 +6313,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -6365,7 +6403,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -6509,7 +6550,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -6653,7 +6697,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -6797,7 +6844,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -6941,7 +6991,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -7084,7 +7137,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -7171,7 +7227,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -7315,7 +7374,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -7459,7 +7521,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -7603,7 +7668,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -7747,7 +7815,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -7890,7 +7961,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -7977,7 +8051,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -8121,7 +8198,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -8265,7 +8345,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -8409,7 +8492,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -8553,7 +8639,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -8696,7 +8785,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'r'");
         }
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // See if we can do it
@@ -8783,7 +8875,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -8927,7 +9022,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -9071,7 +9169,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -9215,7 +9316,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -9359,7 +9463,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -9726,7 +9833,10 @@ public class CubeMath
         }
 
         // No match between the cubes
-        throw new IllegalArgumentException("Given incompatible cubes");
+        throw new IllegalArgumentException(
+            "Given incompatible cubes: " +
+            a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+        );
     }
 
     /**
@@ -9755,7 +9865,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -9934,7 +10049,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -10094,7 +10212,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'b'");
         }
         if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple bitset one by default
@@ -10126,7 +10247,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -10611,7 +10737,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'a'");
         }
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " + a.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple BitSet one by default
@@ -10642,7 +10771,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " +
+                a.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -11800,7 +11934,10 @@ public class CubeMath
         }
 
         // No match between the cubes
-        throw new IllegalArgumentException("Given incompatible cubes");
+        throw new IllegalArgumentException(
+            "Given incompatible cubes: " +
+            a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+        );
     }
 
     /**
@@ -11829,7 +11966,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -12018,7 +12160,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -12180,7 +12325,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'b'");
         }
         if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple bitset one by default
@@ -12212,7 +12360,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -12697,7 +12850,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'a'");
         }
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " + a.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple Array one by default
@@ -12728,7 +12884,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " +
+                a.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -13886,7 +14047,10 @@ public class CubeMath
         }
 
         // No match between the cubes
-        throw new IllegalArgumentException("Given incompatible cubes");
+        throw new IllegalArgumentException(
+            "Given incompatible cubes: " +
+            a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+        );
     }
 
     /**
@@ -13915,7 +14079,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -14104,7 +14273,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -14266,7 +14438,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'b'");
         }
         if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple bitset one by default
@@ -14298,7 +14473,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -14783,7 +14963,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'a'");
         }
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " + a.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple Array one by default
@@ -14814,7 +14997,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " +
+                a.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -15969,7 +16157,10 @@ public class CubeMath
         }
 
         // No match between the cubes
-        throw new IllegalArgumentException("Given incompatible cubes");
+        throw new IllegalArgumentException(
+            "Given incompatible cubes: " +
+            a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+        );
     }
 
     /**
@@ -15998,7 +16189,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -16195,7 +16391,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -16368,7 +16567,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'b'");
         }
         if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple bitset one by default
@@ -16400,7 +16602,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -16885,7 +17092,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'a'");
         }
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " + a.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple Array one by default
@@ -16916,7 +17126,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " +
+                a.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -18071,7 +18286,10 @@ public class CubeMath
         }
 
         // No match between the cubes
-        throw new IllegalArgumentException("Given incompatible cubes");
+        throw new IllegalArgumentException(
+            "Given incompatible cubes: " +
+            a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+        );
     }
 
     /**
@@ -18100,7 +18318,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -18297,7 +18520,10 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -18470,7 +18696,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'b'");
         }
         if (!a.matches(b)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " + b.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple bitset one by default
@@ -18502,7 +18731,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matches(b) || !a.matchesInShape(r)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                a.toDescriptiveString() + " vs " +
+                b.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -18987,7 +19221,10 @@ public class CubeMath
             throw new NullPointerException("Given a null cube, 'a'");
         }
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " + a.toDescriptiveString()
+            );
         }
 
         // Create the destination, a simple Array one by default
@@ -19018,7 +19255,12 @@ public class CubeMath
 
         // Compatibility checks
         if (!a.matchesInShape(c)) {
-            throw new IllegalArgumentException("Given incompatible cubes");
+            throw new IllegalArgumentException(
+                "Given incompatible cubes: " +
+                c.toDescriptiveString() + " vs " +
+                a.toDescriptiveString() + " vs " +
+                r.toDescriptiveString()
+            );
         }
 
         // Try to do this natively but fall back to the non-native version
@@ -19110,4 +19352,4 @@ public class CubeMath
     }
 }
 
- // [[[end]]] (checksum: b443f5bc78a350467ba95f44eec88238)
+ // [[[end]]] (checksum: e95077b77768bd9403a780ff90ce9e1d)

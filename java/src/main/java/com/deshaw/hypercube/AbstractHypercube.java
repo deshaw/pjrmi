@@ -205,6 +205,15 @@ public abstract class AbstractHypercube<T>
      * {@inheritDoc}
      */
     @Override
+    public boolean isSingleton()
+    {
+        return (size == 1);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Hypercube<T> slice(final Dimension.Accessor<?>... accessors)
         throws DimensionalityException,
                IllegalArgumentException,

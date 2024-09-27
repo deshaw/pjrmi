@@ -110,12 +110,7 @@ public class FloatArrayHypercube
     public void fill(final float v)
     {
         for (int i=0; i < myElements.length(); i++) {
-            float[] elements = myElements.get(i);
-            if (elements == null) {
-                elements = allocForIndex(i);
-                myElements.set(i, elements);
-            }
-            Arrays.fill(elements, v);
+            Arrays.fill(myElements.get(i), v);
         }
     }
 
@@ -146,8 +141,7 @@ public class FloatArrayHypercube
         for (int i=0; i < length; i++) {
             final long pos = srcPos + i;
             final float[] array = myElements.get((int)(pos >>> MAX_ARRAY_SHIFT));
-            final float d =
-                (array == null) ? Float.NaN : array[(int)(pos & MAX_ARRAY_MASK)];
+            final float d = array[(int)(pos & MAX_ARRAY_MASK)];
             dst[dstPos + i] = Float.valueOf(d);
         }
     }
@@ -190,10 +184,6 @@ public class FloatArrayHypercube
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_ARRAY_SHIFT);
             float[] array = myElements.get(idx);
-            if (array == null) {
-                array = allocForIndex(idx);
-                myElements.set(idx, array);
-            }
             final Float value = src[srcPos + i];
             array[(int)(pos & MAX_ARRAY_MASK)] =
                 (value == null) ? Float.NaN : value.floatValue();
@@ -240,42 +230,29 @@ public class FloatArrayHypercube
 
             case 1:
                 // Just the one element
-                dst[dstPos] =
-                    (array == null) ? Float.NaN : array[(int)(srcPos & MAX_ARRAY_MASK)];
+                dst[dstPos] = array[(int)(srcPos & MAX_ARRAY_MASK)];
                 break;
 
             default:
                 // Standard copy within the same sub-array
-                if (array != null) {
-                    System.arraycopy(
-                        array, (int)(srcPos & MAX_ARRAY_MASK),
-                        dst, dstPos,
-                        length
-                    );
-                }
-                else {
-                    Arrays.fill(dst, dstPos, dstPos + length, Float.NaN);
-                }
+                System.arraycopy(array, (int)(srcPos & MAX_ARRAY_MASK),
+                                 dst, dstPos,
+                                 length);
             }
         }
         else {
             // Split into two copies
             final float[] startArray = myElements.get(startIdx);
             final float[] endArray   = myElements.get(  endIdx);
-            if (startArray != null && endArray != null) {
-                final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-                final int startLength = length - (startArray.length - startPos);
-                final int endLength   = length - startLength;
-                System.arraycopy(startArray, startPos,
-                                 dst,        dstPos,
-                                 startLength);
-                System.arraycopy(endArray,   0,
-                                 dst,        dstPos + startLength,
-                                 endLength);
-            }
-            else {
-                Arrays.fill(dst, dstPos, dstPos + length, Float.NaN);
-            }
+            final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
+            final int startLength = length - (startArray.length - startPos);
+            final int endLength   = length - startLength;
+            System.arraycopy(startArray, startPos,
+                             dst,        dstPos,
+                             startLength);
+            System.arraycopy(endArray,   0,
+                             dst,        dstPos + startLength,
+                             endLength);
         }
     }
 
@@ -314,10 +291,6 @@ public class FloatArrayHypercube
         if (startIdx == endIdx) {
             // Get the array, creating if needbe
             float[] array = myElements.get(startIdx);
-            if (array == null) {
-                array = allocForIndex(startIdx);
-                myElements.set(startIdx, array);
-            }
 
             // And handle it
             switch (length) {
@@ -358,14 +331,6 @@ public class FloatArrayHypercube
             // Split into two copies
             float[] startArray = myElements.get(startIdx);
             float[] endArray   = myElements.get(  endIdx);
-            if (startArray == null) {
-                startArray = allocForIndex(startIdx);
-                myElements.set(startIdx, startArray);
-            }
-            if (endArray == null) {
-                endArray = allocForIndex(endIdx);
-                myElements.set(endIdx, endArray);
-            }
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
@@ -403,12 +368,7 @@ public class FloatArrayHypercube
         if (myElements.length() == that.myElements.length()) {
             for (int i=0; i < myElements.length(); i++) {
                 final float[] els = that.myElements.get(i);
-                if (els == null) {
-                    myElements.set(i, null);
-                }
-                else {
-                    myElements.set(i, Arrays.copyOf(els, els.length));
-                }
+                myElements.set(i, Arrays.copyOf(els, els.length));
             }
         }
         else {
@@ -468,7 +428,7 @@ public class FloatArrayHypercube
     {
         preRead();
         final float[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        return (array == null) ? Float.NaN : array[(int)(index & MAX_ARRAY_MASK)];
+        return array[(int)(index & MAX_ARRAY_MASK)];
     }
 
     /**
@@ -478,12 +438,7 @@ public class FloatArrayHypercube
     public void setAt(final long index, final float value)
         throws IndexOutOfBoundsException
     {
-        final int idx = (int)(index >>> MAX_ARRAY_SHIFT);
-        float[] array = myElements.get(idx);
-        if (array == null) {
-            array = allocForIndex(idx);
-            myElements.set(idx, array);
-        }
+        float[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
         array[(int)(index & MAX_ARRAY_MASK)] = value;
         postWrite();
     }
@@ -519,4 +474,4 @@ public class FloatArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: cd3ee8e9023a952a48d3944ab5aedb16)
+// [[[end]]] (checksum: e659210397168702c118c03d4d146103)

@@ -110,12 +110,7 @@ public class IntegerArrayHypercube
     public void fill(final int v)
     {
         for (int i=0; i < myElements.length(); i++) {
-            int[] elements = myElements.get(i);
-            if (elements == null) {
-                elements = allocForIndex(i);
-                myElements.set(i, elements);
-            }
-            Arrays.fill(elements, v);
+            Arrays.fill(myElements.get(i), v);
         }
     }
 
@@ -146,8 +141,7 @@ public class IntegerArrayHypercube
         for (int i=0; i < length; i++) {
             final long pos = srcPos + i;
             final int[] array = myElements.get((int)(pos >>> MAX_ARRAY_SHIFT));
-            final int d =
-                (array == null) ? 0 : array[(int)(pos & MAX_ARRAY_MASK)];
+            final int d = array[(int)(pos & MAX_ARRAY_MASK)];
             dst[dstPos + i] = Integer.valueOf(d);
         }
     }
@@ -190,10 +184,6 @@ public class IntegerArrayHypercube
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_ARRAY_SHIFT);
             int[] array = myElements.get(idx);
-            if (array == null) {
-                array = allocForIndex(idx);
-                myElements.set(idx, array);
-            }
             final Integer value = src[srcPos + i];
             array[(int)(pos & MAX_ARRAY_MASK)] =
                 (value == null) ? 0 : value.intValue();
@@ -240,42 +230,29 @@ public class IntegerArrayHypercube
 
             case 1:
                 // Just the one element
-                dst[dstPos] =
-                    (array == null) ? 0 : array[(int)(srcPos & MAX_ARRAY_MASK)];
+                dst[dstPos] = array[(int)(srcPos & MAX_ARRAY_MASK)];
                 break;
 
             default:
                 // Standard copy within the same sub-array
-                if (array != null) {
-                    System.arraycopy(
-                        array, (int)(srcPos & MAX_ARRAY_MASK),
-                        dst, dstPos,
-                        length
-                    );
-                }
-                else {
-                    Arrays.fill(dst, dstPos, dstPos + length, 0);
-                }
+                System.arraycopy(array, (int)(srcPos & MAX_ARRAY_MASK),
+                                 dst, dstPos,
+                                 length);
             }
         }
         else {
             // Split into two copies
             final int[] startArray = myElements.get(startIdx);
             final int[] endArray   = myElements.get(  endIdx);
-            if (startArray != null && endArray != null) {
-                final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-                final int startLength = length - (startArray.length - startPos);
-                final int endLength   = length - startLength;
-                System.arraycopy(startArray, startPos,
-                                 dst,        dstPos,
-                                 startLength);
-                System.arraycopy(endArray,   0,
-                                 dst,        dstPos + startLength,
-                                 endLength);
-            }
-            else {
-                Arrays.fill(dst, dstPos, dstPos + length, 0);
-            }
+            final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
+            final int startLength = length - (startArray.length - startPos);
+            final int endLength   = length - startLength;
+            System.arraycopy(startArray, startPos,
+                             dst,        dstPos,
+                             startLength);
+            System.arraycopy(endArray,   0,
+                             dst,        dstPos + startLength,
+                             endLength);
         }
     }
 
@@ -314,10 +291,6 @@ public class IntegerArrayHypercube
         if (startIdx == endIdx) {
             // Get the array, creating if needbe
             int[] array = myElements.get(startIdx);
-            if (array == null) {
-                array = allocForIndex(startIdx);
-                myElements.set(startIdx, array);
-            }
 
             // And handle it
             switch (length) {
@@ -358,14 +331,6 @@ public class IntegerArrayHypercube
             // Split into two copies
             int[] startArray = myElements.get(startIdx);
             int[] endArray   = myElements.get(  endIdx);
-            if (startArray == null) {
-                startArray = allocForIndex(startIdx);
-                myElements.set(startIdx, startArray);
-            }
-            if (endArray == null) {
-                endArray = allocForIndex(endIdx);
-                myElements.set(endIdx, endArray);
-            }
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
@@ -403,12 +368,7 @@ public class IntegerArrayHypercube
         if (myElements.length() == that.myElements.length()) {
             for (int i=0; i < myElements.length(); i++) {
                 final int[] els = that.myElements.get(i);
-                if (els == null) {
-                    myElements.set(i, null);
-                }
-                else {
-                    myElements.set(i, Arrays.copyOf(els, els.length));
-                }
+                myElements.set(i, Arrays.copyOf(els, els.length));
             }
         }
         else {
@@ -468,7 +428,7 @@ public class IntegerArrayHypercube
     {
         preRead();
         final int[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        return (array == null) ? 0 : array[(int)(index & MAX_ARRAY_MASK)];
+        return array[(int)(index & MAX_ARRAY_MASK)];
     }
 
     /**
@@ -478,12 +438,7 @@ public class IntegerArrayHypercube
     public void setAt(final long index, final int value)
         throws IndexOutOfBoundsException
     {
-        final int idx = (int)(index >>> MAX_ARRAY_SHIFT);
-        int[] array = myElements.get(idx);
-        if (array == null) {
-            array = allocForIndex(idx);
-            myElements.set(idx, array);
-        }
+        int[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
         array[(int)(index & MAX_ARRAY_MASK)] = value;
         postWrite();
     }
@@ -519,4 +474,4 @@ public class IntegerArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 728e8e2b1ce42dbeeae36b4551734fea)
+// [[[end]]] (checksum: cf44e937e3b338c7c289bf3f4ae43f43)

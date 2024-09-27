@@ -110,12 +110,7 @@ public class LongArrayHypercube
     public void fill(final long v)
     {
         for (int i=0; i < myElements.length(); i++) {
-            long[] elements = myElements.get(i);
-            if (elements == null) {
-                elements = allocForIndex(i);
-                myElements.set(i, elements);
-            }
-            Arrays.fill(elements, v);
+            Arrays.fill(myElements.get(i), v);
         }
     }
 
@@ -146,8 +141,7 @@ public class LongArrayHypercube
         for (int i=0; i < length; i++) {
             final long pos = srcPos + i;
             final long[] array = myElements.get((int)(pos >>> MAX_ARRAY_SHIFT));
-            final long d =
-                (array == null) ? 0L : array[(int)(pos & MAX_ARRAY_MASK)];
+            final long d = array[(int)(pos & MAX_ARRAY_MASK)];
             dst[dstPos + i] = Long.valueOf(d);
         }
     }
@@ -190,10 +184,6 @@ public class LongArrayHypercube
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_ARRAY_SHIFT);
             long[] array = myElements.get(idx);
-            if (array == null) {
-                array = allocForIndex(idx);
-                myElements.set(idx, array);
-            }
             final Long value = src[srcPos + i];
             array[(int)(pos & MAX_ARRAY_MASK)] =
                 (value == null) ? 0L : value.longValue();
@@ -240,42 +230,29 @@ public class LongArrayHypercube
 
             case 1:
                 // Just the one element
-                dst[dstPos] =
-                    (array == null) ? 0L : array[(int)(srcPos & MAX_ARRAY_MASK)];
+                dst[dstPos] = array[(int)(srcPos & MAX_ARRAY_MASK)];
                 break;
 
             default:
                 // Standard copy within the same sub-array
-                if (array != null) {
-                    System.arraycopy(
-                        array, (int)(srcPos & MAX_ARRAY_MASK),
-                        dst, dstPos,
-                        length
-                    );
-                }
-                else {
-                    Arrays.fill(dst, dstPos, dstPos + length, 0L);
-                }
+                System.arraycopy(array, (int)(srcPos & MAX_ARRAY_MASK),
+                                 dst, dstPos,
+                                 length);
             }
         }
         else {
             // Split into two copies
             final long[] startArray = myElements.get(startIdx);
             final long[] endArray   = myElements.get(  endIdx);
-            if (startArray != null && endArray != null) {
-                final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-                final int startLength = length - (startArray.length - startPos);
-                final int endLength   = length - startLength;
-                System.arraycopy(startArray, startPos,
-                                 dst,        dstPos,
-                                 startLength);
-                System.arraycopy(endArray,   0,
-                                 dst,        dstPos + startLength,
-                                 endLength);
-            }
-            else {
-                Arrays.fill(dst, dstPos, dstPos + length, 0L);
-            }
+            final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
+            final int startLength = length - (startArray.length - startPos);
+            final int endLength   = length - startLength;
+            System.arraycopy(startArray, startPos,
+                             dst,        dstPos,
+                             startLength);
+            System.arraycopy(endArray,   0,
+                             dst,        dstPos + startLength,
+                             endLength);
         }
     }
 
@@ -314,10 +291,6 @@ public class LongArrayHypercube
         if (startIdx == endIdx) {
             // Get the array, creating if needbe
             long[] array = myElements.get(startIdx);
-            if (array == null) {
-                array = allocForIndex(startIdx);
-                myElements.set(startIdx, array);
-            }
 
             // And handle it
             switch (length) {
@@ -358,14 +331,6 @@ public class LongArrayHypercube
             // Split into two copies
             long[] startArray = myElements.get(startIdx);
             long[] endArray   = myElements.get(  endIdx);
-            if (startArray == null) {
-                startArray = allocForIndex(startIdx);
-                myElements.set(startIdx, startArray);
-            }
-            if (endArray == null) {
-                endArray = allocForIndex(endIdx);
-                myElements.set(endIdx, endArray);
-            }
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
@@ -403,12 +368,7 @@ public class LongArrayHypercube
         if (myElements.length() == that.myElements.length()) {
             for (int i=0; i < myElements.length(); i++) {
                 final long[] els = that.myElements.get(i);
-                if (els == null) {
-                    myElements.set(i, null);
-                }
-                else {
-                    myElements.set(i, Arrays.copyOf(els, els.length));
-                }
+                myElements.set(i, Arrays.copyOf(els, els.length));
             }
         }
         else {
@@ -468,7 +428,7 @@ public class LongArrayHypercube
     {
         preRead();
         final long[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        return (array == null) ? 0L : array[(int)(index & MAX_ARRAY_MASK)];
+        return array[(int)(index & MAX_ARRAY_MASK)];
     }
 
     /**
@@ -478,12 +438,7 @@ public class LongArrayHypercube
     public void setAt(final long index, final long value)
         throws IndexOutOfBoundsException
     {
-        final int idx = (int)(index >>> MAX_ARRAY_SHIFT);
-        long[] array = myElements.get(idx);
-        if (array == null) {
-            array = allocForIndex(idx);
-            myElements.set(idx, array);
-        }
+        long[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
         array[(int)(index & MAX_ARRAY_MASK)] = value;
         postWrite();
     }
@@ -519,4 +474,4 @@ public class LongArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 75b9bf9c134058e46f2a3f264a4e32ba)
+// [[[end]]] (checksum: eb04537e9d529ff537d51787a2ddd0a0)

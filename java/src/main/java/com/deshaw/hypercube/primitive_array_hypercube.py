@@ -103,12 +103,7 @@ public class {object_type}ArrayHypercube
     public void fill(final {primitive_type} v)
     {{
         for (int i=0; i < myElements.length(); i++) {{
-            {primitive_type}[] elements = myElements.get(i);
-            if (elements == null) {{
-                elements = allocForIndex(i);
-                myElements.set(i, elements);
-            }}
-            Arrays.fill(elements, v);
+            Arrays.fill(myElements.get(i), v);
         }}
     }}
 
@@ -139,8 +134,7 @@ public class {object_type}ArrayHypercube
         for (int i=0; i < length; i++) {{
             final long pos = srcPos + i;
             final {primitive_type}[] array = myElements.get((int)(pos >>> MAX_ARRAY_SHIFT));
-            final {primitive_type} d =
-                (array == null) ? {primitive_from_null} : array[(int)(pos & MAX_ARRAY_MASK)];
+            final {primitive_type} d = array[(int)(pos & MAX_ARRAY_MASK)];
             dst[dstPos + i] = {object_type}.valueOf(d);
         }}
     }}
@@ -183,10 +177,6 @@ public class {object_type}ArrayHypercube
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_ARRAY_SHIFT);
             {primitive_type}[] array = myElements.get(idx);
-            if (array == null) {{
-                array = allocForIndex(idx);
-                myElements.set(idx, array);
-            }}
             final {object_type} value = src[srcPos + i];
             array[(int)(pos & MAX_ARRAY_MASK)] =
                 (value == null) ? {primitive_from_null} : value.{primitive_type}Value();
@@ -233,42 +223,29 @@ public class {object_type}ArrayHypercube
 
             case 1:
                 // Just the one element
-                dst[dstPos] =
-                    (array == null) ? {primitive_from_null} : array[(int)(srcPos & MAX_ARRAY_MASK)];
+                dst[dstPos] = array[(int)(srcPos & MAX_ARRAY_MASK)];
                 break;
 
             default:
                 // Standard copy within the same sub-array
-                if (array != null) {{
-                    System.arraycopy(
-                        array, (int)(srcPos & MAX_ARRAY_MASK),
-                        dst, dstPos,
-                        length
-                    );
-                }}
-                else {{
-                    Arrays.fill(dst, dstPos, dstPos + length, {primitive_from_null});
-                }}
+                System.arraycopy(array, (int)(srcPos & MAX_ARRAY_MASK),
+                                 dst, dstPos,
+                                 length);
             }}
         }}
         else {{
             // Split into two copies
             final {primitive_type}[] startArray = myElements.get(startIdx);
             final {primitive_type}[] endArray   = myElements.get(  endIdx);
-            if (startArray != null && endArray != null) {{
-                final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-                final int startLength = length - (startArray.length - startPos);
-                final int endLength   = length - startLength;
-                System.arraycopy(startArray, startPos,
-                                 dst,        dstPos,
-                                 startLength);
-                System.arraycopy(endArray,   0,
-                                 dst,        dstPos + startLength,
-                                 endLength);
-            }}
-            else {{
-                Arrays.fill(dst, dstPos, dstPos + length, {primitive_from_null});
-            }}
+            final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
+            final int startLength = length - (startArray.length - startPos);
+            final int endLength   = length - startLength;
+            System.arraycopy(startArray, startPos,
+                             dst,        dstPos,
+                             startLength);
+            System.arraycopy(endArray,   0,
+                             dst,        dstPos + startLength,
+                             endLength);
         }}
     }}
 
@@ -307,10 +284,6 @@ public class {object_type}ArrayHypercube
         if (startIdx == endIdx) {{
             // Get the array, creating if needbe
             {primitive_type}[] array = myElements.get(startIdx);
-            if (array == null) {{
-                array = allocForIndex(startIdx);
-                myElements.set(startIdx, array);
-            }}
 
             // And handle it
             switch (length) {{
@@ -351,14 +324,6 @@ public class {object_type}ArrayHypercube
             // Split into two copies
             {primitive_type}[] startArray = myElements.get(startIdx);
             {primitive_type}[] endArray   = myElements.get(  endIdx);
-            if (startArray == null) {{
-                startArray = allocForIndex(startIdx);
-                myElements.set(startIdx, startArray);
-            }}
-            if (endArray == null) {{
-                endArray = allocForIndex(endIdx);
-                myElements.set(endIdx, endArray);
-            }}
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
@@ -396,12 +361,7 @@ public class {object_type}ArrayHypercube
         if (myElements.length() == that.myElements.length()) {{
             for (int i=0; i < myElements.length(); i++) {{
                 final {primitive_type}[] els = that.myElements.get(i);
-                if (els == null) {{
-                    myElements.set(i, null);
-                }}
-                else {{
-                    myElements.set(i, Arrays.copyOf(els, els.length));
-                }}
+                myElements.set(i, Arrays.copyOf(els, els.length));
             }}
         }}
         else {{
@@ -461,7 +421,7 @@ public class {object_type}ArrayHypercube
     {{
         preRead();
         final {primitive_type}[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        return (array == null) ? {primitive_from_null} : array[(int)(index & MAX_ARRAY_MASK)];
+        return array[(int)(index & MAX_ARRAY_MASK)];
     }}
 
     /**
@@ -471,12 +431,7 @@ public class {object_type}ArrayHypercube
     public void setAt(final long index, final {primitive_type} value)
         throws IndexOutOfBoundsException
     {{
-        final int idx = (int)(index >>> MAX_ARRAY_SHIFT);
-        {primitive_type}[] array = myElements.get(idx);
-        if (array == null) {{
-            array = allocForIndex(idx);
-            myElements.set(idx, array);
-        }}
+        {primitive_type}[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
         array[(int)(index & MAX_ARRAY_MASK)] = value;
         postWrite();
     }}

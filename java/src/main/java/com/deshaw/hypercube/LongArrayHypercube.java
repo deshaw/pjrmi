@@ -22,6 +22,11 @@ public class LongArrayHypercube
     extends AbstractLongHypercube
 {
     /**
+     * An empty array of longs.
+     */
+    private static final long[] EMPTY = new long[0];
+
+    /**
      * The shift for the max array size.
      */
     private static final int MAX_ARRAY_SHIFT = 30;
@@ -41,7 +46,13 @@ public class LongArrayHypercube
      * since we might have a size which is larger than what can be represented
      * by a single array. (I.e. more than 2^30 elements.)
      */
-    private final AtomicReferenceArray<long[]> myElements;
+    private final long[][] myElements;
+
+    /**
+     * The first array in myElements. This is optimistically here to avoid an
+     * extra hop through memory for accesses to smaller cubes.
+     */
+    private final long[] myElements0;
 
     /**
      * Constructor.
@@ -57,12 +68,13 @@ public class LongArrayHypercube
             numArrays++;
         }
 
-        myElements = new AtomicReferenceArray<>(numArrays);
-        for (int i=0; i < myElements.length(); i++) {
+        myElements = new long[numArrays][];
+        for (int i=0; i < myElements.length; i++) {
             final long[] elements = allocForIndex(i);
             Arrays.fill(elements, 0L);
-            myElements.set(i, elements);
+            myElements[i] = elements;
         }
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
     }
 
     /**
@@ -88,19 +100,19 @@ public class LongArrayHypercube
         if (numArrays * MAX_ARRAY_SIZE < size) {
             numArrays++;
         }
-        myElements = new AtomicReferenceArray<>(numArrays);
+        myElements = new long[numArrays][];
         for (int i=0; i < numArrays; i++) {
-            myElements.set(i, allocForIndex(i));
+            myElements[i] = allocForIndex(i);
         }
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
 
-        // There will never be more elements than MAX_ARRAY_SIZE so all these
-        // will fit in the first one.
-        assert(elements.size() <= MAX_ARRAY_SIZE);
+        // Populate
         for (int i=0; i < elements.size(); i++) {
             final Long value = elements.get(i);
-            myElements.get(0)[i] = (value == null) ? 0L
-                                                   : value.longValue();
-       }
+            myElements[(int)(i >>> MAX_ARRAY_SHIFT)][(int)(i & MAX_ARRAY_MASK)] =
+                (value == null) ? 0L
+                                : value.longValue();
+        }
     }
 
     /**
@@ -109,8 +121,8 @@ public class LongArrayHypercube
     @Override
     public void fill(final long v)
     {
-        for (int i=0; i < myElements.length(); i++) {
-            Arrays.fill(myElements.get(i), v);
+        for (int i=0; i < myElements.length; i++) {
+            Arrays.fill(myElements[i], v);
         }
     }
 
@@ -140,7 +152,7 @@ public class LongArrayHypercube
         preRead();
         for (int i=0; i < length; i++) {
             final long pos = srcPos + i;
-            final long[] array = myElements.get((int)(pos >>> MAX_ARRAY_SHIFT));
+            final long[] array = myElements[(int)(pos >>> MAX_ARRAY_SHIFT)];
             final long d = array[(int)(pos & MAX_ARRAY_MASK)];
             dst[dstPos + i] = Long.valueOf(d);
         }
@@ -183,7 +195,7 @@ public class LongArrayHypercube
         for (int i=0; i < length; i++) {
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_ARRAY_SHIFT);
-            long[] array = myElements.get(idx);
+            long[] array = myElements[idx];
             final Long value = src[srcPos + i];
             array[(int)(pos & MAX_ARRAY_MASK)] =
                 (value == null) ? 0L : value.longValue();
@@ -222,7 +234,7 @@ public class LongArrayHypercube
         if (startIdx == endIdx) {
             // What to copy? Try to avoid the overhead of the system call. If we are
             // striding through the cube then we may well have just the one.
-            final long[] array = myElements.get(startIdx);
+            final long[] array = myElements[startIdx];
             switch (length) {
             case 0:
                 // NOP
@@ -242,8 +254,8 @@ public class LongArrayHypercube
         }
         else {
             // Split into two copies
-            final long[] startArray = myElements.get(startIdx);
-            final long[] endArray   = myElements.get(  endIdx);
+            final long[] startArray = myElements[startIdx];
+            final long[] endArray   = myElements[  endIdx];
             final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
             final int startLength = length - (startArray.length - startPos);
             final int endLength   = length - startLength;
@@ -290,7 +302,7 @@ public class LongArrayHypercube
         // striding through the cube then we may well have just the one.
         if (startIdx == endIdx) {
             // Get the array, creating if needbe
-            long[] array = myElements.get(startIdx);
+            long[] array = myElements[startIdx];
 
             // And handle it
             switch (length) {
@@ -329,8 +341,8 @@ public class LongArrayHypercube
         }
         else {
             // Split into two copies
-            long[] startArray = myElements.get(startIdx);
-            long[] endArray   = myElements.get(  endIdx);
+            long[] startArray = myElements[startIdx];
+            long[] endArray   = myElements[  endIdx];
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
@@ -362,17 +374,10 @@ public class LongArrayHypercube
             throw new IllegalArgumentException("Given cube is not compatible");
         }
 
-        // We always expect this to be true but, just in case something really
-        // weird is going on, we fall back to the superclass's method. This
-        // override is really just an optimisation anyhow.
-        if (myElements.length() == that.myElements.length()) {
-            for (int i=0; i < myElements.length(); i++) {
-                final long[] els = that.myElements.get(i);
-                myElements.set(i, Arrays.copyOf(els, els.length));
-            }
-        }
-        else {
-            super.copyFrom((LongHypercube)that);
+        for (int i=0; i < myElements.length; i++) {
+            System.arraycopy(that.myElements[i], 0,
+                             this.myElements[i], 0,
+                             that.myElements[i].length);
         }
     }
 
@@ -427,8 +432,13 @@ public class LongArrayHypercube
         throws IndexOutOfBoundsException
     {
         preRead();
-        final long[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        return array[(int)(index & MAX_ARRAY_MASK)];
+        if (index < MAX_ARRAY_SIZE) {
+            return myElements0[(int)index];
+        }
+        else {
+            final long[] array = myElements[(int)(index >>> MAX_ARRAY_SHIFT)];
+            return array[(int)(index & MAX_ARRAY_MASK)];
+        }
     }
 
     /**
@@ -438,8 +448,13 @@ public class LongArrayHypercube
     public void setAt(final long index, final long value)
         throws IndexOutOfBoundsException
     {
-        long[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        array[(int)(index & MAX_ARRAY_MASK)] = value;
+        if (index < MAX_ARRAY_SIZE) {
+            myElements0[(int)index] = value;
+        }
+        else {
+            long[] array = myElements[(int)(index >>> MAX_ARRAY_SHIFT)];
+            array[(int)(index & MAX_ARRAY_MASK)] = value;
+        }
         postWrite();
     }
 
@@ -467,11 +482,11 @@ public class LongArrayHypercube
         // of MAX_ARRAY_SIZE so we look to account for that. We compute its
         // length as the 'tail' value.
         final long tail = (size & MAX_ARRAY_MASK);
-        final int  sz   = (tail == 0 || index+1 < myElements.length())
+        final int  sz   = (tail == 0 || index+1 < myElements.length)
                               ? (int)MAX_ARRAY_SIZE
                               : (int)tail;
         return new long[sz];
     }
 }
 
-// [[[end]]] (checksum: eb04537e9d529ff537d51787a2ddd0a0)
+// [[[end]]] (checksum: 74f6880c796d90e846e54afcdea55982)

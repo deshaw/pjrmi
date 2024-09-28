@@ -15,6 +15,11 @@ public class {object_type}ArrayHypercube
     extends Abstract{object_type}Hypercube
 {{
     /**
+     * An empty array of {primitive_type}s.
+     */
+    private static final {primitive_type}[] EMPTY = new {primitive_type}[0];
+
+    /**
      * The shift for the max array size.
      */
     private static final int MAX_ARRAY_SHIFT = 30;
@@ -34,7 +39,13 @@ public class {object_type}ArrayHypercube
      * since we might have a size which is larger than what can be represented
      * by a single array. (I.e. more than 2^30 elements.)
      */
-    private final AtomicReferenceArray<{primitive_type}[]> myElements;
+    private final {primitive_type}[][] myElements;
+
+    /**
+     * The first array in myElements. This is optimistically here to avoid an
+     * extra hop through memory for accesses to smaller cubes.
+     */
+    private final {primitive_type}[] myElements0;
 
     /**
      * Constructor.
@@ -50,12 +61,13 @@ public class {object_type}ArrayHypercube
             numArrays++;
         }}
 
-        myElements = new AtomicReferenceArray<>(numArrays);
-        for (int i=0; i < myElements.length(); i++) {{
+        myElements = new {primitive_type}[numArrays][];
+        for (int i=0; i < myElements.length; i++) {{
             final {primitive_type}[] elements = allocForIndex(i);
             Arrays.fill(elements, {primitive_from_null});
-            myElements.set(i, elements);
+            myElements[i] = elements;
         }}
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
     }}
 
     /**
@@ -81,19 +93,19 @@ public class {object_type}ArrayHypercube
         if (numArrays * MAX_ARRAY_SIZE < size) {{
             numArrays++;
         }}
-        myElements = new AtomicReferenceArray<>(numArrays);
+        myElements = new {primitive_type}[numArrays][];
         for (int i=0; i < numArrays; i++) {{
-            myElements.set(i, allocForIndex(i));
+            myElements[i] = allocForIndex(i);
         }}
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
 
-        // There will never be more elements than MAX_ARRAY_SIZE so all these
-        // will fit in the first one.
-        assert(elements.size() <= MAX_ARRAY_SIZE);
+        // Populate
         for (int i=0; i < elements.size(); i++) {{
             final {object_type} value = elements.get(i);
-            myElements.get(0)[i] = (value == null) ? {primitive_from_null}
-                                                   : value.{primitive_type}Value();
-       }}
+            myElements[(int)(i >>> MAX_ARRAY_SHIFT)][(int)(i & MAX_ARRAY_MASK)] =
+                (value == null) ? {primitive_from_null}
+                                : value.{primitive_type}Value();
+        }}
     }}
 
     /**
@@ -102,8 +114,8 @@ public class {object_type}ArrayHypercube
     @Override
     public void fill(final {primitive_type} v)
     {{
-        for (int i=0; i < myElements.length(); i++) {{
-            Arrays.fill(myElements.get(i), v);
+        for (int i=0; i < myElements.length; i++) {{
+            Arrays.fill(myElements[i], v);
         }}
     }}
 
@@ -133,7 +145,7 @@ public class {object_type}ArrayHypercube
         preRead();
         for (int i=0; i < length; i++) {{
             final long pos = srcPos + i;
-            final {primitive_type}[] array = myElements.get((int)(pos >>> MAX_ARRAY_SHIFT));
+            final {primitive_type}[] array = myElements[(int)(pos >>> MAX_ARRAY_SHIFT)];
             final {primitive_type} d = array[(int)(pos & MAX_ARRAY_MASK)];
             dst[dstPos + i] = {object_type}.valueOf(d);
         }}
@@ -176,7 +188,7 @@ public class {object_type}ArrayHypercube
         for (int i=0; i < length; i++) {{
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_ARRAY_SHIFT);
-            {primitive_type}[] array = myElements.get(idx);
+            {primitive_type}[] array = myElements[idx];
             final {object_type} value = src[srcPos + i];
             array[(int)(pos & MAX_ARRAY_MASK)] =
                 (value == null) ? {primitive_from_null} : value.{primitive_type}Value();
@@ -215,7 +227,7 @@ public class {object_type}ArrayHypercube
         if (startIdx == endIdx) {{
             // What to copy? Try to avoid the overhead of the system call. If we are
             // striding through the cube then we may well have just the one.
-            final {primitive_type}[] array = myElements.get(startIdx);
+            final {primitive_type}[] array = myElements[startIdx];
             switch (length) {{
             case 0:
                 // NOP
@@ -235,8 +247,8 @@ public class {object_type}ArrayHypercube
         }}
         else {{
             // Split into two copies
-            final {primitive_type}[] startArray = myElements.get(startIdx);
-            final {primitive_type}[] endArray   = myElements.get(  endIdx);
+            final {primitive_type}[] startArray = myElements[startIdx];
+            final {primitive_type}[] endArray   = myElements[  endIdx];
             final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
             final int startLength = length - (startArray.length - startPos);
             final int endLength   = length - startLength;
@@ -283,7 +295,7 @@ public class {object_type}ArrayHypercube
         // striding through the cube then we may well have just the one.
         if (startIdx == endIdx) {{
             // Get the array, creating if needbe
-            {primitive_type}[] array = myElements.get(startIdx);
+            {primitive_type}[] array = myElements[startIdx];
 
             // And handle it
             switch (length) {{
@@ -322,8 +334,8 @@ public class {object_type}ArrayHypercube
         }}
         else {{
             // Split into two copies
-            {primitive_type}[] startArray = myElements.get(startIdx);
-            {primitive_type}[] endArray   = myElements.get(  endIdx);
+            {primitive_type}[] startArray = myElements[startIdx];
+            {primitive_type}[] endArray   = myElements[  endIdx];
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
@@ -355,17 +367,10 @@ public class {object_type}ArrayHypercube
             throw new IllegalArgumentException("Given cube is not compatible");
         }}
 
-        // We always expect this to be true but, just in case something really
-        // weird is going on, we fall back to the superclass's method. This
-        // override is really just an optimisation anyhow.
-        if (myElements.length() == that.myElements.length()) {{
-            for (int i=0; i < myElements.length(); i++) {{
-                final {primitive_type}[] els = that.myElements.get(i);
-                myElements.set(i, Arrays.copyOf(els, els.length));
-            }}
-        }}
-        else {{
-            super.copyFrom(({object_type}Hypercube)that);
+        for (int i=0; i < myElements.length; i++) {{
+            System.arraycopy(that.myElements[i], 0,
+                             this.myElements[i], 0,
+                             that.myElements[i].length);
         }}
     }}
 
@@ -420,8 +425,13 @@ public class {object_type}ArrayHypercube
         throws IndexOutOfBoundsException
     {{
         preRead();
-        final {primitive_type}[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        return array[(int)(index & MAX_ARRAY_MASK)];
+        if (index < MAX_ARRAY_SIZE) {{
+            return myElements0[(int)index];
+        }}
+        else {{
+            final {primitive_type}[] array = myElements[(int)(index >>> MAX_ARRAY_SHIFT)];
+            return array[(int)(index & MAX_ARRAY_MASK)];
+        }}
     }}
 
     /**
@@ -431,8 +441,13 @@ public class {object_type}ArrayHypercube
     public void setAt(final long index, final {primitive_type} value)
         throws IndexOutOfBoundsException
     {{
-        {primitive_type}[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        array[(int)(index & MAX_ARRAY_MASK)] = value;
+        if (index < MAX_ARRAY_SIZE) {{
+            myElements0[(int)index] = value;
+        }}
+        else {{
+            {primitive_type}[] array = myElements[(int)(index >>> MAX_ARRAY_SHIFT)];
+            array[(int)(index & MAX_ARRAY_MASK)] = value;
+        }}
         postWrite();
     }}
 
@@ -460,7 +475,7 @@ public class {object_type}ArrayHypercube
         // of MAX_ARRAY_SIZE so we look to account for that. We compute its
         // length as the 'tail' value.
         final long tail = (size & MAX_ARRAY_MASK);
-        final int  sz   = (tail == 0 || index+1 < myElements.length())
+        final int  sz   = (tail == 0 || index+1 < myElements.length)
                               ? (int)MAX_ARRAY_SIZE
                               : (int)tail;
         return new {primitive_type}[sz];

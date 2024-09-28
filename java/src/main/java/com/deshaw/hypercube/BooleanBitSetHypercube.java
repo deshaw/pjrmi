@@ -15,6 +15,11 @@ public class BooleanBitSetHypercube
     extends AbstractBooleanHypercube
 {
     /**
+     * An empty BitSet.
+     */
+    private static final BitSet EMPTY = new BitSet(0);
+
+    /**
      * The shift for our max bitset size.
      */
     private static final int MAX_BITSET_SHIFT = 30;
@@ -38,7 +43,13 @@ public class BooleanBitSetHypercube
      * underlying storage when you call set on them. So we force a full
      * allocation which will help to guard against that.
      */
-    private final AtomicReferenceArray<BitSet> myElements;
+    private final BitSet[] myElements;
+
+    /**
+     * The first array in myElements. This is optimistically here to avoid an
+     * extra hop through memory for accesses to smaller cubes.
+     */
+    private final BitSet myElements0;
 
     /**
      * Constructor.
@@ -55,15 +66,16 @@ public class BooleanBitSetHypercube
         }
 
         // Force a full allocation by setting the final bit in each bitset
-        myElements = new AtomicReferenceArray<>(numBitsets);
+        myElements = new BitSet[numBitsets];
         final int maxIdx = (int)(MAX_BITSET_SIZE-1);
-        for (int i=0; i < myElements.length(); i++) {
+        for (int i=0; i < myElements.length; i++) {
             final BitSet elements = allocForIndex(i);
             elements.clear();
             elements.set(maxIdx, true );
             elements.set(maxIdx, false);
-            myElements.set(i, elements);
+            myElements[i] = elements;
         }
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
     }
 
     /**
@@ -89,17 +101,21 @@ public class BooleanBitSetHypercube
         if (numBitsets * MAX_BITSET_SIZE < size) {
             numBitsets++;
         }
-        myElements = new AtomicReferenceArray<>(numBitsets);
+        myElements = new BitSet[numBitsets];
         for (int i=0; i < numBitsets; i++) {
-            myElements.set(i, allocForIndex(i));
+            myElements[i] = allocForIndex(i);
         }
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
 
         // There will never be more elements than MAX_BITSET_SIZE so all these
         // will fit in the first one.
         assert(elements.size() <= MAX_BITSET_SIZE);
         for (int i=0; i < elements.size(); i++) {
             final Boolean value = elements.get(i);
-            myElements.get(0).set(i, (value != null && value));
+            myElements[(int)(i >>> MAX_BITSET_SHIFT)].set(
+                (int)(i & MAX_BITSET_MASK),
+                (value != null && value)
+            );
        }
     }
 
@@ -129,9 +145,8 @@ public class BooleanBitSetHypercube
         preRead();
         for (int i=0; i < length; i++) {
             final long pos = srcPos + i;
-            final BitSet bitset = myElements.get((int)(pos >>> MAX_BITSET_SHIFT));
-            final boolean b =
-                (bitset != null && bitset.get((int)(pos & MAX_BITSET_MASK)));
+            final BitSet bitset = myElements[(int)(pos >>> MAX_BITSET_SHIFT)];
+            final boolean b = bitset.get((int)(pos & MAX_BITSET_MASK));
             dst[dstPos + i] = b;
         }
     }
@@ -173,13 +188,7 @@ public class BooleanBitSetHypercube
         for (int i=0; i < length; i++) {
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_BITSET_SHIFT);
-            BitSet bitset = myElements.get(idx);
-            if (bitset == null) {
-                bitset = allocForIndex(idx);
-                if (!myElements.compareAndSet(idx, null, bitset)) {
-                    bitset = myElements.get(idx);
-                }
-            }
+            final BitSet bitset = myElements[idx];
             final Boolean value = src[srcPos + i];
             bitset.set((int)(pos & MAX_BITSET_MASK),
                        (value != null && value));
@@ -215,9 +224,8 @@ public class BooleanBitSetHypercube
         preRead();
         for (int i=0; i < length; i++) {
             final long pos = srcPos + i;
-            final BitSet bitset = myElements.get((int)(pos >>> MAX_BITSET_SHIFT));
-            final boolean b =
-                (bitset != null && bitset.get((int)(pos & MAX_BITSET_MASK)));
+            final BitSet bitset = myElements[(int)(pos >>> MAX_BITSET_SHIFT)];
+            final boolean b = bitset.get((int)(pos & MAX_BITSET_MASK));
             dst[dstPos + i] = b;
         }
     }
@@ -252,16 +260,9 @@ public class BooleanBitSetHypercube
         for (int i=0; i < length; i++) {
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_BITSET_SHIFT);
-            BitSet bitset = myElements.get(idx);
-            if (bitset == null) {
-                bitset = allocForIndex(idx);
-                if (!myElements.compareAndSet(idx, null, bitset)) {
-                    bitset = myElements.get(idx);
-                }
-            }
-            final Boolean value = src[srcPos + i];
-            bitset.set((int)(pos & MAX_BITSET_MASK),
-                       (value != null && value));
+            final BitSet bitset = myElements[idx];
+            final boolean value = src[srcPos + i];
+            bitset.set((int)(pos & MAX_BITSET_MASK), value);
         }
         postWrite();
     }
@@ -321,8 +322,13 @@ public class BooleanBitSetHypercube
         }
 
         preRead();
-        final BitSet bitset = myElements.get((int)(index >>> MAX_BITSET_SHIFT));
-        return (bitset != null && bitset.get((int)(index & MAX_BITSET_MASK)));
+        if (index < MAX_BITSET_SIZE) {
+            return myElements0.get((int)index);
+        }
+        else {
+            final BitSet bitset = myElements[(int)(index >>> MAX_BITSET_SHIFT)];
+            return bitset.get((int)(index & MAX_BITSET_MASK));
+        }
     }
 
     /**
@@ -338,15 +344,14 @@ public class BooleanBitSetHypercube
             );
         }
 
-        final int idx = (int)(index >>> MAX_BITSET_SHIFT);
-        BitSet bitset = myElements.get(idx);
-        if (bitset == null) {
-            bitset = allocForIndex(idx);
-            if (!myElements.compareAndSet(idx, null, bitset)) {
-                bitset = myElements.get(idx);
-            }
+        if (index < MAX_BITSET_SIZE) {
+            myElements0.set((int)index, value);
         }
-        bitset.set((int)(index & MAX_BITSET_MASK), value);
+        else {
+            final int idx = (int)(index >>> MAX_BITSET_SHIFT);
+            final BitSet bitset = myElements[idx];
+            bitset.set((int)(index & MAX_BITSET_MASK), value);
+        }
         postWrite();
     }
 
@@ -375,7 +380,7 @@ public class BooleanBitSetHypercube
         // length as the 'tail' value. We force a full allocation by setting the
         // final bit in each bitset
         final long tail = (size & MAX_BITSET_MASK);
-        final int  sz   = (tail == 0 || index+1 < myElements.length())
+        final int  sz   = (tail == 0 || index+1 < myElements.length)
                               ? (int)MAX_BITSET_SIZE
                               : (int)tail;
         final BitSet result = new BitSet(sz);

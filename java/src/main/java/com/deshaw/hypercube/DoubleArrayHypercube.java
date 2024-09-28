@@ -22,6 +22,11 @@ public class DoubleArrayHypercube
     extends AbstractDoubleHypercube
 {
     /**
+     * An empty array of doubles.
+     */
+    private static final double[] EMPTY = new double[0];
+
+    /**
      * The shift for the max array size.
      */
     private static final int MAX_ARRAY_SHIFT = 30;
@@ -41,7 +46,13 @@ public class DoubleArrayHypercube
      * since we might have a size which is larger than what can be represented
      * by a single array. (I.e. more than 2^30 elements.)
      */
-    private final AtomicReferenceArray<double[]> myElements;
+    private final double[][] myElements;
+
+    /**
+     * The first array in myElements. This is optimistically here to avoid an
+     * extra hop through memory for accesses to smaller cubes.
+     */
+    private final double[] myElements0;
 
     /**
      * Constructor.
@@ -57,12 +68,13 @@ public class DoubleArrayHypercube
             numArrays++;
         }
 
-        myElements = new AtomicReferenceArray<>(numArrays);
-        for (int i=0; i < myElements.length(); i++) {
+        myElements = new double[numArrays][];
+        for (int i=0; i < myElements.length; i++) {
             final double[] elements = allocForIndex(i);
             Arrays.fill(elements, Double.NaN);
-            myElements.set(i, elements);
+            myElements[i] = elements;
         }
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
     }
 
     /**
@@ -88,19 +100,19 @@ public class DoubleArrayHypercube
         if (numArrays * MAX_ARRAY_SIZE < size) {
             numArrays++;
         }
-        myElements = new AtomicReferenceArray<>(numArrays);
+        myElements = new double[numArrays][];
         for (int i=0; i < numArrays; i++) {
-            myElements.set(i, allocForIndex(i));
+            myElements[i] = allocForIndex(i);
         }
+        myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
 
-        // There will never be more elements than MAX_ARRAY_SIZE so all these
-        // will fit in the first one.
-        assert(elements.size() <= MAX_ARRAY_SIZE);
+        // Populate
         for (int i=0; i < elements.size(); i++) {
             final Double value = elements.get(i);
-            myElements.get(0)[i] = (value == null) ? Double.NaN
-                                                   : value.doubleValue();
-       }
+            myElements[(int)(i >>> MAX_ARRAY_SHIFT)][(int)(i & MAX_ARRAY_MASK)] =
+                (value == null) ? Double.NaN
+                                : value.doubleValue();
+        }
     }
 
     /**
@@ -109,8 +121,8 @@ public class DoubleArrayHypercube
     @Override
     public void fill(final double v)
     {
-        for (int i=0; i < myElements.length(); i++) {
-            Arrays.fill(myElements.get(i), v);
+        for (int i=0; i < myElements.length; i++) {
+            Arrays.fill(myElements[i], v);
         }
     }
 
@@ -140,7 +152,7 @@ public class DoubleArrayHypercube
         preRead();
         for (int i=0; i < length; i++) {
             final long pos = srcPos + i;
-            final double[] array = myElements.get((int)(pos >>> MAX_ARRAY_SHIFT));
+            final double[] array = myElements[(int)(pos >>> MAX_ARRAY_SHIFT)];
             final double d = array[(int)(pos & MAX_ARRAY_MASK)];
             dst[dstPos + i] = Double.valueOf(d);
         }
@@ -183,7 +195,7 @@ public class DoubleArrayHypercube
         for (int i=0; i < length; i++) {
             final long pos = dstPos + i;
             final int  idx = (int)(pos >>> MAX_ARRAY_SHIFT);
-            double[] array = myElements.get(idx);
+            double[] array = myElements[idx];
             final Double value = src[srcPos + i];
             array[(int)(pos & MAX_ARRAY_MASK)] =
                 (value == null) ? Double.NaN : value.doubleValue();
@@ -222,7 +234,7 @@ public class DoubleArrayHypercube
         if (startIdx == endIdx) {
             // What to copy? Try to avoid the overhead of the system call. If we are
             // striding through the cube then we may well have just the one.
-            final double[] array = myElements.get(startIdx);
+            final double[] array = myElements[startIdx];
             switch (length) {
             case 0:
                 // NOP
@@ -242,8 +254,8 @@ public class DoubleArrayHypercube
         }
         else {
             // Split into two copies
-            final double[] startArray = myElements.get(startIdx);
-            final double[] endArray   = myElements.get(  endIdx);
+            final double[] startArray = myElements[startIdx];
+            final double[] endArray   = myElements[  endIdx];
             final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
             final int startLength = length - (startArray.length - startPos);
             final int endLength   = length - startLength;
@@ -290,7 +302,7 @@ public class DoubleArrayHypercube
         // striding through the cube then we may well have just the one.
         if (startIdx == endIdx) {
             // Get the array, creating if needbe
-            double[] array = myElements.get(startIdx);
+            double[] array = myElements[startIdx];
 
             // And handle it
             switch (length) {
@@ -329,8 +341,8 @@ public class DoubleArrayHypercube
         }
         else {
             // Split into two copies
-            double[] startArray = myElements.get(startIdx);
-            double[] endArray   = myElements.get(  endIdx);
+            double[] startArray = myElements[startIdx];
+            double[] endArray   = myElements[  endIdx];
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
@@ -362,17 +374,10 @@ public class DoubleArrayHypercube
             throw new IllegalArgumentException("Given cube is not compatible");
         }
 
-        // We always expect this to be true but, just in case something really
-        // weird is going on, we fall back to the superclass's method. This
-        // override is really just an optimisation anyhow.
-        if (myElements.length() == that.myElements.length()) {
-            for (int i=0; i < myElements.length(); i++) {
-                final double[] els = that.myElements.get(i);
-                myElements.set(i, Arrays.copyOf(els, els.length));
-            }
-        }
-        else {
-            super.copyFrom((DoubleHypercube)that);
+        for (int i=0; i < myElements.length; i++) {
+            System.arraycopy(that.myElements[i], 0,
+                             this.myElements[i], 0,
+                             that.myElements[i].length);
         }
     }
 
@@ -427,8 +432,13 @@ public class DoubleArrayHypercube
         throws IndexOutOfBoundsException
     {
         preRead();
-        final double[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        return array[(int)(index & MAX_ARRAY_MASK)];
+        if (index < MAX_ARRAY_SIZE) {
+            return myElements0[(int)index];
+        }
+        else {
+            final double[] array = myElements[(int)(index >>> MAX_ARRAY_SHIFT)];
+            return array[(int)(index & MAX_ARRAY_MASK)];
+        }
     }
 
     /**
@@ -438,8 +448,13 @@ public class DoubleArrayHypercube
     public void setAt(final long index, final double value)
         throws IndexOutOfBoundsException
     {
-        double[] array = myElements.get((int)(index >>> MAX_ARRAY_SHIFT));
-        array[(int)(index & MAX_ARRAY_MASK)] = value;
+        if (index < MAX_ARRAY_SIZE) {
+            myElements0[(int)index] = value;
+        }
+        else {
+            double[] array = myElements[(int)(index >>> MAX_ARRAY_SHIFT)];
+            array[(int)(index & MAX_ARRAY_MASK)] = value;
+        }
         postWrite();
     }
 
@@ -467,11 +482,11 @@ public class DoubleArrayHypercube
         // of MAX_ARRAY_SIZE so we look to account for that. We compute its
         // length as the 'tail' value.
         final long tail = (size & MAX_ARRAY_MASK);
-        final int  sz   = (tail == 0 || index+1 < myElements.length())
+        final int  sz   = (tail == 0 || index+1 < myElements.length)
                               ? (int)MAX_ARRAY_SIZE
                               : (int)tail;
         return new double[sz];
     }
 }
 
-// [[[end]]] (checksum: b88a57b3feb95aaffba5dd3124475ddf)
+// [[[end]]] (checksum: 3230aaea35ca70ce4f6fa659f8e8e03f)

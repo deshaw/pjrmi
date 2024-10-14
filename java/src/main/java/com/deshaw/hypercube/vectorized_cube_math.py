@@ -541,6 +541,111 @@ public class {class_name}
                 }}
                 break;
 ''',
+
+    'MATMUL_DOT_OP': '''\
+                            // The length of the column and row are the same
+                            final {primitive_type}[] arow = new {primitive_type}[bcol.length];
+                            final long[] ai = new long[] {{ 0,  0 }};
+                            final long[] bi = new long[] {{ 0, jf }};
+                            final long[] ri = new long[] {{ 0, jf }};
+                            final boolean exact = (arow.length % {species_length} == 0);
+                            final {primitive_type}[] array =
+                                exact ? null : new {primitive_type}[{species_length} << 1];
+                            for (long i = startIndex; i < endIndex; i++) {{
+                                ai[0] = ri[0] = i;
+                                long ao = a.toOffset(ai);
+                                a.toFlattened(ao, arow, 0, arow.length);
+
+                                // Now do the dot product
+                                {primitive_type} sum = 0;
+                                int offset = 0;
+                                for (final int end = exact ? bcol.length
+                                                           : bcol.length - {species_length};
+                                     offset < end;
+                                     offset += {species_length})
+                                {{
+                                    sum += {to_vector_prefix}({species}, arow, offset){to_vector_suffix}.mul(
+                                               {to_vector_prefix}({species}, bcol, offset){to_vector_suffix}
+                                           ).reduceLanes(VectorOperators.ADD);
+                                }}
+                                if (!exact) {{
+                                    // Same as above, only make sure to only consider
+                                    // elements up until what's left. We copy the
+                                    // values into a single array to save on allocations
+                                    // and since it will be more cache-friendly. We only
+                                    // need to copy bcols once since it won't change
+                                    // between runs.
+                                    final int left = bcol.length - offset;
+                                    System.arraycopy(arow, offset, array, 0, left);
+                                    if (i == startIndex) {{
+                                        System.arraycopy(bcol, offset, array, {species_length}, left);
+                                    }}
+                                    sum += {to_vector_prefix}({species}, array, 0){to_vector_suffix}.mul(
+                                               {to_vector_prefix}({species}, array, {species_length}){to_vector_suffix}
+                                           ).reduceLanes(
+                                               VectorOperators.ADD,
+                                               VectorMask.fromLong({species}, ((1L << left) - 1))
+                                           );
+                                }}
+                                r.set(sum, ri);
+                            }}
+''',
+
+    'MATMUL_DOT_OP_NAIVE': '''\
+                // The length of the column and row are the same
+                final {primitive_type}[] arow  = new {primitive_type}[bcol.length];
+                final boolean exact = (arow.length % {species_length} == 0);
+                final {primitive_type}[] array =
+                    exact ? null : new {primitive_type}[{species_length} << 1];
+
+                // Where we start striding, see below
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+                ai[1] = bi[0] = 0;
+                bi[1] = ri[1] = j;
+
+                // Walk all the rows and dot them against the column
+                for (long i=0; i < numRows; i++) {{
+                    // The row index, and a copy of it for the vectors
+                    ai[0] = ri[0] = i;
+                    long ao = a.toOffset(ai);
+                    a.toFlattened(ao, arow, 0, arow.length);
+
+                    // Now do the dot product
+                    {primitive_type} sum = 0;
+                    int offset = 0;
+                    for (final int end = exact ? bcol.length
+                                               : bcol.length - {species_length};
+                         offset < end;
+                         offset += {species_length})
+                    {{
+                        sum += {to_vector_prefix}({species}, arow, offset){to_vector_suffix}.mul(
+                                   {to_vector_prefix}({species}, bcol, offset){to_vector_suffix}
+                               ).reduceLanes(VectorOperators.ADD);
+                    }}
+                    if (!exact) {{
+                        // Same as above, only make sure to only consider
+                        // elements up until what's left. We copy the
+                        // values into a single array to save on allocations
+                        // and since it will be more cache-friendly. We only
+                        // need to copy bcols once since it won't change
+                        // between runs.
+                        final int left = bcol.length - offset;
+                        System.arraycopy(arow, offset, array, 0, left);
+                        if (i == 0) {{
+                            System.arraycopy(bcol, offset, array, {species_length}, left);
+                        }}
+                        sum += {to_vector_prefix}({species}, array, 0){to_vector_suffix}.mul(
+                                   {to_vector_prefix}({species}, array, {species_length}){to_vector_suffix}
+                               ).reduceLanes(
+                                   VectorOperators.ADD,
+                                   VectorMask.fromLong({species}, ((1L << left) - 1))
+                               );
+                    }}
+                    r.set(sum, ri);
+                }}
+''',
 }
 
 def add_java_docs():
@@ -639,7 +744,7 @@ def generate():
 
     # Some operation are not supported in the Vector API. Reflect this in the
     # JavaDoc of the corresponding methods.
-    add_java_docs();
+    add_java_docs()
 
     for dtype in dtypes:
         kwargs = _get_kwargs_for_dtype(dtype)

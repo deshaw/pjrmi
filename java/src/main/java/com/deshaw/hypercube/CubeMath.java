@@ -4711,15 +4711,15 @@ public class CubeMath
      * that the resulting cube will always be 1-dimensional (this is equivalent
      * to {@code numpy.extract}'s behavior), e.g: <pre>
      *
-     *   [[1, 2, 3],               [[False, False, False],
-     *    [4, 5, 6],  selected by   [False, True,  True ],  ==> [5, 6, 7, 8, 9]
-     *    [7, 8, 9]]                [True,  True,  True ]]
+     *   [[1, 2, 3],              [[False, False, False],
+     *    [4, 5, 6],  selected by  [False, True,  True ], becomes [5, 6, 7, 8, 9]
+     *    [7, 8, 9]]               [True,  True,  True ]]
      *
      * </pre>
      *
-     * @params c A cube describing the condition. If an element of c is set to
+     * @param c  A cube describing the condition. If an element of c is set to
      *           {@code True}, the corresponding element of the cube is extracted.
-     * @params a The cube to extract from.
+     * @param a  The cube to extract from.
      *
      * @return The resulting cube containing only the elements where the
      *         corresponding element in the condition evaluate to {@code True}.
@@ -5634,7 +5634,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -5781,7 +5788,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -5928,7 +5942,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -6075,7 +6096,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -6222,7 +6250,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -6458,7 +6493,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -6605,7 +6647,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -6752,7 +6801,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -6899,7 +6955,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -7046,7 +7109,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -7282,7 +7352,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -7429,7 +7506,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -7576,7 +7660,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -7723,7 +7814,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -7870,7 +7968,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -8106,7 +8211,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -8253,7 +8365,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -8400,7 +8519,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -8547,7 +8673,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -8694,7 +8827,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -8930,7 +9070,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -9077,7 +9224,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -9224,7 +9378,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -9371,7 +9532,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -9518,7 +9686,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -9655,7 +9830,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -9923,7 +10105,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -10104,7 +10293,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -10305,7 +10501,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -10615,7 +10818,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -10837,7 +11047,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -11011,7 +11228,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -11313,55 +11537,49 @@ public class CubeMath
                 final long[] ai = new long[2];
                 final long[] bi = new long[2];
                 final long[] ri = new long[2];
-
                 try {
                     final IntegerHypercube da = (IntegerHypercube)a;
                     final IntegerHypercube db = (IntegerHypercube)b;
                     final IntegerHypercube dr = (IntegerHypercube)r;
 
-                    // We will copy out the column from 'b' for faster access,
-                    // if it's small enough to fit into an array. 2^30 doubles
-                    // is 16GB for one column which is totally possible for a
-                    // non-square matrix but, we hope, most matrices will not be
-                    // quite that big. We could use an array of arrays to handle
-                    // that case but this is slower for the general case.
-                    final int[] bcol = (bDims[0].length() < 1<<30)
-                        ? new int[(int)bDims[0].length()]
-                        : null;
+                    // We can out the column from 'b' for faster access if it's
+                    // small enough to fit into an array. 2^30 doubles is 16GB
+                    // for one column which is totally possible for a non-square
+                    // matrix but, we hope, most matrices will not be quite that
+                    // big. We could use an array of arrays to handle that case
+                    // but this is slower for the general case.
+                    if (bDims[0].length() <= 1<<30) {
+                        // Hand off to the smarter method which will copy out
+                        // the column and use multi-threading
+                        intMatMul2D(da, db, dr);
+                    }
+                    else {
+                        // Where we start striding, see below.
+                        ai[1] = bi[0] = 0;
 
-                    // Where we start striding, see below.
-                    ai[1] = bi[0] = 0;
+                        // The stride through the flattened data, to walk a column
+                        // in 'b'. We know that the format of the data is C-style in
+                        // flattened form, so moving one row length in distance will
+                        // step down one column index.
+                        final long bs = bDims[1].length();
 
-                    // The stride through the flattened data, to walk a column
-                    // in 'b'. We know that the format of the data is C-style in
-                    // flattened form, so moving one row length in distance will
-                    // step down one column index.
-                    final long bs = bDims[1].length();
-
-                    // Flipped the ordering of 'i' and 'j' since it's more cache
-                    // efficient to copy out the column data (once) and then to
-                    // stride through the rows each time.
-                    for (long j=0; j < bDims[1].length(); j++) {
-                        bi[1] = ri[1] = j;
-                        if (bcol != null) {
-                            long bo = db.toOffset(bi);
-                            for (int i=0; i < bcol.length; i++, bo += bs) {
-                                bcol[i] = db.getAt(bo);
-                            }
-                        }
-                        for (long i=0; i < aDims[0].length(); i++) {
-                            // We will stride through the two cubes pulling out
-                            // the values for the sum directly, since we know
-                            // their shape. This is much faster than going via
-                            // the coordinate-based lookup. The stride in 'a' is
-                            // 1 since it's walking along a row; in b it's the
-                            // the row length, since it's walking along a column.
-                            // Both will be the same number of steps so we only
-                            // need to know when to stop talking in 'a'.
-                            ai[0] = ri[0] = i;
-                            long ao = da.toOffset(ai);
-                            int sum = 0;
-                            if (bcol == null) {
+                        // Flipped the ordering of 'i' and 'j' since it's more cache
+                        // efficient to copy out the column data (once) and then to
+                        // stride through the rows each time.
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            for (long i=0; i < aDims[0].length(); i++) {
+                                // We will stride through the two cubes pulling out
+                                // the values for the sum directly, since we know
+                                // their shape. This is much faster than going via
+                                // the coordinate-based lookup. The stride in 'a' is
+                                // 1 since it's walking along a row; in b it's the
+                                // the row length, since it's walking along a column.
+                                // Both will be the same number of steps so we only
+                                // need to know when to stop walking in 'a'.
+                                ai[0] = ri[0] = i;
+                                long ao = da.toOffset(ai);
+                                int sum = 0;
                                 final long ae = ao + aDims[1].length();
                                 for (long bo = db.toOffset(bi);
                                      ao < ae; ao++,
@@ -11369,13 +11587,8 @@ public class CubeMath
                                 {
                                     sum += da.getAt(ao) * db.getAt(bo);
                                 }
+                                dr.set(sum, ri);
                             }
-                            else {
-                                for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                                    sum += da.getAt(ao) * bcol[bo];
-                                }
-                            }
-                            dr.set(sum, ri);
                         }
                     }
                 }
@@ -11766,7 +11979,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -11831,6 +12051,140 @@ public class CubeMath
 
         // Always return the result
         return Integer.valueOf(r);
+    }
+
+    /**
+     * Handle a 2D matrix multiply.
+     */
+    private static void intMatMul2D(
+        final IntegerHypercube a,
+        final IntegerHypercube b,
+        final IntegerHypercube r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        final Dimension<?>[] aDims = a.getDimensions();
+        final Dimension<?>[] bDims = b.getDimensions();
+
+        // We will copy out the column from 'b' for faster access, if it's small
+        // enough to fit into an array. If we got here then the caller should
+        // have handled getting this right for us.
+        if (bDims[0].length() > 1<<30) {
+            throw new IllegalArgumentException(
+                "Axis was too large: " + bDims[0].length()
+            );
+        }
+        final int[] bcol =
+            new int[(int)bDims[0].length()];
+
+        // The stride through the flattened data, to walk a column
+        // in 'b'. We know that the format of the data is C-style in
+        // flattened form, so moving one row length in distance will
+        // step down one column index.
+        final long bs = bDims[1].length();
+
+        // Flipped the ordering of 'i' and 'j' since it's more cache
+        // efficient to copy out the column data (once) and then to
+        // stride through the rows each time.
+        for (long j=0; j < bDims[1].length(); j++) {
+            long bco = b.toOffset(0, j);
+            for (int i=0; i < bcol.length; i++, bco += bs) {
+                bcol[i] = b.getAt(bco);
+            }
+
+            // We will stride through the two cubes pulling out the values
+            // for the sum directly, since we know their shape. This is much
+            // faster than going via the coordinate-based lookup. The stride in
+            // 'a' is 1 since it's walking along a row; in b it's the the row
+            // length, since it's walking along a column. Both will be the same
+            // number of steps so we only need to know when to stop walking in
+            // 'a'.
+            //
+            // Only use multi-threading if it is enabled and if the cubes are
+            // large enough to justify the overhead, noting that matmul is
+            // an O(n^3) operation.
+            final long numRows = aDims[0].length();
+            if (ourExecutorService == null ||
+                (numRows * numRows * numRows) < THREADING_THRESHOLD)
+            {
+                // Where we start striding, see below
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+                ai[1] = bi[0] = 0;
+                bi[1] = ri[1] = j;
+
+                for (long i=0; i < numRows; i++) {
+                    ai[0] = ri[0] = i;
+                    long ao = a.toOffset(ai);
+                    int sum = 0;
+                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
+                        sum += a.getAt(ao) * bcol[bo];
+                    }
+                    r.set(sum, ri);
+                }
+            }
+            else {
+                // How many threads to use. This should not be more than there
+                // are rows.
+                final int numThreads = (int)Math.min(numRows, NUM_THREADS);
+
+                // Initialize a countdown to wait for all threads to finish
+                // processing.
+                final CountDownLatch latch = new CountDownLatch(numThreads);
+
+                // Bucket size for each thread, we use +1 to kinda ceil the
+                // result which gives a somewhat better distribution. We do
+                // this in such a way as to avoid double-rounding errors.
+                final long threadRows = numRows / numThreads;
+                final long bucket = threadRows +
+                                  ((threadRows * numThreads == numRows) ? 0 : 1);
+                for (int t=0; t < numThreads; t++) {
+                    final long startIndex = bucket * t;
+                    final long endIndex =
+                        (t == numThreads-1) ? numRows
+                                            : Math.min(bucket * (t+1), numRows);
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+
+                    // Submit this subtask to the thread pool
+                    final long jf = j; // <-- "final j"
+                    ourExecutorService.submit(() -> {
+                        try {
+                            final long[] ai = new long[] { 0,  0 };
+                            final long[] bi = new long[] { 0, jf };
+                            final long[] ri = new long[] { 0, jf };
+                            for (long i = startIndex; i < endIndex; i++) {
+                                ai[0] = ri[0] = i;
+                                long ao = a.toOffset(ai);
+                                int sum = 0;
+                                for (int bo=0; bo < bcol.length; ao++, bo++) {
+                                    sum += a.getAt(ao) * bcol[bo];
+                                }
+                                r.set(sum, ri);
+                            }
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -12075,7 +12429,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -12266,7 +12627,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -12469,7 +12837,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -12779,7 +13154,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -13001,7 +13383,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -13175,7 +13564,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -13477,55 +13873,49 @@ public class CubeMath
                 final long[] ai = new long[2];
                 final long[] bi = new long[2];
                 final long[] ri = new long[2];
-
                 try {
                     final LongHypercube da = (LongHypercube)a;
                     final LongHypercube db = (LongHypercube)b;
                     final LongHypercube dr = (LongHypercube)r;
 
-                    // We will copy out the column from 'b' for faster access,
-                    // if it's small enough to fit into an array. 2^30 doubles
-                    // is 16GB for one column which is totally possible for a
-                    // non-square matrix but, we hope, most matrices will not be
-                    // quite that big. We could use an array of arrays to handle
-                    // that case but this is slower for the general case.
-                    final long[] bcol = (bDims[0].length() < 1<<30)
-                        ? new long[(int)bDims[0].length()]
-                        : null;
+                    // We can out the column from 'b' for faster access if it's
+                    // small enough to fit into an array. 2^30 doubles is 16GB
+                    // for one column which is totally possible for a non-square
+                    // matrix but, we hope, most matrices will not be quite that
+                    // big. We could use an array of arrays to handle that case
+                    // but this is slower for the general case.
+                    if (bDims[0].length() <= 1<<30) {
+                        // Hand off to the smarter method which will copy out
+                        // the column and use multi-threading
+                        longMatMul2D(da, db, dr);
+                    }
+                    else {
+                        // Where we start striding, see below.
+                        ai[1] = bi[0] = 0;
 
-                    // Where we start striding, see below.
-                    ai[1] = bi[0] = 0;
+                        // The stride through the flattened data, to walk a column
+                        // in 'b'. We know that the format of the data is C-style in
+                        // flattened form, so moving one row length in distance will
+                        // step down one column index.
+                        final long bs = bDims[1].length();
 
-                    // The stride through the flattened data, to walk a column
-                    // in 'b'. We know that the format of the data is C-style in
-                    // flattened form, so moving one row length in distance will
-                    // step down one column index.
-                    final long bs = bDims[1].length();
-
-                    // Flipped the ordering of 'i' and 'j' since it's more cache
-                    // efficient to copy out the column data (once) and then to
-                    // stride through the rows each time.
-                    for (long j=0; j < bDims[1].length(); j++) {
-                        bi[1] = ri[1] = j;
-                        if (bcol != null) {
-                            long bo = db.toOffset(bi);
-                            for (int i=0; i < bcol.length; i++, bo += bs) {
-                                bcol[i] = db.getAt(bo);
-                            }
-                        }
-                        for (long i=0; i < aDims[0].length(); i++) {
-                            // We will stride through the two cubes pulling out
-                            // the values for the sum directly, since we know
-                            // their shape. This is much faster than going via
-                            // the coordinate-based lookup. The stride in 'a' is
-                            // 1 since it's walking along a row; in b it's the
-                            // the row length, since it's walking along a column.
-                            // Both will be the same number of steps so we only
-                            // need to know when to stop talking in 'a'.
-                            ai[0] = ri[0] = i;
-                            long ao = da.toOffset(ai);
-                            long sum = 0;
-                            if (bcol == null) {
+                        // Flipped the ordering of 'i' and 'j' since it's more cache
+                        // efficient to copy out the column data (once) and then to
+                        // stride through the rows each time.
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            for (long i=0; i < aDims[0].length(); i++) {
+                                // We will stride through the two cubes pulling out
+                                // the values for the sum directly, since we know
+                                // their shape. This is much faster than going via
+                                // the coordinate-based lookup. The stride in 'a' is
+                                // 1 since it's walking along a row; in b it's the
+                                // the row length, since it's walking along a column.
+                                // Both will be the same number of steps so we only
+                                // need to know when to stop walking in 'a'.
+                                ai[0] = ri[0] = i;
+                                long ao = da.toOffset(ai);
+                                long sum = 0;
                                 final long ae = ao + aDims[1].length();
                                 for (long bo = db.toOffset(bi);
                                      ao < ae; ao++,
@@ -13533,13 +13923,8 @@ public class CubeMath
                                 {
                                     sum += da.getAt(ao) * db.getAt(bo);
                                 }
+                                dr.set(sum, ri);
                             }
-                            else {
-                                for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                                    sum += da.getAt(ao) * bcol[bo];
-                                }
-                            }
-                            dr.set(sum, ri);
                         }
                     }
                 }
@@ -13930,7 +14315,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -13995,6 +14387,140 @@ public class CubeMath
 
         // Always return the result
         return Long.valueOf(r);
+    }
+
+    /**
+     * Handle a 2D matrix multiply.
+     */
+    private static void longMatMul2D(
+        final LongHypercube a,
+        final LongHypercube b,
+        final LongHypercube r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        final Dimension<?>[] aDims = a.getDimensions();
+        final Dimension<?>[] bDims = b.getDimensions();
+
+        // We will copy out the column from 'b' for faster access, if it's small
+        // enough to fit into an array. If we got here then the caller should
+        // have handled getting this right for us.
+        if (bDims[0].length() > 1<<30) {
+            throw new IllegalArgumentException(
+                "Axis was too large: " + bDims[0].length()
+            );
+        }
+        final long[] bcol =
+            new long[(int)bDims[0].length()];
+
+        // The stride through the flattened data, to walk a column
+        // in 'b'. We know that the format of the data is C-style in
+        // flattened form, so moving one row length in distance will
+        // step down one column index.
+        final long bs = bDims[1].length();
+
+        // Flipped the ordering of 'i' and 'j' since it's more cache
+        // efficient to copy out the column data (once) and then to
+        // stride through the rows each time.
+        for (long j=0; j < bDims[1].length(); j++) {
+            long bco = b.toOffset(0, j);
+            for (int i=0; i < bcol.length; i++, bco += bs) {
+                bcol[i] = b.getAt(bco);
+            }
+
+            // We will stride through the two cubes pulling out the values
+            // for the sum directly, since we know their shape. This is much
+            // faster than going via the coordinate-based lookup. The stride in
+            // 'a' is 1 since it's walking along a row; in b it's the the row
+            // length, since it's walking along a column. Both will be the same
+            // number of steps so we only need to know when to stop walking in
+            // 'a'.
+            //
+            // Only use multi-threading if it is enabled and if the cubes are
+            // large enough to justify the overhead, noting that matmul is
+            // an O(n^3) operation.
+            final long numRows = aDims[0].length();
+            if (ourExecutorService == null ||
+                (numRows * numRows * numRows) < THREADING_THRESHOLD)
+            {
+                // Where we start striding, see below
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+                ai[1] = bi[0] = 0;
+                bi[1] = ri[1] = j;
+
+                for (long i=0; i < numRows; i++) {
+                    ai[0] = ri[0] = i;
+                    long ao = a.toOffset(ai);
+                    long sum = 0;
+                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
+                        sum += a.getAt(ao) * bcol[bo];
+                    }
+                    r.set(sum, ri);
+                }
+            }
+            else {
+                // How many threads to use. This should not be more than there
+                // are rows.
+                final int numThreads = (int)Math.min(numRows, NUM_THREADS);
+
+                // Initialize a countdown to wait for all threads to finish
+                // processing.
+                final CountDownLatch latch = new CountDownLatch(numThreads);
+
+                // Bucket size for each thread, we use +1 to kinda ceil the
+                // result which gives a somewhat better distribution. We do
+                // this in such a way as to avoid double-rounding errors.
+                final long threadRows = numRows / numThreads;
+                final long bucket = threadRows +
+                                  ((threadRows * numThreads == numRows) ? 0 : 1);
+                for (int t=0; t < numThreads; t++) {
+                    final long startIndex = bucket * t;
+                    final long endIndex =
+                        (t == numThreads-1) ? numRows
+                                            : Math.min(bucket * (t+1), numRows);
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+
+                    // Submit this subtask to the thread pool
+                    final long jf = j; // <-- "final j"
+                    ourExecutorService.submit(() -> {
+                        try {
+                            final long[] ai = new long[] { 0,  0 };
+                            final long[] bi = new long[] { 0, jf };
+                            final long[] ri = new long[] { 0, jf };
+                            for (long i = startIndex; i < endIndex; i++) {
+                                ai[0] = ri[0] = i;
+                                long ao = a.toOffset(ai);
+                                long sum = 0;
+                                for (int bo=0; bo < bcol.length; ao++, bo++) {
+                                    sum += a.getAt(ao) * bcol[bo];
+                                }
+                                r.set(sum, ri);
+                            }
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -14239,7 +14765,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -14430,7 +14963,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -14633,7 +15173,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -14943,7 +15490,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -15165,7 +15719,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -15339,7 +15900,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -15641,55 +16209,49 @@ public class CubeMath
                 final long[] ai = new long[2];
                 final long[] bi = new long[2];
                 final long[] ri = new long[2];
-
                 try {
                     final FloatHypercube da = (FloatHypercube)a;
                     final FloatHypercube db = (FloatHypercube)b;
                     final FloatHypercube dr = (FloatHypercube)r;
 
-                    // We will copy out the column from 'b' for faster access,
-                    // if it's small enough to fit into an array. 2^30 doubles
-                    // is 16GB for one column which is totally possible for a
-                    // non-square matrix but, we hope, most matrices will not be
-                    // quite that big. We could use an array of arrays to handle
-                    // that case but this is slower for the general case.
-                    final float[] bcol = (bDims[0].length() < 1<<30)
-                        ? new float[(int)bDims[0].length()]
-                        : null;
+                    // We can out the column from 'b' for faster access if it's
+                    // small enough to fit into an array. 2^30 doubles is 16GB
+                    // for one column which is totally possible for a non-square
+                    // matrix but, we hope, most matrices will not be quite that
+                    // big. We could use an array of arrays to handle that case
+                    // but this is slower for the general case.
+                    if (bDims[0].length() <= 1<<30) {
+                        // Hand off to the smarter method which will copy out
+                        // the column and use multi-threading
+                        floatMatMul2D(da, db, dr);
+                    }
+                    else {
+                        // Where we start striding, see below.
+                        ai[1] = bi[0] = 0;
 
-                    // Where we start striding, see below.
-                    ai[1] = bi[0] = 0;
+                        // The stride through the flattened data, to walk a column
+                        // in 'b'. We know that the format of the data is C-style in
+                        // flattened form, so moving one row length in distance will
+                        // step down one column index.
+                        final long bs = bDims[1].length();
 
-                    // The stride through the flattened data, to walk a column
-                    // in 'b'. We know that the format of the data is C-style in
-                    // flattened form, so moving one row length in distance will
-                    // step down one column index.
-                    final long bs = bDims[1].length();
-
-                    // Flipped the ordering of 'i' and 'j' since it's more cache
-                    // efficient to copy out the column data (once) and then to
-                    // stride through the rows each time.
-                    for (long j=0; j < bDims[1].length(); j++) {
-                        bi[1] = ri[1] = j;
-                        if (bcol != null) {
-                            long bo = db.toOffset(bi);
-                            for (int i=0; i < bcol.length; i++, bo += bs) {
-                                bcol[i] = db.getAt(bo);
-                            }
-                        }
-                        for (long i=0; i < aDims[0].length(); i++) {
-                            // We will stride through the two cubes pulling out
-                            // the values for the sum directly, since we know
-                            // their shape. This is much faster than going via
-                            // the coordinate-based lookup. The stride in 'a' is
-                            // 1 since it's walking along a row; in b it's the
-                            // the row length, since it's walking along a column.
-                            // Both will be the same number of steps so we only
-                            // need to know when to stop talking in 'a'.
-                            ai[0] = ri[0] = i;
-                            long ao = da.toOffset(ai);
-                            float sum = 0;
-                            if (bcol == null) {
+                        // Flipped the ordering of 'i' and 'j' since it's more cache
+                        // efficient to copy out the column data (once) and then to
+                        // stride through the rows each time.
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            for (long i=0; i < aDims[0].length(); i++) {
+                                // We will stride through the two cubes pulling out
+                                // the values for the sum directly, since we know
+                                // their shape. This is much faster than going via
+                                // the coordinate-based lookup. The stride in 'a' is
+                                // 1 since it's walking along a row; in b it's the
+                                // the row length, since it's walking along a column.
+                                // Both will be the same number of steps so we only
+                                // need to know when to stop walking in 'a'.
+                                ai[0] = ri[0] = i;
+                                long ao = da.toOffset(ai);
+                                float sum = 0;
                                 final long ae = ao + aDims[1].length();
                                 for (long bo = db.toOffset(bi);
                                      ao < ae; ao++,
@@ -15697,13 +16259,8 @@ public class CubeMath
                                 {
                                     sum += da.getAt(ao) * db.getAt(bo);
                                 }
+                                dr.set(sum, ri);
                             }
-                            else {
-                                for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                                    sum += da.getAt(ao) * bcol[bo];
-                                }
-                            }
-                            dr.set(sum, ri);
                         }
                     }
                 }
@@ -16094,7 +16651,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -16159,6 +16723,140 @@ public class CubeMath
 
         // Always return the result
         return Float.valueOf(r);
+    }
+
+    /**
+     * Handle a 2D matrix multiply.
+     */
+    private static void floatMatMul2D(
+        final FloatHypercube a,
+        final FloatHypercube b,
+        final FloatHypercube r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        final Dimension<?>[] aDims = a.getDimensions();
+        final Dimension<?>[] bDims = b.getDimensions();
+
+        // We will copy out the column from 'b' for faster access, if it's small
+        // enough to fit into an array. If we got here then the caller should
+        // have handled getting this right for us.
+        if (bDims[0].length() > 1<<30) {
+            throw new IllegalArgumentException(
+                "Axis was too large: " + bDims[0].length()
+            );
+        }
+        final float[] bcol =
+            new float[(int)bDims[0].length()];
+
+        // The stride through the flattened data, to walk a column
+        // in 'b'. We know that the format of the data is C-style in
+        // flattened form, so moving one row length in distance will
+        // step down one column index.
+        final long bs = bDims[1].length();
+
+        // Flipped the ordering of 'i' and 'j' since it's more cache
+        // efficient to copy out the column data (once) and then to
+        // stride through the rows each time.
+        for (long j=0; j < bDims[1].length(); j++) {
+            long bco = b.toOffset(0, j);
+            for (int i=0; i < bcol.length; i++, bco += bs) {
+                bcol[i] = b.getAt(bco);
+            }
+
+            // We will stride through the two cubes pulling out the values
+            // for the sum directly, since we know their shape. This is much
+            // faster than going via the coordinate-based lookup. The stride in
+            // 'a' is 1 since it's walking along a row; in b it's the the row
+            // length, since it's walking along a column. Both will be the same
+            // number of steps so we only need to know when to stop walking in
+            // 'a'.
+            //
+            // Only use multi-threading if it is enabled and if the cubes are
+            // large enough to justify the overhead, noting that matmul is
+            // an O(n^3) operation.
+            final long numRows = aDims[0].length();
+            if (ourExecutorService == null ||
+                (numRows * numRows * numRows) < THREADING_THRESHOLD)
+            {
+                // Where we start striding, see below
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+                ai[1] = bi[0] = 0;
+                bi[1] = ri[1] = j;
+
+                for (long i=0; i < numRows; i++) {
+                    ai[0] = ri[0] = i;
+                    long ao = a.toOffset(ai);
+                    float sum = 0;
+                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
+                        sum += a.getAt(ao) * bcol[bo];
+                    }
+                    r.set(sum, ri);
+                }
+            }
+            else {
+                // How many threads to use. This should not be more than there
+                // are rows.
+                final int numThreads = (int)Math.min(numRows, NUM_THREADS);
+
+                // Initialize a countdown to wait for all threads to finish
+                // processing.
+                final CountDownLatch latch = new CountDownLatch(numThreads);
+
+                // Bucket size for each thread, we use +1 to kinda ceil the
+                // result which gives a somewhat better distribution. We do
+                // this in such a way as to avoid double-rounding errors.
+                final long threadRows = numRows / numThreads;
+                final long bucket = threadRows +
+                                  ((threadRows * numThreads == numRows) ? 0 : 1);
+                for (int t=0; t < numThreads; t++) {
+                    final long startIndex = bucket * t;
+                    final long endIndex =
+                        (t == numThreads-1) ? numRows
+                                            : Math.min(bucket * (t+1), numRows);
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+
+                    // Submit this subtask to the thread pool
+                    final long jf = j; // <-- "final j"
+                    ourExecutorService.submit(() -> {
+                        try {
+                            final long[] ai = new long[] { 0,  0 };
+                            final long[] bi = new long[] { 0, jf };
+                            final long[] ri = new long[] { 0, jf };
+                            for (long i = startIndex; i < endIndex; i++) {
+                                ai[0] = ri[0] = i;
+                                long ao = a.toOffset(ai);
+                                float sum = 0;
+                                for (int bo=0; bo < bcol.length; ao++, bo++) {
+                                    sum += a.getAt(ao) * bcol[bo];
+                                }
+                                r.set(sum, ri);
+                            }
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -16400,7 +17098,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -16599,7 +17304,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -16813,7 +17525,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -17123,7 +17842,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -17345,7 +18071,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -17519,7 +18252,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -17821,55 +18561,49 @@ public class CubeMath
                 final long[] ai = new long[2];
                 final long[] bi = new long[2];
                 final long[] ri = new long[2];
-
                 try {
                     final DoubleHypercube da = (DoubleHypercube)a;
                     final DoubleHypercube db = (DoubleHypercube)b;
                     final DoubleHypercube dr = (DoubleHypercube)r;
 
-                    // We will copy out the column from 'b' for faster access,
-                    // if it's small enough to fit into an array. 2^30 doubles
-                    // is 16GB for one column which is totally possible for a
-                    // non-square matrix but, we hope, most matrices will not be
-                    // quite that big. We could use an array of arrays to handle
-                    // that case but this is slower for the general case.
-                    final double[] bcol = (bDims[0].length() < 1<<30)
-                        ? new double[(int)bDims[0].length()]
-                        : null;
+                    // We can out the column from 'b' for faster access if it's
+                    // small enough to fit into an array. 2^30 doubles is 16GB
+                    // for one column which is totally possible for a non-square
+                    // matrix but, we hope, most matrices will not be quite that
+                    // big. We could use an array of arrays to handle that case
+                    // but this is slower for the general case.
+                    if (bDims[0].length() <= 1<<30) {
+                        // Hand off to the smarter method which will copy out
+                        // the column and use multi-threading
+                        doubleMatMul2D(da, db, dr);
+                    }
+                    else {
+                        // Where we start striding, see below.
+                        ai[1] = bi[0] = 0;
 
-                    // Where we start striding, see below.
-                    ai[1] = bi[0] = 0;
+                        // The stride through the flattened data, to walk a column
+                        // in 'b'. We know that the format of the data is C-style in
+                        // flattened form, so moving one row length in distance will
+                        // step down one column index.
+                        final long bs = bDims[1].length();
 
-                    // The stride through the flattened data, to walk a column
-                    // in 'b'. We know that the format of the data is C-style in
-                    // flattened form, so moving one row length in distance will
-                    // step down one column index.
-                    final long bs = bDims[1].length();
-
-                    // Flipped the ordering of 'i' and 'j' since it's more cache
-                    // efficient to copy out the column data (once) and then to
-                    // stride through the rows each time.
-                    for (long j=0; j < bDims[1].length(); j++) {
-                        bi[1] = ri[1] = j;
-                        if (bcol != null) {
-                            long bo = db.toOffset(bi);
-                            for (int i=0; i < bcol.length; i++, bo += bs) {
-                                bcol[i] = db.getAt(bo);
-                            }
-                        }
-                        for (long i=0; i < aDims[0].length(); i++) {
-                            // We will stride through the two cubes pulling out
-                            // the values for the sum directly, since we know
-                            // their shape. This is much faster than going via
-                            // the coordinate-based lookup. The stride in 'a' is
-                            // 1 since it's walking along a row; in b it's the
-                            // the row length, since it's walking along a column.
-                            // Both will be the same number of steps so we only
-                            // need to know when to stop talking in 'a'.
-                            ai[0] = ri[0] = i;
-                            long ao = da.toOffset(ai);
-                            double sum = 0;
-                            if (bcol == null) {
+                        // Flipped the ordering of 'i' and 'j' since it's more cache
+                        // efficient to copy out the column data (once) and then to
+                        // stride through the rows each time.
+                        for (long j=0; j < bDims[1].length(); j++) {
+                            bi[1] = ri[1] = j;
+                            for (long i=0; i < aDims[0].length(); i++) {
+                                // We will stride through the two cubes pulling out
+                                // the values for the sum directly, since we know
+                                // their shape. This is much faster than going via
+                                // the coordinate-based lookup. The stride in 'a' is
+                                // 1 since it's walking along a row; in b it's the
+                                // the row length, since it's walking along a column.
+                                // Both will be the same number of steps so we only
+                                // need to know when to stop walking in 'a'.
+                                ai[0] = ri[0] = i;
+                                long ao = da.toOffset(ai);
+                                double sum = 0;
                                 final long ae = ao + aDims[1].length();
                                 for (long bo = db.toOffset(bi);
                                      ao < ae; ao++,
@@ -17877,13 +18611,8 @@ public class CubeMath
                                 {
                                     sum += da.getAt(ao) * db.getAt(bo);
                                 }
+                                dr.set(sum, ri);
                             }
-                            else {
-                                for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                                    sum += da.getAt(ao) * bcol[bo];
-                                }
-                            }
-                            dr.set(sum, ri);
                         }
                     }
                 }
@@ -18274,7 +19003,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -18339,6 +19075,140 @@ public class CubeMath
 
         // Always return the result
         return Double.valueOf(r);
+    }
+
+    /**
+     * Handle a 2D matrix multiply.
+     */
+    private static void doubleMatMul2D(
+        final DoubleHypercube a,
+        final DoubleHypercube b,
+        final DoubleHypercube r
+    ) throws IllegalArgumentException,
+             NullPointerException
+    {
+        final Dimension<?>[] aDims = a.getDimensions();
+        final Dimension<?>[] bDims = b.getDimensions();
+
+        // We will copy out the column from 'b' for faster access, if it's small
+        // enough to fit into an array. If we got here then the caller should
+        // have handled getting this right for us.
+        if (bDims[0].length() > 1<<30) {
+            throw new IllegalArgumentException(
+                "Axis was too large: " + bDims[0].length()
+            );
+        }
+        final double[] bcol =
+            new double[(int)bDims[0].length()];
+
+        // The stride through the flattened data, to walk a column
+        // in 'b'. We know that the format of the data is C-style in
+        // flattened form, so moving one row length in distance will
+        // step down one column index.
+        final long bs = bDims[1].length();
+
+        // Flipped the ordering of 'i' and 'j' since it's more cache
+        // efficient to copy out the column data (once) and then to
+        // stride through the rows each time.
+        for (long j=0; j < bDims[1].length(); j++) {
+            long bco = b.toOffset(0, j);
+            for (int i=0; i < bcol.length; i++, bco += bs) {
+                bcol[i] = b.getAt(bco);
+            }
+
+            // We will stride through the two cubes pulling out the values
+            // for the sum directly, since we know their shape. This is much
+            // faster than going via the coordinate-based lookup. The stride in
+            // 'a' is 1 since it's walking along a row; in b it's the the row
+            // length, since it's walking along a column. Both will be the same
+            // number of steps so we only need to know when to stop walking in
+            // 'a'.
+            //
+            // Only use multi-threading if it is enabled and if the cubes are
+            // large enough to justify the overhead, noting that matmul is
+            // an O(n^3) operation.
+            final long numRows = aDims[0].length();
+            if (ourExecutorService == null ||
+                (numRows * numRows * numRows) < THREADING_THRESHOLD)
+            {
+                // Where we start striding, see below
+                final long[] ai = new long[2];
+                final long[] bi = new long[2];
+                final long[] ri = new long[2];
+                ai[1] = bi[0] = 0;
+                bi[1] = ri[1] = j;
+
+                for (long i=0; i < numRows; i++) {
+                    ai[0] = ri[0] = i;
+                    long ao = a.toOffset(ai);
+                    double sum = 0;
+                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
+                        sum += a.getAt(ao) * bcol[bo];
+                    }
+                    r.set(sum, ri);
+                }
+            }
+            else {
+                // How many threads to use. This should not be more than there
+                // are rows.
+                final int numThreads = (int)Math.min(numRows, NUM_THREADS);
+
+                // Initialize a countdown to wait for all threads to finish
+                // processing.
+                final CountDownLatch latch = new CountDownLatch(numThreads);
+
+                // Bucket size for each thread, we use +1 to kinda ceil the
+                // result which gives a somewhat better distribution. We do
+                // this in such a way as to avoid double-rounding errors.
+                final long threadRows = numRows / numThreads;
+                final long bucket = threadRows +
+                                  ((threadRows * numThreads == numRows) ? 0 : 1);
+                for (int t=0; t < numThreads; t++) {
+                    final long startIndex = bucket * t;
+                    final long endIndex =
+                        (t == numThreads-1) ? numRows
+                                            : Math.min(bucket * (t+1), numRows);
+
+                    // Redundancy to avoid submitting empty tasks
+                    if (startIndex == endIndex) {
+                        latch.countDown();
+                        continue;
+                    }
+
+                    // Submit this subtask to the thread pool
+                    final long jf = j; // <-- "final j"
+                    ourExecutorService.submit(() -> {
+                        try {
+                            final long[] ai = new long[] { 0,  0 };
+                            final long[] bi = new long[] { 0, jf };
+                            final long[] ri = new long[] { 0, jf };
+                            for (long i = startIndex; i < endIndex; i++) {
+                                ai[0] = ri[0] = i;
+                                long ao = a.toOffset(ai);
+                                double sum = 0;
+                                for (int bo=0; bo < bcol.length; ao++, bo++) {
+                                    sum += a.getAt(ao) * bcol[bo];
+                                }
+                                r.set(sum, ri);
+                            }
+                        }
+                        finally {
+                            latch.countDown();
+                        }
+                    });
+                }
+
+                // Wait here for all threads to conclude
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -18580,7 +19450,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -18779,7 +19656,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -18993,7 +19877,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -19303,7 +20194,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -19525,7 +20423,14 @@ public class CubeMath
                 }
 
                 // Wait here for all threads to conclude
-                latch.await();
+                while (latch.getCount() > 0) {
+                    try {
+                        latch.await();
+                    }
+                    catch (InterruptedException e) {
+                        // Nothing, we will just go around again
+                    }
+                }
 
                 // Propagate a runtime exception, if any.
                 if (exception.get() != null) {
@@ -19556,4 +20461,4 @@ public class CubeMath
     }
 }
 
- // [[[end]]] (checksum: 39d964579ec2256d0b844d8f015ac9d6)
+ // [[[end]]] (checksum: d34329533bd542892e7bc4ef9bddada2)

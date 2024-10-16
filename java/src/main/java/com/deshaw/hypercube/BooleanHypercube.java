@@ -807,9 +807,9 @@ public interface BooleanHypercube
     public default void fromFlattened(final long            dstPos,
                                       final long            length,
                                       final DataInputStream is,
-                                      final ByteOrder        bo)
+                                      final ByteOrder       bo)
         throws IOException,
-        IllegalArgumentException,
+               IllegalArgumentException,
                IndexOutOfBoundsException
     {
         if (LOG.isLoggable(Level.FINEST)) {
@@ -1318,4 +1318,4 @@ public interface BooleanHypercube
     }
 }
 
-// [[[end]]] (checksum: 1888b3817b3cdedc323036abd0909ae4)
+// [[[end]]] (checksum: 56f502c42b278c9cde964a7b5447a53f)

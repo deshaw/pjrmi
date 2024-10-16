@@ -789,9 +789,9 @@ public interface {object_type}Hypercube
     public default void fromFlattened(final long            dstPos,
                                       final long            length,
                                       final DataInputStream is,
-                                      final ByteOrder        bo)
+                                      final ByteOrder       bo)
         throws IOException,
-        IllegalArgumentException,
+               IllegalArgumentException,
                IndexOutOfBoundsException
     {{
         if (LOG.isLoggable(Level.FINEST)) {{

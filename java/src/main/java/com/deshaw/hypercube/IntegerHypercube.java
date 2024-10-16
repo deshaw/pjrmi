@@ -804,9 +804,9 @@ public interface IntegerHypercube
     public default void fromFlattened(final long            dstPos,
                                       final long            length,
                                       final DataInputStream is,
-                                      final ByteOrder        bo)
+                                      final ByteOrder       bo)
         throws IOException,
-        IllegalArgumentException,
+               IllegalArgumentException,
                IndexOutOfBoundsException
     {
         if (LOG.isLoggable(Level.FINEST)) {
@@ -1763,4 +1763,4 @@ public interface IntegerHypercube
     }
 }
 
-// [[[end]]] (checksum: bb339ca4e82de5b893994f882bb27f6a)
+// [[[end]]] (checksum: d561fc430dce95c5ce33484de403a7c3)

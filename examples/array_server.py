@@ -19,6 +19,9 @@ import time
 # Choose an arbitrary size for our 3D cubes/ndarrays
 SIZE = 512
 
+# The buffer size to use for the streams, in bytes
+BUFFER_SIZE = 128 * 1024
+
 # ------------------------------------------------------------------------------
 
 # Create the Java server and get handles on all the classes which we'll need. In
@@ -89,7 +92,8 @@ def unflatten(src, dst, chunk_size=4096):
         dst.fromFlattened(
             DataInputStream(
                 BufferedInputStream(
-                    ss.accept().getInputStream()
+                    ss.accept().getInputStream(),
+                    BUFFER_SIZE
                 )
             )
         )
@@ -151,7 +155,8 @@ def flatten(src, dst, chunk_size=4096):
             src.toFlattened(
                 DataOutputStream(
                     BufferedOutputStream(
-                        ss.accept().getOutputStream()
+                        ss.accept().getOutputStream(),
+                        BUFFER_SIZE
                     )
                 )
             )

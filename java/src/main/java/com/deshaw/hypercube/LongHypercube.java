@@ -18,8 +18,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import java.nio.BufferOverflowException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 
 import java.lang.reflect.Array;
 
@@ -594,7 +597,95 @@ public interface LongHypercube
         // Checks
         if (os == null) {
             throw new NullPointerException("Given a null output stream");
-            }
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("Bad length: " + length);
+        }
+        if (srcPos < 0) {
+            throw new IndexOutOfBoundsException(
+                "Bad source position: " + srcPos
+            );
+        }
+        if (srcPos + length > getSize()) {
+            throw new IndexOutOfBoundsException(
+                "Source position, " + srcPos + ", " +
+                "plus length ," + length + ", " +
+                "was greater than the size, " + getSize()
+            );
+        }
+
+        // Write it out. We do this in chunks using a staging buffer since
+        // that's faster than writing to the DataOutputStream directly.
+        final byte[] buf = new byte[16 * Long.BYTES];
+        final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
+        final int left = (int)(length & 0xf);
+        long i = srcPos;
+        for (final long end = srcPos + length - left; i < end; /*inside*/) {
+            bb.putLong(getAt(i++)); // 00
+            bb.putLong(getAt(i++)); // 01
+            bb.putLong(getAt(i++)); // 02
+            bb.putLong(getAt(i++)); // 03
+            bb.putLong(getAt(i++)); // 04
+            bb.putLong(getAt(i++)); // 05
+            bb.putLong(getAt(i++)); // 06
+            bb.putLong(getAt(i++)); // 07
+            bb.putLong(getAt(i++)); // 08
+            bb.putLong(getAt(i++)); // 09
+            bb.putLong(getAt(i++)); // 10
+            bb.putLong(getAt(i++)); // 11
+            bb.putLong(getAt(i++)); // 12
+            bb.putLong(getAt(i++)); // 13
+            bb.putLong(getAt(i++)); // 14
+            bb.putLong(getAt(i++)); // 15
+            os.write(buf, 0, buf.length);
+            bb.position(0);
+        }
+
+        // Handle any tail values
+        switch (left) {
+        case 0xf: bb.putLong(getAt(i++));
+        case 0xe: bb.putLong(getAt(i++));
+        case 0xd: bb.putLong(getAt(i++));
+        case 0xc: bb.putLong(getAt(i++));
+        case 0xb: bb.putLong(getAt(i++));
+        case 0xa: bb.putLong(getAt(i++));
+        case 0x9: bb.putLong(getAt(i++));
+        case 0x8: bb.putLong(getAt(i++));
+        case 0x7: bb.putLong(getAt(i++));
+        case 0x6: bb.putLong(getAt(i++));
+        case 0x5: bb.putLong(getAt(i++));
+        case 0x4: bb.putLong(getAt(i++));
+        case 0x3: bb.putLong(getAt(i++));
+        case 0x2: bb.putLong(getAt(i++));
+        case 0x1: bb.putLong(getAt(i++));
+                  os.write(buf, 0, left * Long.BYTES);
+        }
+        os.flush();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default void toFlattened(final long       srcPos,
+                                    final long       length,
+                                    final ByteBuffer buf)
+        throws BufferOverflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException,
+               ReadOnlyBufferException
+    {
+        if (LOG.isLoggable(Level.FINEST)) {
+            LOG.finest(
+                "Flattening with " +
+                "srcPos=" + srcPos + "length=" + length
+            );
+        }
+
+        // Checks
+        if (buf == null) {
+            throw new NullPointerException("Given a null buffer");
+        }
         if (length < 0) {
             throw new IllegalArgumentException("Bad length: " + length);
         }
@@ -612,17 +703,9 @@ public interface LongHypercube
         }
 
         // Write it out
-        if (ByteOrder.BIG_ENDIAN.equals(bo)) {
-            for (long i = srcPos, end = srcPos + length; i < end; i++) {
-                os.writeLong(getAt(i));
-            }
+        for (long i = srcPos, end = srcPos + length; i < end; i++) {
+            buf.putLong(getAt(i));
         }
-        else {
-            for (long i = srcPos, end = srcPos + length; i < end; i++) {
-                writeLittleEndian(os, getAt(i));
-            }
-        }
-        os.flush();
     }
 
     /**
@@ -836,16 +919,95 @@ public interface LongHypercube
             );
         }
 
-        // Read them in
-        if (ByteOrder.BIG_ENDIAN.equals(bo)) {
-            for (long i = dstPos, end = dstPos + length; i < end; i++) {
-                setAt(i, is.readLong());
+        // Read them in. We do this in chunks using a staging buffer since
+        // that's faster than reading from the DataInputStream directly.
+        final byte[] buf = new byte[16 * Long.BYTES];
+        final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
+        final int left = (int)(length & 0xf);
+        long i = dstPos;
+        for (final long end = dstPos + length - left; i < end; /*inside*/) {
+            is.read(buf, 0, buf.length);
+            setAt(i++, bb.getLong()); // 00
+            setAt(i++, bb.getLong()); // 01
+            setAt(i++, bb.getLong()); // 02
+            setAt(i++, bb.getLong()); // 03
+            setAt(i++, bb.getLong()); // 04
+            setAt(i++, bb.getLong()); // 05
+            setAt(i++, bb.getLong()); // 06
+            setAt(i++, bb.getLong()); // 07
+            setAt(i++, bb.getLong()); // 08
+            setAt(i++, bb.getLong()); // 09
+            setAt(i++, bb.getLong()); // 10
+            setAt(i++, bb.getLong()); // 11
+            setAt(i++, bb.getLong()); // 12
+            setAt(i++, bb.getLong()); // 13
+            setAt(i++, bb.getLong()); // 14
+            setAt(i++, bb.getLong()); // 15
+            bb.position(0);
+        }
+        if (left != 0) {
+            is.read(buf, 0, left * Long.BYTES);
+            switch (left) {
+            case 0xf: setAt(i++, bb.getLong());
+            case 0xe: setAt(i++, bb.getLong());
+            case 0xd: setAt(i++, bb.getLong());
+            case 0xc: setAt(i++, bb.getLong());
+            case 0xb: setAt(i++, bb.getLong());
+            case 0xa: setAt(i++, bb.getLong());
+            case 0x9: setAt(i++, bb.getLong());
+            case 0x8: setAt(i++, bb.getLong());
+            case 0x7: setAt(i++, bb.getLong());
+            case 0x6: setAt(i++, bb.getLong());
+            case 0x5: setAt(i++, bb.getLong());
+            case 0x4: setAt(i++, bb.getLong());
+            case 0x3: setAt(i++, bb.getLong());
+            case 0x2: setAt(i++, bb.getLong());
+            case 0x1: setAt(i++, bb.getLong());
             }
         }
-        else {
-            for (long i = dstPos, end = dstPos + length; i < end; i++) {
-                setAt(i, readLittleEndian(is));
-            }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default void fromFlattened(final long       dstPos,
+                                      final long       length,
+                                      final ByteBuffer buf)
+        throws BufferUnderflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException
+    {
+        if (LOG.isLoggable(Level.FINEST)) {
+            LOG.finest(
+                "Unflattening with " +
+                "dstPos=" + dstPos + " length=" + length
+            );
+        }
+
+        // Checks
+        if (buf == null) {
+            throw new NullPointerException("Given a null buffer");
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("Bad length: " + length);
+        }
+        if (dstPos < 0) {
+            throw new IndexOutOfBoundsException(
+                "Bad destination position: " + dstPos
+            );
+        }
+        if (dstPos + length > getSize()) {
+            throw new IndexOutOfBoundsException(
+                "Destination position, " + dstPos + ", " +
+                "plus length ," + length + ", " +
+                "was greater than the size, " + getSize()
+            );
+        }
+
+        // Read them in
+        for (long i = dstPos, end = dstPos + length; i < end; i++) {
+            setAt(i, buf.getLong());
         }
     }
 
@@ -1015,6 +1177,18 @@ public interface LongHypercube
      * {@inheritDoc}
      */
     @Override
+    public default void writeElement(final Long el,
+                                     final ByteBuffer buf)
+        throws BufferOverflowException,
+               ReadOnlyBufferException
+    {
+        buf.putLong(((el == null) ? 0L : el));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public default Long readElement(final DataInputStream is,
                                              final ByteOrder bo)
         throws IOException
@@ -1025,6 +1199,16 @@ public interface LongHypercube
         else {
             return readLittleEndian(is);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default Long readElement(final ByteBuffer buf)
+        throws BufferUnderflowException
+    {
+        return (buf.getLong());
     }
 
     /**
@@ -1763,4 +1947,4 @@ public interface LongHypercube
     }
 }
 
-// [[[end]]] (checksum: b54b7414109bcf4b27fb09e7cd916950)
+// [[[end]]] (checksum: e9115b16877158dad54067c9bbb259c6)

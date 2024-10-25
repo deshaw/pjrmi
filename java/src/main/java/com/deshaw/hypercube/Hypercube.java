@@ -20,7 +20,11 @@ import java.io.IOException;
 
 import java.lang.reflect.Array;
 
+import java.nio.BufferOverflowException;
+import java.nio.BufferUnderflowException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -919,6 +923,91 @@ public interface Hypercube<T>
     }
 
     /**
+     * Write out a flattened view of all the elements of this hypercube, in
+     * big-endian format. These are flattened "C-style"; this is the same as
+     * {@code numpy}'s default.
+     *
+     * @param buf  Where to write the results to.
+     *
+     * @throws BufferOverflowException       If there was not enough room in the
+     *                                       buffer.
+     * @throws IllegalArgumentException      If the given arguments were bad.
+     * @throws IndexOutOfBoundsException     If the source position was bad,
+     *                                       alone or in relation to the length.
+     * @throws NullPointerException          If the given buffer was null.
+     * @throws ReadOnlyBufferException       If the buffer was readonly.
+     * @throws UnsupportedOperationException If unsupported for the elements' type.
+     */
+    public default void toFlattened(final ByteBuffer buf)
+        throws BufferOverflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException,
+               ReadOnlyBufferException,
+               UnsupportedOperationException
+    {
+        toFlattened(0, getSize(), buf);
+    }
+
+    /**
+     * Write out a flattened view of the elements of this hypercube. These are
+     * flattened "C-style"; this is the same as {@code numpy}'s default.
+     *
+     * @param srcPos  The "flattened" position to start copying values from,
+     *                within the hypercube.
+     * @param length  How many values to copy.
+     * @param buf     Where to write the results to.
+     *
+     * @throws BufferOverflowException       If there was not enough room in the
+     *                                       buffer.
+     * @throws IllegalArgumentException      If the given arguments were bad.
+     * @throws IndexOutOfBoundsException     If the source position was bad,
+     *                                       alone or in relation to the length.
+     * @throws NullPointerException          If the given buffer was null.
+     * @throws ReadOnlyBufferException       If the buffer was readonly.
+     * @throws UnsupportedOperationException If unsupported for the elements' type.
+     */
+    public default void toFlattened(final long       srcPos,
+                                    final long       length,
+                                    final ByteBuffer buf)
+        throws BufferOverflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException,
+               ReadOnlyBufferException,
+               UnsupportedOperationException
+    {
+        if (LOG.isLoggable(Level.FINEST)) {
+            LOG.finest(
+                "Flattening with srcPos=" + srcPos + "length=" + length
+            );
+        }
+
+        // Checks
+        if (buf == null) {
+            throw new NullPointerException("Given a null buffer");
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("Bad length: " + length);
+        }
+        if (srcPos < 0) {
+            throw new IndexOutOfBoundsException(
+                "Bad source position: " + srcPos
+            );
+        }
+        if (srcPos + length > getSize()) {
+            throw new IndexOutOfBoundsException(
+                "Source position, " + srcPos + ", " +
+                "plus length ," + length + ", " +
+                "was greater than the size, " + getSize()
+            );
+        }
+
+        // Do the write
+        for (long i = srcPos, end = srcPos + length; i < end; i++) {
+            writeElement(getObjectAt(i), buf);
+        }
+    }
+
+    /**
      * Set the contents of this hypercube with the given array. This is expected
      * to contain values in the order per the semantics of flatten.
      *
@@ -1090,6 +1179,87 @@ public interface Hypercube<T>
         // Safe to set, do it the slow way by default
         for (long i = dstPos, end = dstPos + length; i < end; i++) {
             setObjectAt(i, readElement(is, bo));
+        }
+    }
+
+    /**
+     * Read in a flattened view of the all elements of this hypercube. This is
+     * expected to contain values in the order per the semantics of flatten.
+     *
+     * @param buf  Where to read the results from.
+     *
+     * @throws BufferUnderflowException      If there was not enough room in the
+     *                                       buffer.
+     * @throws IllegalArgumentException      If the given arguments were bad.
+     * @throws IndexOutOfBoundsException     If the source position was bad,
+     *                                       alone or in relation to the length.
+     * @throws NullPointerException          If the given buffer was null.
+     * @throws UnsupportedOperationException If unsupported for the elements' type.
+     */
+    public default void fromFlattened(final ByteBuffer buf)
+        throws BufferUnderflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException,
+               UnsupportedOperationException
+    {
+        fromFlattened(0, getSize(), buf);
+    }
+
+    /**
+     * Read in a flattened view of the elements of this hypercube. This is
+     * expected to contain values in the order per the semantics of flatten.
+     *
+     * @param dstPos  The position at which, in the flattened view of the
+     *                hypercube, to start copying values into.
+     * @param length  How many values to copy.
+     * @param is      Where to read the results from.
+     * @param bo      The byte ordering to use.
+     *
+     * @throws IllegalArgumentException      If {@code length} was negative.
+     * @throws IndexOutOfBoundsException     If {@code dstPos} was not within the
+     *                                       bounds of the hypercube.
+     *                                       If {@code dstPos + length} was greater
+     *                                       than the size of the hypercube.
+     * @throws NullPointerException          If {@code src} was {@code null}.
+     * @throws UnsupportedOperationException If unsupported for the elements' type.
+     */
+    public default void fromFlattened(final long       dstPos,
+                                      final long       length,
+                                      final ByteBuffer buf)
+        throws BufferUnderflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException,
+               UnsupportedOperationException
+    {
+        if (LOG.isLoggable(Level.FINEST)) {
+            LOG.finest(
+                "Unflattening with dstPos=" + dstPos + " length=" + length
+            );
+        }
+
+        // Checks
+        if (buf == null) {
+            throw new NullPointerException("Given a null buffer");
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("Bad length: " + length);
+        }
+        if (dstPos < 0) {
+            throw new IndexOutOfBoundsException(
+                "Bad destination position: " + dstPos
+            );
+        }
+        if (dstPos + length > getSize()) {
+            throw new IndexOutOfBoundsException(
+                "Destination position, " + dstPos + ", " +
+                "plus length ," + length + ", " +
+                "was greater than the size, " + getSize()
+            );
+        }
+
+        // Safe to set, do it the slow way by default
+        for (long i = dstPos, end = dstPos + length; i < end; i++) {
+            setObjectAt(i, readElement(buf));
         }
     }
 
@@ -1361,10 +1531,35 @@ public interface Hypercube<T>
      * @throws IOException                   If a write error occurred.
      * @throws UnsupportedOperationException If unsupported for the element's type.
      */
-    public void writeElement(final T                el,
-                             final DataOutputStream os,
-                             final ByteOrder        bo)
-        throws IOException;
+    public default void writeElement(final T                el,
+                                     final DataOutputStream os,
+                                     final ByteOrder        bo)
+        throws IOException
+    {
+        // It's up to users to implement this
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Write out an element from this hypercube to the given buffer.
+     *
+     * <p>Optional operation.
+     *
+     * @param el   The element to write out.
+     * @param buf  Where to write the element to.
+     *
+     * @throws BufferOverflowException       If there was not enough room in the
+     *                                       buffer.
+     * @throws ReadOnlyBufferException       If the buffer was readonly.
+     */
+    public default void writeElement(final T          el,
+                                     final ByteBuffer buf)
+        throws BufferOverflowException,
+               ReadOnlyBufferException
+    {
+        // It's up to users to implement this
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Read in an element from this hypercube, in big-endian format.
@@ -1393,9 +1588,30 @@ public interface Hypercube<T>
      * @throws IOException                   If a write error occurred.
      * @throws UnsupportedOperationException If unsupported for the element's type.
      */
-    public T readElement(final DataInputStream os,
-                         final ByteOrder       bo)
-        throws IOException;
+    public default T readElement(final DataInputStream os,
+                                 final ByteOrder       bo)
+        throws IOException
+    {
+        // It's up to users to implement this
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Read in an element from this hypercube from the given buffer.
+     *
+     * <p>Optional operation.
+     *
+     * @param buf  Where to read the element from.
+     *
+     * @throws BufferUnderflowException  If there was not enough data in the
+     *                                   buffer.
+     */
+    public default T readElement(final ByteBuffer buf)
+        throws BufferUnderflowException
+    {
+        // It's up to users to implement this
+        throw new UnsupportedOperationException();        
+    }
 
     /**
      * Get the absolute offset in the flattened view of the cube for the given

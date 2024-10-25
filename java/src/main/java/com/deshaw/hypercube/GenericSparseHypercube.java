@@ -229,31 +229,6 @@ public class GenericSparseHypercube<T>
      * {@inheritDoc}
      */
     @Override
-    public void writeElement(final T                el,
-                             final DataOutputStream os,
-                             final ByteOrder        bo)
-        throws IOException
-    {
-        // It's up to users to implement this
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public T readElement(final DataInputStream is,
-                         final ByteOrder       bo)
-        throws IOException
-    {
-        // It's up to users to implement this
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     protected Map<String,Boolean> createFlags()
     {
         final Map<String,Boolean> result = super.createFlags();

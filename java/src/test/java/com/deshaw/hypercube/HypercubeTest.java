@@ -1,9 +1,16 @@
 package com.deshaw.hypercube;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 
 import java.lang.reflect.Array;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -245,7 +252,8 @@ public class HypercubeTest
     @Test
     public void testDoubleArrayFlattening()
     {
-        doTestDoubleFlattening(createDoubleArrayHypercube());
+        doTestDoubleFlattening      (createDoubleArrayHypercube());
+        doTestDoubleStreamFlattening(createDoubleArrayHypercube());
     }
 
     /**
@@ -270,7 +278,8 @@ public class HypercubeTest
     @Test
     public void testDoubleSparseFlattening()
     {
-        doTestDoubleFlattening(createDoubleSparseHypercube());
+        doTestDoubleFlattening      (createDoubleSparseHypercube());
+        doTestDoubleStreamFlattening(createDoubleSparseHypercube());
     }
 
     /**
@@ -310,6 +319,65 @@ public class HypercubeTest
         final double[] flattened2 = new double[(int)cube.getSize()];
         cube.toFlattened(flattened2);
         assertArrayEquals(flattened, flattened2);
+    }
+
+    /**
+     * Test flattening and unflattening of the given hypercube using streams.
+     */
+    private void doTestDoubleStreamFlattening(DoubleHypercube cube)
+    {
+        // Get it flattened, so we can check against it
+        final double[] flattened = new double[(int)cube.getSize()];
+        cube.toFlattened(flattened);
+
+        // Do this for both byte orderings
+        for (ByteOrder bo :
+                 new ByteOrder[] { ByteOrder.LITTLE_ENDIAN,
+                                   ByteOrder.BIG_ENDIAN })
+        {
+            // Where all the data goes
+            final ByteArrayOutputStream baos =
+                new ByteArrayOutputStream(flattened.length * Double.BYTES);
+
+            // Write out
+            try {
+                cube.toFlattened(
+                    0,
+                    flattened.length,
+                    new DataOutputStream(baos),
+                    bo
+                );
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            // Check that the raw byte data looks like the double version
+            final byte[]     buf = baos.toByteArray();
+            final ByteBuffer bb  = ByteBuffer.wrap(buf).order(bo);
+            for (double v : flattened) {
+                assertEquals(bb.getDouble(), v);
+            }
+
+            // Read in, making sure that we blank it first
+            cube.clear();
+            try {
+                cube.fromFlattened(
+                    0,
+                    flattened.length,
+                    new DataInputStream(new ByteArrayInputStream(buf)),
+                    bo
+                );
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+            // And check that it looks like what we originally had
+            for (int i=0; i < flattened.length; i++) {
+                assertEquals(cube.getAt(i), flattened[i]);
+            }
+        }
     }
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

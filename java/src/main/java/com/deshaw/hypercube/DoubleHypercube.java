@@ -18,8 +18,11 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import java.nio.BufferOverflowException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.ReadOnlyBufferException;
 
 import java.lang.reflect.Array;
 
@@ -594,7 +597,95 @@ public interface DoubleHypercube
         // Checks
         if (os == null) {
             throw new NullPointerException("Given a null output stream");
-            }
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("Bad length: " + length);
+        }
+        if (srcPos < 0) {
+            throw new IndexOutOfBoundsException(
+                "Bad source position: " + srcPos
+            );
+        }
+        if (srcPos + length > getSize()) {
+            throw new IndexOutOfBoundsException(
+                "Source position, " + srcPos + ", " +
+                "plus length ," + length + ", " +
+                "was greater than the size, " + getSize()
+            );
+        }
+
+        // Write it out. We do this in chunks using a staging buffer since
+        // that's faster than writing to the DataOutputStream directly.
+        final byte[] buf = new byte[16 * Double.BYTES];
+        final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
+        final int left = (int)(length & 0xf);
+        long i = srcPos;
+        for (final long end = srcPos + length - left; i < end; /*inside*/) {
+            bb.putDouble(getAt(i++)); // 00
+            bb.putDouble(getAt(i++)); // 01
+            bb.putDouble(getAt(i++)); // 02
+            bb.putDouble(getAt(i++)); // 03
+            bb.putDouble(getAt(i++)); // 04
+            bb.putDouble(getAt(i++)); // 05
+            bb.putDouble(getAt(i++)); // 06
+            bb.putDouble(getAt(i++)); // 07
+            bb.putDouble(getAt(i++)); // 08
+            bb.putDouble(getAt(i++)); // 09
+            bb.putDouble(getAt(i++)); // 10
+            bb.putDouble(getAt(i++)); // 11
+            bb.putDouble(getAt(i++)); // 12
+            bb.putDouble(getAt(i++)); // 13
+            bb.putDouble(getAt(i++)); // 14
+            bb.putDouble(getAt(i++)); // 15
+            os.write(buf, 0, buf.length);
+            bb.position(0);
+        }
+
+        // Handle any tail values
+        switch (left) {
+        case 0xf: bb.putDouble(getAt(i++));
+        case 0xe: bb.putDouble(getAt(i++));
+        case 0xd: bb.putDouble(getAt(i++));
+        case 0xc: bb.putDouble(getAt(i++));
+        case 0xb: bb.putDouble(getAt(i++));
+        case 0xa: bb.putDouble(getAt(i++));
+        case 0x9: bb.putDouble(getAt(i++));
+        case 0x8: bb.putDouble(getAt(i++));
+        case 0x7: bb.putDouble(getAt(i++));
+        case 0x6: bb.putDouble(getAt(i++));
+        case 0x5: bb.putDouble(getAt(i++));
+        case 0x4: bb.putDouble(getAt(i++));
+        case 0x3: bb.putDouble(getAt(i++));
+        case 0x2: bb.putDouble(getAt(i++));
+        case 0x1: bb.putDouble(getAt(i++));
+                  os.write(buf, 0, left * Double.BYTES);
+        }
+        os.flush();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default void toFlattened(final long       srcPos,
+                                    final long       length,
+                                    final ByteBuffer buf)
+        throws BufferOverflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException,
+               ReadOnlyBufferException
+    {
+        if (LOG.isLoggable(Level.FINEST)) {
+            LOG.finest(
+                "Flattening with " +
+                "srcPos=" + srcPos + "length=" + length
+            );
+        }
+
+        // Checks
+        if (buf == null) {
+            throw new NullPointerException("Given a null buffer");
+        }
         if (length < 0) {
             throw new IllegalArgumentException("Bad length: " + length);
         }
@@ -612,17 +703,9 @@ public interface DoubleHypercube
         }
 
         // Write it out
-        if (ByteOrder.BIG_ENDIAN.equals(bo)) {
-            for (long i = srcPos, end = srcPos + length; i < end; i++) {
-                os.writeDouble(getAt(i));
-            }
+        for (long i = srcPos, end = srcPos + length; i < end; i++) {
+            buf.putDouble(getAt(i));
         }
-        else {
-            for (long i = srcPos, end = srcPos + length; i < end; i++) {
-                writeLittleEndian(os, getAt(i));
-            }
-        }
-        os.flush();
     }
 
     /**
@@ -836,16 +919,95 @@ public interface DoubleHypercube
             );
         }
 
-        // Read them in
-        if (ByteOrder.BIG_ENDIAN.equals(bo)) {
-            for (long i = dstPos, end = dstPos + length; i < end; i++) {
-                setAt(i, is.readDouble());
+        // Read them in. We do this in chunks using a staging buffer since
+        // that's faster than reading from the DataInputStream directly.
+        final byte[] buf = new byte[16 * Double.BYTES];
+        final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
+        final int left = (int)(length & 0xf);
+        long i = dstPos;
+        for (final long end = dstPos + length - left; i < end; /*inside*/) {
+            is.read(buf, 0, buf.length);
+            setAt(i++, bb.getDouble()); // 00
+            setAt(i++, bb.getDouble()); // 01
+            setAt(i++, bb.getDouble()); // 02
+            setAt(i++, bb.getDouble()); // 03
+            setAt(i++, bb.getDouble()); // 04
+            setAt(i++, bb.getDouble()); // 05
+            setAt(i++, bb.getDouble()); // 06
+            setAt(i++, bb.getDouble()); // 07
+            setAt(i++, bb.getDouble()); // 08
+            setAt(i++, bb.getDouble()); // 09
+            setAt(i++, bb.getDouble()); // 10
+            setAt(i++, bb.getDouble()); // 11
+            setAt(i++, bb.getDouble()); // 12
+            setAt(i++, bb.getDouble()); // 13
+            setAt(i++, bb.getDouble()); // 14
+            setAt(i++, bb.getDouble()); // 15
+            bb.position(0);
+        }
+        if (left != 0) {
+            is.read(buf, 0, left * Double.BYTES);
+            switch (left) {
+            case 0xf: setAt(i++, bb.getDouble());
+            case 0xe: setAt(i++, bb.getDouble());
+            case 0xd: setAt(i++, bb.getDouble());
+            case 0xc: setAt(i++, bb.getDouble());
+            case 0xb: setAt(i++, bb.getDouble());
+            case 0xa: setAt(i++, bb.getDouble());
+            case 0x9: setAt(i++, bb.getDouble());
+            case 0x8: setAt(i++, bb.getDouble());
+            case 0x7: setAt(i++, bb.getDouble());
+            case 0x6: setAt(i++, bb.getDouble());
+            case 0x5: setAt(i++, bb.getDouble());
+            case 0x4: setAt(i++, bb.getDouble());
+            case 0x3: setAt(i++, bb.getDouble());
+            case 0x2: setAt(i++, bb.getDouble());
+            case 0x1: setAt(i++, bb.getDouble());
             }
         }
-        else {
-            for (long i = dstPos, end = dstPos + length; i < end; i++) {
-                setAt(i, readLittleEndian(is));
-            }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default void fromFlattened(final long       dstPos,
+                                      final long       length,
+                                      final ByteBuffer buf)
+        throws BufferUnderflowException,
+               IllegalArgumentException,
+               IndexOutOfBoundsException
+    {
+        if (LOG.isLoggable(Level.FINEST)) {
+            LOG.finest(
+                "Unflattening with " +
+                "dstPos=" + dstPos + " length=" + length
+            );
+        }
+
+        // Checks
+        if (buf == null) {
+            throw new NullPointerException("Given a null buffer");
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("Bad length: " + length);
+        }
+        if (dstPos < 0) {
+            throw new IndexOutOfBoundsException(
+                "Bad destination position: " + dstPos
+            );
+        }
+        if (dstPos + length > getSize()) {
+            throw new IndexOutOfBoundsException(
+                "Destination position, " + dstPos + ", " +
+                "plus length ," + length + ", " +
+                "was greater than the size, " + getSize()
+            );
+        }
+
+        // Read them in
+        for (long i = dstPos, end = dstPos + length; i < end; i++) {
+            setAt(i, buf.getDouble());
         }
     }
 
@@ -1015,6 +1177,18 @@ public interface DoubleHypercube
      * {@inheritDoc}
      */
     @Override
+    public default void writeElement(final Double el,
+                                     final ByteBuffer buf)
+        throws BufferOverflowException,
+               ReadOnlyBufferException
+    {
+        buf.putDouble(((el == null) ? Double.NaN : el));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public default Double readElement(final DataInputStream is,
                                              final ByteOrder bo)
         throws IOException
@@ -1025,6 +1199,16 @@ public interface DoubleHypercube
         else {
             return readLittleEndian(is);
         }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public default Double readElement(final ByteBuffer buf)
+        throws BufferUnderflowException
+    {
+        return (buf.getDouble());
     }
 
     /**
@@ -1697,4 +1881,4 @@ public interface DoubleHypercube
     }
 }
 
-// [[[end]]] (checksum: b447c53d9c5a3e09369b280f842dab65)
+// [[[end]]] (checksum: 20171f196bd570eca630fa68d67929cb)

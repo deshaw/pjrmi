@@ -373,7 +373,6 @@ public abstract class AbstractHypercube<T>
      * @param coordinates The coordinates of the element in the hypercube.
      *
      * @throws DimensionalityException  If the coordinates were bad.
-     * @throws MissingDataException     If the data could not be retrieved.
      */
     public void setObj(final T obj, final Coordinate<?>... coordinates)
         throws DimensionalityException

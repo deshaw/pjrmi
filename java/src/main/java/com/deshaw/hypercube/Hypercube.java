@@ -409,9 +409,9 @@ public interface Hypercube<T>
      * the original shape is restored. This follows the {@code NumPy} rolling
      * semantics, e.g: <pre>
      *
-     *    [[1, 2, 3],        [[9, 1, 2],
-     *     [4, 5, 6],   ==>   [3, 4, 5],
-     *     [7, 8, 9]]         [6, 7, 8]]
+     *    [[1, 2, 3],            [[9, 1, 2],
+     *     [4, 5, 6],   becomes   [3, 4, 5],
+     *     [7, 8, 9]]             [6, 7, 8]]
      *
      * </pre>
      *
@@ -423,9 +423,9 @@ public interface Hypercube<T>
      * Roll the cube along the {@code n}th axis, such that sub-cubes which are
      * pushed off one end appear on the other, e.g: <pre>
      *
-     *    [[1, 2, 3],        [[3, 1, 2],
-     *     [4, 5, 6],   ==>   [6, 4, 5],
-     *     [7, 8, 9]]         [9, 7, 8]]
+     *    [[1, 2, 3],            [[3, 1, 2],
+     *     [4, 5, 6],   becomes   [6, 4, 5],
+     *     [7, 8, 9]]             [9, 7, 8]]
      *
      * </pre>
      *
@@ -485,9 +485,9 @@ public interface Hypercube<T>
      * Roll the cube along the {@code n}th axis, such that sub-cubes which are
      * pushed off one end appear on the other, e.g: <pre>
      *
-     *    [[1, 2, 3],        [[3, 1, 2],
-     *     [4, 5, 6],   ==>   [6, 4, 5],
-     *     [7, 8, 9]]         [9, 7, 8]]
+     *    [[1, 2, 3],            [[3, 1, 2],
+     *     [4, 5, 6],   becomes   [6, 4, 5],
+     *     [7, 8, 9]]             [9, 7, 8]]
      *
      * </pre>
      *

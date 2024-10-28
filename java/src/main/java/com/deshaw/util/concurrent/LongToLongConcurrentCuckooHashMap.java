@@ -1733,8 +1733,8 @@ public class LongToLongConcurrentCuckooHashMap
     /**
      * Testing method.
      *
-     *   java -classpath `destopdir`/java/classes \
-     *       deshaw.common.primitive.concurrent.LongToLongConcurrentCuckooHashMap
+     *   java -classpath java/build/classes/java/main \
+     *       com.deshaw.util.concurrent.LongToLongConcurrentCuckooHashMap
      */
     public static void main(String args[])
     {

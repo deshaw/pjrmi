@@ -175,15 +175,22 @@ def flatten(src, dst, chunk_size=4096):
     count = sz
     flat  = dst.reshape((src.size,))
     end   = len(flat)
+    data  = list()
     for idx in range(0, end, sz):
         e = idx + sz
         if e > end:
             e = end
             count = e - idx
-        data = b''
-        while len(data) < count * 8:
-            data += sock.recv(count * 8 - len(data))
-        flat[idx:e] = numpy.frombuffer(data, dtype='float64', count=count)
+        want = count * 8
+        data.clear()
+        while want > 0:
+            d = sock.recv(want)
+            want -= len(d)
+            data.append(d)
+        if len(data) == 1:
+            flat[idx:e] = numpy.frombuffer(data[0],        dtype='float64', count=count)
+        else:
+            flat[idx:e] = numpy.frombuffer(b''.join(data), dtype='float64', count=count)
 
     try:
         ss.close()

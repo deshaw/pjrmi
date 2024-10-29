@@ -1212,8 +1212,7 @@ public interface Hypercube<T>
      * @param dstPos  The position at which, in the flattened view of the
      *                hypercube, to start copying values into.
      * @param length  How many values to copy.
-     * @param is      Where to read the results from.
-     * @param bo      The byte ordering to use.
+     * @param buf     Where to read the results from.
      *
      * @throws IllegalArgumentException      If {@code length} was negative.
      * @throws IndexOutOfBoundsException     If {@code dstPos} was not within the

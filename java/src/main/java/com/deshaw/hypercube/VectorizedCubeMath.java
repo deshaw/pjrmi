@@ -112,8 +112,11 @@ public class VectorizedCubeMath
     private static class BooleanSingleValueHypercube
         extends AbstractBooleanHypercube
     {
-        // This cube's single value.
-        final boolean singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final boolean myValue;
+
         /**
          * Constructor.
          *
@@ -123,7 +126,7 @@ public class VectorizedCubeMath
         public BooleanSingleValueHypercube(final Dimension<?>[] dimensions, final boolean v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -135,7 +138,7 @@ public class VectorizedCubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -144,7 +147,7 @@ public class VectorizedCubeMath
         @Override
         public Boolean getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -165,7 +168,7 @@ public class VectorizedCubeMath
         @Override
         public boolean getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -186,7 +189,7 @@ public class VectorizedCubeMath
         @Override
         public boolean get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -211,8 +214,11 @@ public class VectorizedCubeMath
     private static class IntegerSingleValueHypercube
         extends AbstractIntegerHypercube
     {
-        // This cube's single value.
-        final int singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final int myValue;
+
         /**
          * Constructor.
          *
@@ -222,7 +228,7 @@ public class VectorizedCubeMath
         public IntegerSingleValueHypercube(final Dimension<?>[] dimensions, final int v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -234,7 +240,7 @@ public class VectorizedCubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -243,7 +249,7 @@ public class VectorizedCubeMath
         @Override
         public Integer getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -264,7 +270,7 @@ public class VectorizedCubeMath
         @Override
         public int getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -285,7 +291,7 @@ public class VectorizedCubeMath
         @Override
         public int get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -310,8 +316,11 @@ public class VectorizedCubeMath
     private static class LongSingleValueHypercube
         extends AbstractLongHypercube
     {
-        // This cube's single value.
-        final long singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final long myValue;
+
         /**
          * Constructor.
          *
@@ -321,7 +330,7 @@ public class VectorizedCubeMath
         public LongSingleValueHypercube(final Dimension<?>[] dimensions, final long v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -333,7 +342,7 @@ public class VectorizedCubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -342,7 +351,7 @@ public class VectorizedCubeMath
         @Override
         public Long getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -363,7 +372,7 @@ public class VectorizedCubeMath
         @Override
         public long getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -384,7 +393,7 @@ public class VectorizedCubeMath
         @Override
         public long get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -409,8 +418,11 @@ public class VectorizedCubeMath
     private static class FloatSingleValueHypercube
         extends AbstractFloatHypercube
     {
-        // This cube's single value.
-        final float singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final float myValue;
+
         /**
          * Constructor.
          *
@@ -420,7 +432,7 @@ public class VectorizedCubeMath
         public FloatSingleValueHypercube(final Dimension<?>[] dimensions, final float v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -432,7 +444,7 @@ public class VectorizedCubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -441,7 +453,7 @@ public class VectorizedCubeMath
         @Override
         public Float getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -462,7 +474,7 @@ public class VectorizedCubeMath
         @Override
         public float getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -483,7 +495,7 @@ public class VectorizedCubeMath
         @Override
         public float get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -508,8 +520,11 @@ public class VectorizedCubeMath
     private static class DoubleSingleValueHypercube
         extends AbstractDoubleHypercube
     {
-        // This cube's single value.
-        final double singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final double myValue;
+
         /**
          * Constructor.
          *
@@ -519,7 +534,7 @@ public class VectorizedCubeMath
         public DoubleSingleValueHypercube(final Dimension<?>[] dimensions, final double v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -531,7 +546,7 @@ public class VectorizedCubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -540,7 +555,7 @@ public class VectorizedCubeMath
         @Override
         public Double getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -561,7 +576,7 @@ public class VectorizedCubeMath
         @Override
         public double getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -582,7 +597,7 @@ public class VectorizedCubeMath
         @Override
         public double get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -22351,4 +22366,4 @@ public class VectorizedCubeMath
     }
 }
 
-// [[[end]]] (checksum: 568211e26b532a2a99606a5fb2492d52)
+// [[[end]]] (checksum: e64adf7b2345962104cd25e078f3287b)

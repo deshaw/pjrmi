@@ -7393,8 +7393,11 @@ public class {class_name}
     private static class {object_type}SingleValueHypercube
         extends Abstract{object_type}Hypercube
     {{
-        // This cube's single value.
-        final {primitive_type} singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final {primitive_type} myValue;
+
         /**
          * Constructor.
          *
@@ -7404,7 +7407,7 @@ public class {class_name}
         public {object_type}SingleValueHypercube(final Dimension<?>[] dimensions, final {primitive_type} v)
         {{
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }}
 
         /**
@@ -7416,7 +7419,7 @@ public class {class_name}
                                 final int  dstPos,
                                 final int  length)
         {{
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }}
 
         /**
@@ -7425,7 +7428,7 @@ public class {class_name}
         @Override
         public {object_type} getObjectAt(final long index)
         {{
-            return singleValue;
+            return myValue;
         }}
 
         /**
@@ -7446,7 +7449,7 @@ public class {class_name}
         @Override
         public {primitive_type} getAt(final long index)
         {{
-            return singleValue;
+            return myValue;
         }}
 
         /**
@@ -7467,7 +7470,7 @@ public class {class_name}
         @Override
         public {primitive_type} get(final long... indices)
         {{
-            return singleValue;
+            return myValue;
         }}
 
         /**

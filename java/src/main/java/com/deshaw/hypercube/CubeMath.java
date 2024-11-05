@@ -45,8 +45,11 @@ public class CubeMath
     private static class BooleanSingleValueHypercube
         extends AbstractBooleanHypercube
     {
-        // This cube's single value.
-        final boolean singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final boolean myValue;
+
         /**
          * Constructor.
          *
@@ -56,7 +59,7 @@ public class CubeMath
         public BooleanSingleValueHypercube(final Dimension<?>[] dimensions, final boolean v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -68,7 +71,7 @@ public class CubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -77,7 +80,7 @@ public class CubeMath
         @Override
         public Boolean getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -98,7 +101,7 @@ public class CubeMath
         @Override
         public boolean getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -119,7 +122,7 @@ public class CubeMath
         @Override
         public boolean get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -144,8 +147,11 @@ public class CubeMath
     private static class IntegerSingleValueHypercube
         extends AbstractIntegerHypercube
     {
-        // This cube's single value.
-        final int singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final int myValue;
+
         /**
          * Constructor.
          *
@@ -155,7 +161,7 @@ public class CubeMath
         public IntegerSingleValueHypercube(final Dimension<?>[] dimensions, final int v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -167,7 +173,7 @@ public class CubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -176,7 +182,7 @@ public class CubeMath
         @Override
         public Integer getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -197,7 +203,7 @@ public class CubeMath
         @Override
         public int getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -218,7 +224,7 @@ public class CubeMath
         @Override
         public int get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -243,8 +249,11 @@ public class CubeMath
     private static class LongSingleValueHypercube
         extends AbstractLongHypercube
     {
-        // This cube's single value.
-        final long singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final long myValue;
+
         /**
          * Constructor.
          *
@@ -254,7 +263,7 @@ public class CubeMath
         public LongSingleValueHypercube(final Dimension<?>[] dimensions, final long v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -266,7 +275,7 @@ public class CubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -275,7 +284,7 @@ public class CubeMath
         @Override
         public Long getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -296,7 +305,7 @@ public class CubeMath
         @Override
         public long getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -317,7 +326,7 @@ public class CubeMath
         @Override
         public long get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -342,8 +351,11 @@ public class CubeMath
     private static class FloatSingleValueHypercube
         extends AbstractFloatHypercube
     {
-        // This cube's single value.
-        final float singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final float myValue;
+
         /**
          * Constructor.
          *
@@ -353,7 +365,7 @@ public class CubeMath
         public FloatSingleValueHypercube(final Dimension<?>[] dimensions, final float v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -365,7 +377,7 @@ public class CubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -374,7 +386,7 @@ public class CubeMath
         @Override
         public Float getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -395,7 +407,7 @@ public class CubeMath
         @Override
         public float getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -416,7 +428,7 @@ public class CubeMath
         @Override
         public float get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -441,8 +453,11 @@ public class CubeMath
     private static class DoubleSingleValueHypercube
         extends AbstractDoubleHypercube
     {
-        // This cube's single value.
-        final double singleValue;
+        /**
+         * This cube's single value.
+         */
+        private final double myValue;
+
         /**
          * Constructor.
          *
@@ -452,7 +467,7 @@ public class CubeMath
         public DoubleSingleValueHypercube(final Dimension<?>[] dimensions, final double v)
         {
             super(dimensions);
-            singleValue = v;
+            myValue = v;
         }
 
         /**
@@ -464,7 +479,7 @@ public class CubeMath
                                 final int  dstPos,
                                 final int  length)
         {
-            Arrays.fill(dst, dstPos, dstPos + length, singleValue);
+            Arrays.fill(dst, dstPos, dstPos + length, myValue);
         }
 
         /**
@@ -473,7 +488,7 @@ public class CubeMath
         @Override
         public Double getObjectAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -494,7 +509,7 @@ public class CubeMath
         @Override
         public double getAt(final long index)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -515,7 +530,7 @@ public class CubeMath
         @Override
         public double get(final long... indices)
         {
-            return singleValue;
+            return myValue;
         }
 
         /**
@@ -20461,4 +20476,4 @@ public class CubeMath
     }
 }
 
- // [[[end]]] (checksum: d34329533bd542892e7bc4ef9bddada2)
+ // [[[end]]] (checksum: 26f370117460f5f22966e5915ebf58c6)

@@ -5424,7 +5424,7 @@ public class {class_name}
                     final {object_type}Hypercube db = ({object_type}Hypercube)b;
                     final {object_type}Hypercube dr = ({object_type}Hypercube)r;
 
-                    // We can out the column from 'b' for faster access if it's
+                    // We copy out the column from 'b' for faster access if it's
                     // small enough to fit into an array. 2^30 doubles is 16GB
                     // for one column which is totally possible for a non-square
                     // matrix but, we hope, most matrices will not be quite that
@@ -5448,6 +5448,8 @@ public class {class_name}
                         // Flipped the ordering of 'i' and 'j' since it's more cache
                         // efficient to copy out the column data (once) and then to
                         // stride through the rows each time.
+                        da.preRead();
+                        db.preRead();
                         for (long j=0; j < bDims[1].length(); j++) {{
                             bi[1] = ri[1] = j;
                             for (long i=0; i < aDims[0].length(); i++) {{
@@ -5467,7 +5469,7 @@ public class {class_name}
                                      ao < ae; ao++,
                                      bo += bs)
                                 {{
-                                    sum += da.getAt(ao) * db.getAt(bo);
+                                    sum += da.weakGetAt(ao) * db.weakGetAt(bo);
                                 }}
                                 dr.set(sum, ri);
                             }}
@@ -5895,9 +5897,10 @@ public class {class_name}
             }}
 
             // Just do a linear waltz
+            w.preRead();
             for (long ii = 0, size = a.getSize(); ii < size{nan_check_for_r}; ii++) {{
                 // Handle any 'where' clause
-                if (w != null && !w.getAt(ii)) {{
+                if (w != null && !w.weakGetAt(ii)) {{
                     continue;
                 }}
 
@@ -5950,8 +5953,7 @@ public class {class_name}
                 "Axis was too large: " + bDims[0].length()
             );
         }}
-        final {primitive_type}[] bcol =
-            new {primitive_type}[(int)bDims[0].length()];
+        final {primitive_type}[] bcol = new {primitive_type}[(int)bDims[0].length()];
 
         // The stride through the flattened data, to walk a column
         // in 'b'. We know that the format of the data is C-style in
@@ -5964,8 +5966,9 @@ public class {class_name}
         // stride through the rows each time.
         for (long j=0; j < bDims[1].length(); j++) {{
             long bco = b.toOffset(0, j);
+            b.preRead();
             for (int i=0; i < bcol.length; i++, bco += bs) {{
-                bcol[i] = b.getAt(bco);
+                bcol[i] = b.weakGetAt(bco);
             }}
 
             // We will stride through the two cubes pulling out the values
@@ -7426,7 +7429,7 @@ public class {class_name}
          * {{@inheritDoc}}
          */
         @Override
-        public {object_type} getObjectAt(final long index)
+        public {object_type} weakGetObjectAt(final long index)
         {{
             return myValue;
         }}
@@ -7435,7 +7438,7 @@ public class {class_name}
          * {{@inheritDoc}}
          */
         @Override
-        public void setObjectAt(final long index, final {object_type} v)
+        public void weakSetObjectAt(final long index, final {object_type} v)
             throws UnsupportedOperationException
         {{
             throw new UnsupportedOperationException(
@@ -7456,7 +7459,16 @@ public class {class_name}
          * {{@inheritDoc}}
          */
         @Override
-        public void setAt(final long index, final {primitive_type} v)
+        public {primitive_type} weakGetAt(final long index)
+        {{
+            return myValue;
+        }}
+
+        /**
+         * {{@inheritDoc}}
+         */
+        @Override
+        public void weakSetAt(final long index, final {primitive_type} v)
             throws UnsupportedOperationException
         {{
             throw new UnsupportedOperationException(
@@ -7477,7 +7489,28 @@ public class {class_name}
          * {{@inheritDoc}}
          */
         @Override
+        public {primitive_type} weakGet(final long... indices)
+        {{
+            return myValue;
+        }}
+
+        /**
+         * {{@inheritDoc}}
+         */
+        @Override
         public void set(final {primitive_type} v, final long... indices)
+            throws UnsupportedOperationException
+        {{
+            throw new UnsupportedOperationException(
+                "Mutator methods should never be used"
+            );
+        }}
+
+        /**
+         * {{@inheritDoc}}
+         */
+        @Override
+        public void weakSet(final {primitive_type} v, final long... indices)
             throws UnsupportedOperationException
         {{
             throw new UnsupportedOperationException(
@@ -7903,12 +7936,13 @@ public class {class_name}
                             final long[] ai = new long[] {{ 0,  0 }};
                             final long[] bi = new long[] {{ 0, jf }};
                             final long[] ri = new long[] {{ 0, jf }};
+                            a.preRead();
                             for (long i = startIndex; i < endIndex; i++) {{
                                 ai[0] = ri[0] = i;
                                 long ao = a.toOffset(ai);
                                 {primitive_type} sum = 0;
                                 for (int bo=0; bo < bcol.length; ao++, bo++) {{
-                                    sum += a.getAt(ao) * bcol[bo];
+                                    sum += a.weakGetAt(ao) * bcol[bo];
                                 }}
                                 r.set(sum, ri);
                             }}
@@ -7922,12 +7956,13 @@ public class {class_name}
                 ai[1] = bi[0] = 0;
                 bi[1] = ri[1] = j;
 
+                a.preRead();
                 for (long i=0; i < numRows; i++) {{
                     ai[0] = ri[0] = i;
                     long ao = a.toOffset(ai);
                     {primitive_type} sum = 0;
                     for (int bo=0 ; bo < bcol.length; ao++, bo++) {{
-                        sum += a.getAt(ao) * bcol[bo];
+                        sum += a.weakGetAt(ao) * bcol[bo];
                     }}
                     r.set(sum, ri);
                 }}

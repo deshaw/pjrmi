@@ -278,42 +278,42 @@ public class DoubleSlicedHypercube
      * {@inheritDoc}
      */
     @Override
-    public double get(final long... indices)
+    public double weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final double value, final long... indices)
+    public void weakSet(final double value, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), value);
+        weakSetAt(toOffset(indices), value);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public double getAt(final long index)
+    public double weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
         // Give it back from the parent
-        return myHypercube.get(getWrappedIndices(index));
+        return myHypercube.weakGet(getWrappedIndices(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final double value)
+    public void weakSetAt(final long index, final double value)
         throws IndexOutOfBoundsException
     {
         // Set it in the parent
-        myHypercube.set(value, getWrappedIndices(index));
+        myHypercube.weakSet(value, getWrappedIndices(index));
     }
 
     /**
@@ -343,4 +343,4 @@ public class DoubleSlicedHypercube
     }
 }
 
-// [[[end]]] (checksum: 41f7595aad2581c7492a35b4255d5827)
+// [[[end]]] (checksum: 3ac27622cc644b01b5371dbe56c4fdf7)

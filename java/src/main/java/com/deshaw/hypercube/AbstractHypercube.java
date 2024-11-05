@@ -214,6 +214,25 @@ public abstract class AbstractHypercube<T>
      * {@inheritDoc}
      */
     @Override
+    public void preRead()
+    {
+        final boolean dummy = myBarrier;
+        if (dummy && !dummy) throw new IllegalStateException();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void postWrite()
+    {
+        myBarrier = !myBarrier;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Hypercube<T> slice(final Dimension.Accessor<?>... accessors)
         throws DimensionalityException,
                IllegalArgumentException,
@@ -883,23 +902,6 @@ public abstract class AbstractHypercube<T>
             indices[i] = offset % length;
             offset    /= length;
         }
-    }
-
-    /**
-     * Call before a read to ensure that the memory barrier is flushed.
-     */
-    protected void preRead()
-    {
-        final boolean dummy = myBarrier;
-        if (dummy && !dummy) throw new IllegalStateException();
-    }
-
-    /**
-     * Call after a write to ensure that the memory barrier is set up.
-     */
-    protected void postWrite()
-    {
-        myBarrier = !myBarrier;
     }
 
     /**

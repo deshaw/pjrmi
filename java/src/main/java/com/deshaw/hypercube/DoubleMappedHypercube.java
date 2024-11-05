@@ -388,47 +388,47 @@ public class DoubleMappedHypercube
      * {@inheritDoc}
      */
     @Override
-    public double get(final long... indices)
+    public double weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final double d, final long... indices)
+    public void weakSet(final double d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), d);
+        weakSetAt(toOffset(indices), d);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Double getObjectAt(final long index)
+    public Double weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Double.valueOf(getAt(index));
+        return Double.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Double value)
+    public void weakSetObjectAt(final long index, final Double value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? Double.NaN : value.doubleValue());
+        weakSetAt(index, (value == null) ? Double.NaN : value.doubleValue());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public double getAt(final long index)
+    public double weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
 
@@ -441,7 +441,7 @@ public class DoubleMappedHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final double value)
+    public void weakSetAt(final long index, final double value)
         throws IndexOutOfBoundsException
     {
         final DoubleBuffer buffer =
@@ -465,4 +465,4 @@ public class DoubleMappedHypercube
     }
 }
 
-// [[[end]]] (checksum: 1280e78a1017de9dbba281c7c39f9746)
+// [[[end]]] (checksum: 2a523b5bca558b2880f77bcc64a900b8)

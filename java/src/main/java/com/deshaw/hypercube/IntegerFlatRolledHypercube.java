@@ -225,42 +225,42 @@ public class IntegerFlatRolledHypercube
      * {@inheritDoc}
      */
     @Override
-    public int get(final long... indices)
+    public int weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final int value, final long... indices)
+    public void weakSet(final int value, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), value);
+        weakSetAt(toOffset(indices), value);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public int getAt(final long index)
+    public int weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
         // Give it back from the parent
-        return myHypercube.get(getWrappedIndices(index));
+        return myHypercube.weakGet(getWrappedIndices(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final int value)
+    public void weakSetAt(final long index, final int value)
         throws IndexOutOfBoundsException
     {
         // Set it in the parent
-        myHypercube.set(value, getWrappedIndices(index));
+        myHypercube.weakSet(value, getWrappedIndices(index));
     }
 
     /**
@@ -290,4 +290,4 @@ public class IntegerFlatRolledHypercube
     }
 }
 
-// [[[end]]] (checksum: 5f9bc8bbf793cafb5f7ae31535745ffa)
+// [[[end]]] (checksum: 1388e278f671e5be2e9f241a85b09f0e)

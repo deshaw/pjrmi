@@ -331,9 +331,11 @@ public interface DoubleHypercube
         if (that == null) {
             return Hypercube.super.contentEquals(cube);
         }
+        this.preRead();
+        that.preRead();
         for (long i=0; i < size; i++) {
-            final double thisEl = this.getAt(i);
-            final double thatEl = that.getAt(i);
+            final double thisEl = this.weakGetAt(i);
+            final double thatEl = that.weakGetAt(i);
             if (thisEl != thatEl &&
                 !(Double.isNaN(thisEl) && Double.isNaN(thatEl)))
             {
@@ -429,8 +431,9 @@ public interface DoubleHypercube
     public default void fill(final double v)
     {
         for (long i=0, size = getSize(); i < size; i++) {
-            setAt(i, v);
+            weakSetAt(i, v);
         }
+        postWrite();
     }
 
     /**
@@ -514,8 +517,9 @@ public interface DoubleHypercube
         }
 
         // Copy...
+        preRead();
         for (int i=0; i < length; i++) {
-            dst[i + dstPos] = getAt(i + srcPos);
+            dst[i + dstPos] = weakGetAt(i + srcPos);
         }
     }
 
@@ -620,44 +624,45 @@ public interface DoubleHypercube
         final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
         final int left = (int)(length & 0xf);
         long i = srcPos;
+        preRead();
         for (final long end = srcPos + length - left; i < end; /*inside*/) {
-            bb.putDouble(getAt(i++)); // 00
-            bb.putDouble(getAt(i++)); // 01
-            bb.putDouble(getAt(i++)); // 02
-            bb.putDouble(getAt(i++)); // 03
-            bb.putDouble(getAt(i++)); // 04
-            bb.putDouble(getAt(i++)); // 05
-            bb.putDouble(getAt(i++)); // 06
-            bb.putDouble(getAt(i++)); // 07
-            bb.putDouble(getAt(i++)); // 08
-            bb.putDouble(getAt(i++)); // 09
-            bb.putDouble(getAt(i++)); // 10
-            bb.putDouble(getAt(i++)); // 11
-            bb.putDouble(getAt(i++)); // 12
-            bb.putDouble(getAt(i++)); // 13
-            bb.putDouble(getAt(i++)); // 14
-            bb.putDouble(getAt(i++)); // 15
+            bb.putDouble(weakGetAt(i++)); // 00
+            bb.putDouble(weakGetAt(i++)); // 01
+            bb.putDouble(weakGetAt(i++)); // 02
+            bb.putDouble(weakGetAt(i++)); // 03
+            bb.putDouble(weakGetAt(i++)); // 04
+            bb.putDouble(weakGetAt(i++)); // 05
+            bb.putDouble(weakGetAt(i++)); // 06
+            bb.putDouble(weakGetAt(i++)); // 07
+            bb.putDouble(weakGetAt(i++)); // 08
+            bb.putDouble(weakGetAt(i++)); // 09
+            bb.putDouble(weakGetAt(i++)); // 10
+            bb.putDouble(weakGetAt(i++)); // 11
+            bb.putDouble(weakGetAt(i++)); // 12
+            bb.putDouble(weakGetAt(i++)); // 13
+            bb.putDouble(weakGetAt(i++)); // 14
+            bb.putDouble(weakGetAt(i++)); // 15
             os.write(buf, 0, buf.length);
             bb.position(0);
         }
 
         // Handle any tail values
         switch (left) {
-        case 0xf: bb.putDouble(getAt(i++));
-        case 0xe: bb.putDouble(getAt(i++));
-        case 0xd: bb.putDouble(getAt(i++));
-        case 0xc: bb.putDouble(getAt(i++));
-        case 0xb: bb.putDouble(getAt(i++));
-        case 0xa: bb.putDouble(getAt(i++));
-        case 0x9: bb.putDouble(getAt(i++));
-        case 0x8: bb.putDouble(getAt(i++));
-        case 0x7: bb.putDouble(getAt(i++));
-        case 0x6: bb.putDouble(getAt(i++));
-        case 0x5: bb.putDouble(getAt(i++));
-        case 0x4: bb.putDouble(getAt(i++));
-        case 0x3: bb.putDouble(getAt(i++));
-        case 0x2: bb.putDouble(getAt(i++));
-        case 0x1: bb.putDouble(getAt(i++));
+        case 0xf: bb.putDouble(weakGetAt(i++));
+        case 0xe: bb.putDouble(weakGetAt(i++));
+        case 0xd: bb.putDouble(weakGetAt(i++));
+        case 0xc: bb.putDouble(weakGetAt(i++));
+        case 0xb: bb.putDouble(weakGetAt(i++));
+        case 0xa: bb.putDouble(weakGetAt(i++));
+        case 0x9: bb.putDouble(weakGetAt(i++));
+        case 0x8: bb.putDouble(weakGetAt(i++));
+        case 0x7: bb.putDouble(weakGetAt(i++));
+        case 0x6: bb.putDouble(weakGetAt(i++));
+        case 0x5: bb.putDouble(weakGetAt(i++));
+        case 0x4: bb.putDouble(weakGetAt(i++));
+        case 0x3: bb.putDouble(weakGetAt(i++));
+        case 0x2: bb.putDouble(weakGetAt(i++));
+        case 0x1: bb.putDouble(weakGetAt(i++));
                   os.write(buf, 0, left * Double.BYTES);
         }
         os.flush();
@@ -703,8 +708,9 @@ public interface DoubleHypercube
         }
 
         // Write it out
+        preRead();
         for (long i = srcPos, end = srcPos + length; i < end; i++) {
-            buf.putDouble(getAt(i));
+            buf.putDouble(weakGetAt(i));
         }
     }
 
@@ -782,8 +788,9 @@ public interface DoubleHypercube
         }
 
         // Copy...
+        preRead();
         for (long i=0; i < length; i++) {
-            dst.set(i + dstPos, bools.getAt(i + srcPos));
+            dst.set(i + dstPos, bools.weakGetAt(i + srcPos));
         }
     }
 
@@ -852,8 +859,9 @@ public interface DoubleHypercube
 
         // Safe to set, do it the slow way by default
         for (int i=0; i < length; i++) {
-            setAt(i + dstPos, src[i + srcPos]);
+            weakSetAt(i + dstPos, src[i + srcPos]);
         }
+        postWrite();
     }
 
     /**
@@ -927,44 +935,45 @@ public interface DoubleHypercube
         long i = dstPos;
         for (final long end = dstPos + length - left; i < end; /*inside*/) {
             is.read(buf, 0, buf.length);
-            setAt(i++, bb.getDouble()); // 00
-            setAt(i++, bb.getDouble()); // 01
-            setAt(i++, bb.getDouble()); // 02
-            setAt(i++, bb.getDouble()); // 03
-            setAt(i++, bb.getDouble()); // 04
-            setAt(i++, bb.getDouble()); // 05
-            setAt(i++, bb.getDouble()); // 06
-            setAt(i++, bb.getDouble()); // 07
-            setAt(i++, bb.getDouble()); // 08
-            setAt(i++, bb.getDouble()); // 09
-            setAt(i++, bb.getDouble()); // 10
-            setAt(i++, bb.getDouble()); // 11
-            setAt(i++, bb.getDouble()); // 12
-            setAt(i++, bb.getDouble()); // 13
-            setAt(i++, bb.getDouble()); // 14
-            setAt(i++, bb.getDouble()); // 15
+            weakSetAt(i++, bb.getDouble()); // 00
+            weakSetAt(i++, bb.getDouble()); // 01
+            weakSetAt(i++, bb.getDouble()); // 02
+            weakSetAt(i++, bb.getDouble()); // 03
+            weakSetAt(i++, bb.getDouble()); // 04
+            weakSetAt(i++, bb.getDouble()); // 05
+            weakSetAt(i++, bb.getDouble()); // 06
+            weakSetAt(i++, bb.getDouble()); // 07
+            weakSetAt(i++, bb.getDouble()); // 08
+            weakSetAt(i++, bb.getDouble()); // 09
+            weakSetAt(i++, bb.getDouble()); // 10
+            weakSetAt(i++, bb.getDouble()); // 11
+            weakSetAt(i++, bb.getDouble()); // 12
+            weakSetAt(i++, bb.getDouble()); // 13
+            weakSetAt(i++, bb.getDouble()); // 14
+            weakSetAt(i++, bb.getDouble()); // 15
             bb.position(0);
         }
         if (left != 0) {
             is.read(buf, 0, left * Double.BYTES);
             switch (left) {
-            case 0xf: setAt(i++, bb.getDouble());
-            case 0xe: setAt(i++, bb.getDouble());
-            case 0xd: setAt(i++, bb.getDouble());
-            case 0xc: setAt(i++, bb.getDouble());
-            case 0xb: setAt(i++, bb.getDouble());
-            case 0xa: setAt(i++, bb.getDouble());
-            case 0x9: setAt(i++, bb.getDouble());
-            case 0x8: setAt(i++, bb.getDouble());
-            case 0x7: setAt(i++, bb.getDouble());
-            case 0x6: setAt(i++, bb.getDouble());
-            case 0x5: setAt(i++, bb.getDouble());
-            case 0x4: setAt(i++, bb.getDouble());
-            case 0x3: setAt(i++, bb.getDouble());
-            case 0x2: setAt(i++, bb.getDouble());
-            case 0x1: setAt(i++, bb.getDouble());
+            case 0xf: weakSetAt(i++, bb.getDouble());
+            case 0xe: weakSetAt(i++, bb.getDouble());
+            case 0xd: weakSetAt(i++, bb.getDouble());
+            case 0xc: weakSetAt(i++, bb.getDouble());
+            case 0xb: weakSetAt(i++, bb.getDouble());
+            case 0xa: weakSetAt(i++, bb.getDouble());
+            case 0x9: weakSetAt(i++, bb.getDouble());
+            case 0x8: weakSetAt(i++, bb.getDouble());
+            case 0x7: weakSetAt(i++, bb.getDouble());
+            case 0x6: weakSetAt(i++, bb.getDouble());
+            case 0x5: weakSetAt(i++, bb.getDouble());
+            case 0x4: weakSetAt(i++, bb.getDouble());
+            case 0x3: weakSetAt(i++, bb.getDouble());
+            case 0x2: weakSetAt(i++, bb.getDouble());
+            case 0x1: weakSetAt(i++, bb.getDouble());
             }
         }
+        postWrite();
     }
 
     /**
@@ -1007,8 +1016,9 @@ public interface DoubleHypercube
 
         // Read them in
         for (long i = dstPos, end = dstPos + length; i < end; i++) {
-            setAt(i, buf.getDouble());
+            weakSetAt(i, buf.getDouble());
         }
+        postWrite();
     }
 
     /**
@@ -1025,10 +1035,12 @@ public interface DoubleHypercube
         if (!matches(that)) {
             throw new IllegalArgumentException("Given cube is not compatible");
         }
+        that.preRead();
         final long size = getSize();
         for (long i=0; i < size; i++) {
-            setAt(i, that.getAt(i));
+            weakSetAt(i, that.weakGetAt(i));
         }
+        postWrite();
     }
 
     /**
@@ -1038,13 +1050,39 @@ public interface DoubleHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public double get(final long... indices)
+    public default double get(final long... indices)
+        throws IndexOutOfBoundsException
+    {
+        preRead();
+        return weakGet(indices);
+    }
+
+    /**
+     * Get the value at the given indices, possibly without invoking memory
+     * barriers.
+     *
+     * @param indices The indices of the element in the hypercube.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public double weakGet(final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
      * Set the value at the given indices.
      */
-    public void set(final double d, final long... indices)
+    public default void set(final double d, final long... indices)
+        throws IndexOutOfBoundsException
+    {
+        weakSet(d, indices);
+        postWrite();
+    }
+
+    /**
+     * Set the value at the given indices, possibly without invoking memory
+     * barriers.
+     */
+    public void weakSet(final double d, final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1142,7 +1180,20 @@ public interface DoubleHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public double getAt(final long index)
+    public default double getAt(final long index)
+        throws IndexOutOfBoundsException
+    {
+        preRead();
+        return weakGetAt(index);
+    }
+
+    /**
+     * Get the value value at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public double weakGetAt(final long index)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1150,7 +1201,20 @@ public interface DoubleHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public void setAt(final long index, final double value)
+    public default void setAt(final long index, final double value)
+        throws IndexOutOfBoundsException
+    {
+        weakSetAt(index, value);
+        postWrite();
+    }
+
+    /**
+     * Set the element at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public void weakSetAt(final long index, final double value)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1263,8 +1327,9 @@ public interface DoubleHypercube
             }
         }
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {
-            if (!(getAt(i) != 0)) {
+            if (!(weakGetAt(i) != 0)) {
                 return false;
             }
         }
@@ -1299,8 +1364,9 @@ public interface DoubleHypercube
             }
         }
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {
-            if (getAt(i) != 0) {
+            if (weakGetAt(i) != 0) {
                 return true;
             }
         }
@@ -1379,11 +1445,12 @@ public interface DoubleHypercube
      */
     public default double min0d()
     {
+        preRead();
         final long size = getSize();
         boolean any = false;
         double min = Double.MAX_VALUE;
         for (long i=0; i < size; i++) {
-            final double v = getAt(i);
+            final double v = weakGetAt(i);
             if (v < min) {
                 min = v;
                 any = true;
@@ -1414,11 +1481,12 @@ public interface DoubleHypercube
      */
     public default double max0d()
     {
+        preRead();
         final long size = getSize();
         boolean any = false;
         double max = Double.MIN_VALUE;
         for (long i=0; i < size; i++) {
-            final double v = getAt(i);
+            final double v = weakGetAt(i);
             if (v > max) {
                 max = v;
                 any = true;
@@ -1453,12 +1521,13 @@ public interface DoubleHypercube
      */
     public default double sum0d()
     {
+        preRead();
         final long size = getSize();
         boolean any = false;
         boolean nan = false;
         double sum = 0;
         for (long i=0; i < size && !nan; i++) {
-            final double v = getAt(i);
+            final double v = weakGetAt(i);
             if (v != 0 || v == 0) { // <-- Cheesy NaN check, but for ints too
                 sum += v;
                 any = true;
@@ -1494,10 +1563,11 @@ public interface DoubleHypercube
      */
     public default double nansum0d()
     {
+        preRead();
         final long size = getSize();
         double sum = 0;
         for (long i=0; i < size; i++) {
-            final double v = getAt(i);
+            final double v = weakGetAt(i);
             if (v != 0 || v == 0) { // <-- Cheesy NaN check, but for ints too
                 sum += v;
             }
@@ -1781,8 +1851,9 @@ public interface DoubleHypercube
             @SuppressWarnings("unchecked")
             final double value = ((Number)object).doubleValue();
             for (long i=0; i < size; i++) {
-                setAt(i, value);
+                weakSetAt(i, value);
             }
+            postWrite();
         }
         else if (object.getClass().isArray() &&
                  !object.getClass().getComponentType().isArray() &&
@@ -1881,4 +1952,4 @@ public interface DoubleHypercube
     }
 }
 
-// [[[end]]] (checksum: 20171f196bd570eca630fa68d67929cb)
+// [[[end]]] (checksum: d58ba82e731defcee7913c37d5714156)

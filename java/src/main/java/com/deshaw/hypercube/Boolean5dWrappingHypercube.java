@@ -63,7 +63,7 @@ public class Boolean5dWrappingHypercube
      * the result of {@code false}.
      */
     @Override
-    public boolean get(final long... indices)
+    public boolean weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -139,7 +139,7 @@ public class Boolean5dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void set(final boolean value, final long... indices)
+    public void weakSet(final boolean value, final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -215,7 +215,7 @@ public class Boolean5dWrappingHypercube
      * the result of {@code false}.
      */
     @Override
-    public boolean getAt(long index)
+    public boolean weakGetAt(long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -263,7 +263,7 @@ public class Boolean5dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void setAt(long index, final boolean value)
+    public void weakSetAt(long index, final boolean value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -308,20 +308,20 @@ public class Boolean5dWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public Boolean getObjectAt(final long index)
+    public Boolean weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Boolean.valueOf(getAt(index));
+        return Boolean.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Boolean value)
+    public void weakSetObjectAt(final long index, final Boolean value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? false : value.booleanValue());
+        weakSetAt(index, (value == null) ? false : value.booleanValue());
     }
 
     /**
@@ -338,4 +338,4 @@ public class Boolean5dWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: c88ec9ec73e4d0c263dfb04328b1c99d)
+// [[[end]]] (checksum: a3896bd8ac0abf248befb37c8eb5c663)

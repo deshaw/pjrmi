@@ -57,7 +57,7 @@ public class Boolean3dWrappingHypercube
      * the result of {@code false}.
      */
     @Override
-    public boolean get(final long... indices)
+    public boolean weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -111,7 +111,7 @@ public class Boolean3dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void set(final boolean value, final long... indices)
+    public void weakSet(final boolean value, final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -165,7 +165,7 @@ public class Boolean3dWrappingHypercube
      * the result of {@code false}.
      */
     @Override
-    public boolean getAt(long index)
+    public boolean weakGetAt(long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -201,7 +201,7 @@ public class Boolean3dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void setAt(long index, final boolean value)
+    public void weakSetAt(long index, final boolean value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -234,20 +234,20 @@ public class Boolean3dWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public Boolean getObjectAt(final long index)
+    public Boolean weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Boolean.valueOf(getAt(index));
+        return Boolean.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Boolean value)
+    public void weakSetObjectAt(final long index, final Boolean value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? false : value.booleanValue());
+        weakSetAt(index, (value == null) ? false : value.booleanValue());
     }
 
     /**
@@ -264,4 +264,4 @@ public class Boolean3dWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: b290df49d7096ee12705e48e067b4722)
+// [[[end]]] (checksum: e8d7e7de9de3195089585da37cedb91a)

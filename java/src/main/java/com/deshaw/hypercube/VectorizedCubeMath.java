@@ -145,7 +145,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public Boolean getObjectAt(final long index)
+        public Boolean weakGetObjectAt(final long index)
         {
             return myValue;
         }
@@ -154,7 +154,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setObjectAt(final long index, final Boolean v)
+        public void weakSetObjectAt(final long index, final Boolean v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -175,7 +175,16 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setAt(final long index, final boolean v)
+        public boolean weakGetAt(final long index)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSetAt(final long index, final boolean v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -196,7 +205,28 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
+        public boolean weakGet(final long... indices)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
         public void set(final boolean v, final long... indices)
+            throws UnsupportedOperationException
+        {
+            throw new UnsupportedOperationException(
+                "Mutator methods should never be used"
+            );
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSet(final boolean v, final long... indices)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -247,7 +277,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public Integer getObjectAt(final long index)
+        public Integer weakGetObjectAt(final long index)
         {
             return myValue;
         }
@@ -256,7 +286,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setObjectAt(final long index, final Integer v)
+        public void weakSetObjectAt(final long index, final Integer v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -277,7 +307,16 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setAt(final long index, final int v)
+        public int weakGetAt(final long index)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSetAt(final long index, final int v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -298,7 +337,28 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
+        public int weakGet(final long... indices)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
         public void set(final int v, final long... indices)
+            throws UnsupportedOperationException
+        {
+            throw new UnsupportedOperationException(
+                "Mutator methods should never be used"
+            );
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSet(final int v, final long... indices)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -349,7 +409,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public Long getObjectAt(final long index)
+        public Long weakGetObjectAt(final long index)
         {
             return myValue;
         }
@@ -358,7 +418,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setObjectAt(final long index, final Long v)
+        public void weakSetObjectAt(final long index, final Long v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -379,7 +439,16 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setAt(final long index, final long v)
+        public long weakGetAt(final long index)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSetAt(final long index, final long v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -400,7 +469,28 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
+        public long weakGet(final long... indices)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
         public void set(final long v, final long... indices)
+            throws UnsupportedOperationException
+        {
+            throw new UnsupportedOperationException(
+                "Mutator methods should never be used"
+            );
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSet(final long v, final long... indices)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -451,7 +541,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public Float getObjectAt(final long index)
+        public Float weakGetObjectAt(final long index)
         {
             return myValue;
         }
@@ -460,7 +550,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setObjectAt(final long index, final Float v)
+        public void weakSetObjectAt(final long index, final Float v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -481,7 +571,16 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setAt(final long index, final float v)
+        public float weakGetAt(final long index)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSetAt(final long index, final float v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -502,7 +601,28 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
+        public float weakGet(final long... indices)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
         public void set(final float v, final long... indices)
+            throws UnsupportedOperationException
+        {
+            throw new UnsupportedOperationException(
+                "Mutator methods should never be used"
+            );
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSet(final float v, final long... indices)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -553,7 +673,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public Double getObjectAt(final long index)
+        public Double weakGetObjectAt(final long index)
         {
             return myValue;
         }
@@ -562,7 +682,7 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setObjectAt(final long index, final Double v)
+        public void weakSetObjectAt(final long index, final Double v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -583,7 +703,16 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
-        public void setAt(final long index, final double v)
+        public double weakGetAt(final long index)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSetAt(final long index, final double v)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -604,7 +733,28 @@ public class VectorizedCubeMath
          * {@inheritDoc}
          */
         @Override
+        public double weakGet(final long... indices)
+        {
+            return myValue;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
         public void set(final double v, final long... indices)
+            throws UnsupportedOperationException
+        {
+            throw new UnsupportedOperationException(
+                "Mutator methods should never be used"
+            );
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void weakSet(final double v, final long... indices)
             throws UnsupportedOperationException
         {
             throw new UnsupportedOperationException(
@@ -12077,7 +12227,7 @@ public class VectorizedCubeMath
                     final IntegerHypercube db = (IntegerHypercube)b;
                     final IntegerHypercube dr = (IntegerHypercube)r;
 
-                    // We can out the column from 'b' for faster access if it's
+                    // We copy out the column from 'b' for faster access if it's
                     // small enough to fit into an array. 2^30 doubles is 16GB
                     // for one column which is totally possible for a non-square
                     // matrix but, we hope, most matrices will not be quite that
@@ -12101,6 +12251,8 @@ public class VectorizedCubeMath
                         // Flipped the ordering of 'i' and 'j' since it's more cache
                         // efficient to copy out the column data (once) and then to
                         // stride through the rows each time.
+                        da.preRead();
+                        db.preRead();
                         for (long j=0; j < bDims[1].length(); j++) {
                             bi[1] = ri[1] = j;
                             for (long i=0; i < aDims[0].length(); i++) {
@@ -12120,7 +12272,7 @@ public class VectorizedCubeMath
                                      ao < ae; ao++,
                                      bo += bs)
                                 {
-                                    sum += da.getAt(ao) * db.getAt(bo);
+                                    sum += da.weakGetAt(ao) * db.weakGetAt(bo);
                                 }
                                 dr.set(sum, ri);
                             }
@@ -12644,9 +12796,10 @@ public class VectorizedCubeMath
             }
 
             // Just do a linear waltz
+            w.preRead();
             for (long ii = 0, size = a.getSize(); ii < size; ii++) {
                 // Handle any 'where' clause
-                if (w != null && !w.getAt(ii)) {
+                if (w != null && !w.weakGetAt(ii)) {
                     continue;
                 }
 
@@ -12702,8 +12855,7 @@ public class VectorizedCubeMath
                 "Axis was too large: " + bDims[0].length()
             );
         }
-        final int[] bcol =
-            new int[(int)bDims[0].length()];
+        final int[] bcol = new int[(int)bDims[0].length()];
 
         // The stride through the flattened data, to walk a column
         // in 'b'. We know that the format of the data is C-style in
@@ -12716,8 +12868,9 @@ public class VectorizedCubeMath
         // stride through the rows each time.
         for (long j=0; j < bDims[1].length(); j++) {
             long bco = b.toOffset(0, j);
+            b.preRead();
             for (int i=0; i < bcol.length; i++, bco += bs) {
-                bcol[i] = b.getAt(bco);
+                bcol[i] = b.weakGetAt(bco);
             }
 
             // We will stride through the two cubes pulling out the values
@@ -12786,8 +12939,9 @@ public class VectorizedCubeMath
                                    VectorMask.fromLong(INTEGER_SPECIES, ((1L << left) - 1))
                                );
                     }
-                    r.set(sum, ri);
+                    r.weakSet(sum, ri);
                 }
+                r.postWrite();
             }
             else {
                 // How many threads to use. This should not be more than there
@@ -12864,8 +13018,9 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(INTEGER_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.set(sum, ri);
+                                r.weakSet(sum, ri);
                             }
+                            r.postWrite();
                         }
                         finally {
                             latch.countDown();
@@ -14736,7 +14891,7 @@ public class VectorizedCubeMath
                     final LongHypercube db = (LongHypercube)b;
                     final LongHypercube dr = (LongHypercube)r;
 
-                    // We can out the column from 'b' for faster access if it's
+                    // We copy out the column from 'b' for faster access if it's
                     // small enough to fit into an array. 2^30 doubles is 16GB
                     // for one column which is totally possible for a non-square
                     // matrix but, we hope, most matrices will not be quite that
@@ -14760,6 +14915,8 @@ public class VectorizedCubeMath
                         // Flipped the ordering of 'i' and 'j' since it's more cache
                         // efficient to copy out the column data (once) and then to
                         // stride through the rows each time.
+                        da.preRead();
+                        db.preRead();
                         for (long j=0; j < bDims[1].length(); j++) {
                             bi[1] = ri[1] = j;
                             for (long i=0; i < aDims[0].length(); i++) {
@@ -14779,7 +14936,7 @@ public class VectorizedCubeMath
                                      ao < ae; ao++,
                                      bo += bs)
                                 {
-                                    sum += da.getAt(ao) * db.getAt(bo);
+                                    sum += da.weakGetAt(ao) * db.weakGetAt(bo);
                                 }
                                 dr.set(sum, ri);
                             }
@@ -15303,9 +15460,10 @@ public class VectorizedCubeMath
             }
 
             // Just do a linear waltz
+            w.preRead();
             for (long ii = 0, size = a.getSize(); ii < size; ii++) {
                 // Handle any 'where' clause
-                if (w != null && !w.getAt(ii)) {
+                if (w != null && !w.weakGetAt(ii)) {
                     continue;
                 }
 
@@ -15361,8 +15519,7 @@ public class VectorizedCubeMath
                 "Axis was too large: " + bDims[0].length()
             );
         }
-        final long[] bcol =
-            new long[(int)bDims[0].length()];
+        final long[] bcol = new long[(int)bDims[0].length()];
 
         // The stride through the flattened data, to walk a column
         // in 'b'. We know that the format of the data is C-style in
@@ -15375,8 +15532,9 @@ public class VectorizedCubeMath
         // stride through the rows each time.
         for (long j=0; j < bDims[1].length(); j++) {
             long bco = b.toOffset(0, j);
+            b.preRead();
             for (int i=0; i < bcol.length; i++, bco += bs) {
-                bcol[i] = b.getAt(bco);
+                bcol[i] = b.weakGetAt(bco);
             }
 
             // We will stride through the two cubes pulling out the values
@@ -15445,8 +15603,9 @@ public class VectorizedCubeMath
                                    VectorMask.fromLong(LONG_SPECIES, ((1L << left) - 1))
                                );
                     }
-                    r.set(sum, ri);
+                    r.weakSet(sum, ri);
                 }
+                r.postWrite();
             }
             else {
                 // How many threads to use. This should not be more than there
@@ -15523,8 +15682,9 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(LONG_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.set(sum, ri);
+                                r.weakSet(sum, ri);
                             }
+                            r.postWrite();
                         }
                         finally {
                             latch.countDown();
@@ -17395,7 +17555,7 @@ public class VectorizedCubeMath
                     final FloatHypercube db = (FloatHypercube)b;
                     final FloatHypercube dr = (FloatHypercube)r;
 
-                    // We can out the column from 'b' for faster access if it's
+                    // We copy out the column from 'b' for faster access if it's
                     // small enough to fit into an array. 2^30 doubles is 16GB
                     // for one column which is totally possible for a non-square
                     // matrix but, we hope, most matrices will not be quite that
@@ -17419,6 +17579,8 @@ public class VectorizedCubeMath
                         // Flipped the ordering of 'i' and 'j' since it's more cache
                         // efficient to copy out the column data (once) and then to
                         // stride through the rows each time.
+                        da.preRead();
+                        db.preRead();
                         for (long j=0; j < bDims[1].length(); j++) {
                             bi[1] = ri[1] = j;
                             for (long i=0; i < aDims[0].length(); i++) {
@@ -17438,7 +17600,7 @@ public class VectorizedCubeMath
                                      ao < ae; ao++,
                                      bo += bs)
                                 {
-                                    sum += da.getAt(ao) * db.getAt(bo);
+                                    sum += da.weakGetAt(ao) * db.weakGetAt(bo);
                                 }
                                 dr.set(sum, ri);
                             }
@@ -17962,9 +18124,10 @@ public class VectorizedCubeMath
             }
 
             // Just do a linear waltz
+            w.preRead();
             for (long ii = 0, size = a.getSize(); ii < size && !Float.isNaN(r); ii++) {
                 // Handle any 'where' clause
-                if (w != null && !w.getAt(ii)) {
+                if (w != null && !w.weakGetAt(ii)) {
                     continue;
                 }
 
@@ -18020,8 +18183,7 @@ public class VectorizedCubeMath
                 "Axis was too large: " + bDims[0].length()
             );
         }
-        final float[] bcol =
-            new float[(int)bDims[0].length()];
+        final float[] bcol = new float[(int)bDims[0].length()];
 
         // The stride through the flattened data, to walk a column
         // in 'b'. We know that the format of the data is C-style in
@@ -18034,8 +18196,9 @@ public class VectorizedCubeMath
         // stride through the rows each time.
         for (long j=0; j < bDims[1].length(); j++) {
             long bco = b.toOffset(0, j);
+            b.preRead();
             for (int i=0; i < bcol.length; i++, bco += bs) {
-                bcol[i] = b.getAt(bco);
+                bcol[i] = b.weakGetAt(bco);
             }
 
             // We will stride through the two cubes pulling out the values
@@ -18104,8 +18267,9 @@ public class VectorizedCubeMath
                                    VectorMask.fromLong(FLOAT_SPECIES, ((1L << left) - 1))
                                );
                     }
-                    r.set(sum, ri);
+                    r.weakSet(sum, ri);
                 }
+                r.postWrite();
             }
             else {
                 // How many threads to use. This should not be more than there
@@ -18182,8 +18346,9 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(FLOAT_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.set(sum, ri);
+                                r.weakSet(sum, ri);
                             }
+                            r.postWrite();
                         }
                         finally {
                             latch.countDown();
@@ -20109,7 +20274,7 @@ public class VectorizedCubeMath
                     final DoubleHypercube db = (DoubleHypercube)b;
                     final DoubleHypercube dr = (DoubleHypercube)r;
 
-                    // We can out the column from 'b' for faster access if it's
+                    // We copy out the column from 'b' for faster access if it's
                     // small enough to fit into an array. 2^30 doubles is 16GB
                     // for one column which is totally possible for a non-square
                     // matrix but, we hope, most matrices will not be quite that
@@ -20133,6 +20298,8 @@ public class VectorizedCubeMath
                         // Flipped the ordering of 'i' and 'j' since it's more cache
                         // efficient to copy out the column data (once) and then to
                         // stride through the rows each time.
+                        da.preRead();
+                        db.preRead();
                         for (long j=0; j < bDims[1].length(); j++) {
                             bi[1] = ri[1] = j;
                             for (long i=0; i < aDims[0].length(); i++) {
@@ -20152,7 +20319,7 @@ public class VectorizedCubeMath
                                      ao < ae; ao++,
                                      bo += bs)
                                 {
-                                    sum += da.getAt(ao) * db.getAt(bo);
+                                    sum += da.weakGetAt(ao) * db.weakGetAt(bo);
                                 }
                                 dr.set(sum, ri);
                             }
@@ -20676,9 +20843,10 @@ public class VectorizedCubeMath
             }
 
             // Just do a linear waltz
+            w.preRead();
             for (long ii = 0, size = a.getSize(); ii < size && !Double.isNaN(r); ii++) {
                 // Handle any 'where' clause
-                if (w != null && !w.getAt(ii)) {
+                if (w != null && !w.weakGetAt(ii)) {
                     continue;
                 }
 
@@ -20734,8 +20902,7 @@ public class VectorizedCubeMath
                 "Axis was too large: " + bDims[0].length()
             );
         }
-        final double[] bcol =
-            new double[(int)bDims[0].length()];
+        final double[] bcol = new double[(int)bDims[0].length()];
 
         // The stride through the flattened data, to walk a column
         // in 'b'. We know that the format of the data is C-style in
@@ -20748,8 +20915,9 @@ public class VectorizedCubeMath
         // stride through the rows each time.
         for (long j=0; j < bDims[1].length(); j++) {
             long bco = b.toOffset(0, j);
+            b.preRead();
             for (int i=0; i < bcol.length; i++, bco += bs) {
-                bcol[i] = b.getAt(bco);
+                bcol[i] = b.weakGetAt(bco);
             }
 
             // We will stride through the two cubes pulling out the values
@@ -20818,8 +20986,9 @@ public class VectorizedCubeMath
                                    VectorMask.fromLong(DOUBLE_SPECIES, ((1L << left) - 1))
                                );
                     }
-                    r.set(sum, ri);
+                    r.weakSet(sum, ri);
                 }
+                r.postWrite();
             }
             else {
                 // How many threads to use. This should not be more than there
@@ -20896,8 +21065,9 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(DOUBLE_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.set(sum, ri);
+                                r.weakSet(sum, ri);
                             }
+                            r.postWrite();
                         }
                         finally {
                             latch.countDown();
@@ -22366,4 +22536,4 @@ public class VectorizedCubeMath
     }
 }
 
-// [[[end]]] (checksum: e64adf7b2345962104cd25e078f3287b)
+// [[[end]]] (checksum: cd9cf8b77138db033f801f3e05d0f7f1)

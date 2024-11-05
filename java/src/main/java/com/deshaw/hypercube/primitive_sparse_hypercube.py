@@ -272,50 +272,47 @@ public class {object_type}SparseHypercube
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} get(final long... indices)
+    public {primitive_type} weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {{
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void set(final {primitive_type} d, final long... indices)
+    public void weakSet(final {primitive_type} d, final long... indices)
         throws IndexOutOfBoundsException
     {{
-        setAt(toOffset(indices), d);
-        postWrite();
+        weakSetAt(toOffset(indices), d);
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public {object_type} getObjectAt(final long index)
+    public {object_type} weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {{
-        preRead();
-        return {object_type}.valueOf(getAt(index));
+        return {object_type}.valueOf(weakGetAt(index));
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void setObjectAt(final long index, final {object_type} value)
+    public void weakSetObjectAt(final long index, final {object_type} value)
         throws IndexOutOfBoundsException
     {{
-        setAt(index, (value == null) ? {primitive_from_null} : value.{primitive_type}Value());
-        postWrite();
+        weakSetAt(index, (value == null) ? {primitive_from_null} : value.{primitive_type}Value());
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} getAt(final long index)
+    public {primitive_type} weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {{
         if (index < 0 || index >= getSize()) {{
@@ -323,7 +320,6 @@ public class {object_type}SparseHypercube
                 "Index " + index + " was outside the range of the cube's size, " + getSize()
             );
         }}
-        preRead();
         return long2{primitive_type}(myMap.get(index, myNull));
     }}
 
@@ -331,7 +327,7 @@ public class {object_type}SparseHypercube
      * {{@inheritDoc}}
      */
     @Override
-    public void setAt(final long index, final {primitive_type} value)
+    public void weakSetAt(final long index, final {primitive_type} value)
         throws IndexOutOfBoundsException
     {{
         if (index < 0 || index >= getSize()) {{
@@ -340,7 +336,6 @@ public class {object_type}SparseHypercube
             );
         }}
         mapPut(index, {primitive_type}2long(value));
-        postWrite();
     }}
 
     /**

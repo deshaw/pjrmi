@@ -117,20 +117,20 @@ public class WrappingHypercube<T>
      * {@inheritDoc}
      */
     @Override
-    public T getObjectAt(final long index)
+    public T weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return getWrapped().getObjectAt(index);
+        return getWrapped().weakGetObjectAt(index);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final T object)
+    public void weakSetObjectAt(final long index, final T object)
         throws IndexOutOfBoundsException
     {
-        getWrapped().setObjectAt(index, object);
+        getWrapped().weakSetObjectAt(index, object);
     }
 
     /**

@@ -279,50 +279,47 @@ public class DoubleSparseHypercube
      * {@inheritDoc}
      */
     @Override
-    public double get(final long... indices)
+    public double weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final double d, final long... indices)
+    public void weakSet(final double d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), d);
-        postWrite();
+        weakSetAt(toOffset(indices), d);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Double getObjectAt(final long index)
+    public Double weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        preRead();
-        return Double.valueOf(getAt(index));
+        return Double.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Double value)
+    public void weakSetObjectAt(final long index, final Double value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? Double.NaN : value.doubleValue());
-        postWrite();
+        weakSetAt(index, (value == null) ? Double.NaN : value.doubleValue());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public double getAt(final long index)
+    public double weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= getSize()) {
@@ -330,7 +327,6 @@ public class DoubleSparseHypercube
                 "Index " + index + " was outside the range of the cube's size, " + getSize()
             );
         }
-        preRead();
         return long2double(myMap.get(index, myNull));
     }
 
@@ -338,7 +334,7 @@ public class DoubleSparseHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final double value)
+    public void weakSetAt(final long index, final double value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= getSize()) {
@@ -347,7 +343,6 @@ public class DoubleSparseHypercube
             );
         }
         mapPut(index, double2long(value));
-        postWrite();
     }
 
     /**
@@ -381,4 +376,4 @@ public class DoubleSparseHypercube
     }
 }
 
-// [[[end]]] (checksum: 92af0879f0b1fb300dd185573c5883ec)
+// [[[end]]] (checksum: 6964036f7c30bb688a264bdaee78e935)

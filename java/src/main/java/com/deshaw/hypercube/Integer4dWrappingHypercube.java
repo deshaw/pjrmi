@@ -60,7 +60,7 @@ public class Integer4dWrappingHypercube
      * the result of {@code 0}.
      */
     @Override
-    public int get(final long... indices)
+    public int weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -125,7 +125,7 @@ public class Integer4dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void set(final int value, final long... indices)
+    public void weakSet(final int value, final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -190,7 +190,7 @@ public class Integer4dWrappingHypercube
      * the result of {@code 0}.
      */
     @Override
-    public int getAt(long index)
+    public int weakGetAt(long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -232,7 +232,7 @@ public class Integer4dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void setAt(long index, final int value)
+    public void weakSetAt(long index, final int value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -271,20 +271,20 @@ public class Integer4dWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public Integer getObjectAt(final long index)
+    public Integer weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Integer.valueOf(getAt(index));
+        return Integer.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Integer value)
+    public void weakSetObjectAt(final long index, final Integer value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? 0 : value.intValue());
+        weakSetAt(index, (value == null) ? 0 : value.intValue());
     }
 
     /**
@@ -301,4 +301,4 @@ public class Integer4dWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: 9e1b15a480e1f14b315504ab41c547d9)
+// [[[end]]] (checksum: c40faf491eb5387fed8c37c9b406d120)

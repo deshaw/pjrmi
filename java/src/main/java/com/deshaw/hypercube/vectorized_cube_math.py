@@ -587,8 +587,9 @@ public class {class_name}
                                                VectorMask.fromLong({species}, ((1L << left) - 1))
                                            );
                                 }}
-                                r.set(sum, ri);
+                                r.weakSet(sum, ri);
                             }}
+                            r.postWrite();
 ''',
 
     'MATMUL_DOT_OP_NAIVE': '''\
@@ -643,8 +644,9 @@ public class {class_name}
                                    VectorMask.fromLong({species}, ((1L << left) - 1))
                                );
                     }}
-                    r.set(sum, ri);
+                    r.weakSet(sum, ri);
                 }}
+                r.postWrite();
 ''',
 }
 

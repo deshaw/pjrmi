@@ -54,7 +54,7 @@ public class Long2dWrappingHypercube
      * the result of {@code 0L}.
      */
     @Override
-    public long get(final long... indices)
+    public long weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -97,7 +97,7 @@ public class Long2dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void set(final long value, final long... indices)
+    public void weakSet(final long value, final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -140,7 +140,7 @@ public class Long2dWrappingHypercube
      * the result of {@code 0L}.
      */
     @Override
-    public long getAt(long index)
+    public long weakGetAt(long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -170,7 +170,7 @@ public class Long2dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void setAt(long index, final long value)
+    public void weakSetAt(long index, final long value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -197,20 +197,20 @@ public class Long2dWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public Long getObjectAt(final long index)
+    public Long weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Long.valueOf(getAt(index));
+        return Long.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Long value)
+    public void weakSetObjectAt(final long index, final Long value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? 0L : value.longValue());
+        weakSetAt(index, (value == null) ? 0L : value.longValue());
     }
 
     /**
@@ -227,4 +227,4 @@ public class Long2dWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: cca087376de562831a81f131e97d314f)
+// [[[end]]] (checksum: 80bb54a18d7be0eaf8037aaae8b61d02)

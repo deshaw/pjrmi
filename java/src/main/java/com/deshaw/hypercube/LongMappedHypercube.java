@@ -388,47 +388,47 @@ public class LongMappedHypercube
      * {@inheritDoc}
      */
     @Override
-    public long get(final long... indices)
+    public long weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final long d, final long... indices)
+    public void weakSet(final long d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), d);
+        weakSetAt(toOffset(indices), d);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Long getObjectAt(final long index)
+    public Long weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Long.valueOf(getAt(index));
+        return Long.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Long value)
+    public void weakSetObjectAt(final long index, final Long value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? 0L : value.longValue());
+        weakSetAt(index, (value == null) ? 0L : value.longValue());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public long getAt(final long index)
+    public long weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
 
@@ -441,7 +441,7 @@ public class LongMappedHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final long value)
+    public void weakSetAt(final long index, final long value)
         throws IndexOutOfBoundsException
     {
         final LongBuffer buffer =
@@ -465,4 +465,4 @@ public class LongMappedHypercube
     }
 }
 
-// [[[end]]] (checksum: 043698ced17ec33d1f2bc5b7ef1df19e)
+// [[[end]]] (checksum: c03bc21fb9d92bcfd0e916966301ae13)

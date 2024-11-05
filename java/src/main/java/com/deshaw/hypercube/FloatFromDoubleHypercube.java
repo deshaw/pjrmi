@@ -50,10 +50,10 @@ public class FloatFromDoubleHypercube
      * {@inheritDoc}
      */
     @Override
-    public Float getObjectAt(final long index)
+    public Float weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        final Double obj = myHypercube.getObjectAt(index);
+        final Double obj = myHypercube.weakGetObjectAt(index);
         return (obj == null) ? null : (float)(obj.doubleValue());
     }
 
@@ -61,10 +61,10 @@ public class FloatFromDoubleHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Float value)
+    public void weakSetObjectAt(final long index, final Float value)
         throws IndexOutOfBoundsException
     {
-        myHypercube.setObjectAt(
+        myHypercube.weakSetObjectAt(
             index,
             (value == null) ? null : (double)(value.floatValue())
         );
@@ -74,40 +74,40 @@ public class FloatFromDoubleHypercube
      * {@inheritDoc}
      */
     @Override
-    public float getAt(final long index)
+    public float weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return (float)(myHypercube.getAt(index));
+        return (float)(myHypercube.weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final float value)
+    public void weakSetAt(final long index, final float value)
         throws IndexOutOfBoundsException
     {
-        myHypercube.setAt(index, (double)(value));
+        myHypercube.weakSetAt(index, (double)(value));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public float get(final long... indices)
+    public float weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return (float)(myHypercube.get(indices));
+        return (float)(myHypercube.weakGet(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final float value, final long... indices)
+    public void weakSet(final float value, final long... indices)
         throws IndexOutOfBoundsException
     {
-        myHypercube.set((double)(value), indices);
+        myHypercube.weakSet((double)(value), indices);
     }
 
     /**
@@ -126,4 +126,4 @@ public class FloatFromDoubleHypercube
     }
 }
 
-// [[[end]]] (checksum: 7c31fe2e745549e0633e6d4f231aabb0)
+// [[[end]]] (checksum: e5c3a8131ed38b80f208d693a433efe8)

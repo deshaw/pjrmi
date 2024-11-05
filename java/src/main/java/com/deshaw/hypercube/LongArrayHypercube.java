@@ -385,53 +385,49 @@ public class LongArrayHypercube
      * {@inheritDoc}
      */
     @Override
-    public long get(final long... indices)
+    public long weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final long d, final long... indices)
+    public void weakSet(final long d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), d);
-        postWrite();
+        weakSetAt(toOffset(indices), d);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Long getObjectAt(final long index)
+    public Long weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        preRead();
-        return Long.valueOf(getAt(index));
+        return Long.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Long value)
+    public void weakSetObjectAt(final long index, final Long value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? 0L : value.longValue());
-        postWrite();
+        weakSetAt(index, (value == null) ? 0L : value.longValue());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public long getAt(final long index)
+    public long weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
-        preRead();
         if (index < MAX_ARRAY_SIZE) {
             return myElements0[(int)index];
         }
@@ -445,7 +441,7 @@ public class LongArrayHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final long value)
+    public void weakSetAt(final long index, final long value)
         throws IndexOutOfBoundsException
     {
         if (index < MAX_ARRAY_SIZE) {
@@ -455,7 +451,6 @@ public class LongArrayHypercube
             long[] array = myElements[(int)(index >>> MAX_ARRAY_SHIFT)];
             array[(int)(index & MAX_ARRAY_MASK)] = value;
         }
-        postWrite();
     }
 
     /**
@@ -489,4 +484,4 @@ public class LongArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 74f6880c796d90e846e54afcdea55982)
+// [[[end]]] (checksum: 1557f71e9068957c1c92eee2f910baef)

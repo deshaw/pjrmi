@@ -63,7 +63,7 @@ public class Float5dWrappingHypercube
      * the result of {@code Float.NaN}.
      */
     @Override
-    public float get(final long... indices)
+    public float weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -139,7 +139,7 @@ public class Float5dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void set(final float value, final long... indices)
+    public void weakSet(final float value, final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -215,7 +215,7 @@ public class Float5dWrappingHypercube
      * the result of {@code Float.NaN}.
      */
     @Override
-    public float getAt(long index)
+    public float weakGetAt(long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -263,7 +263,7 @@ public class Float5dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void setAt(long index, final float value)
+    public void weakSetAt(long index, final float value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -308,20 +308,20 @@ public class Float5dWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public Float getObjectAt(final long index)
+    public Float weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Float.valueOf(getAt(index));
+        return Float.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Float value)
+    public void weakSetObjectAt(final long index, final Float value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? Float.NaN : value.floatValue());
+        weakSetAt(index, (value == null) ? Float.NaN : value.floatValue());
     }
 
     /**
@@ -338,4 +338,4 @@ public class Float5dWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: 6a7279581e1c66904ef0308d404aa515)
+// [[[end]]] (checksum: 0f9382ac9a7df56803f891d1f196267a)

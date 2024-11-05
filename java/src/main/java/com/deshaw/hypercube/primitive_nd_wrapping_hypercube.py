@@ -42,7 +42,7 @@ public class {object_type}{ndims}dWrappingHypercube
      * the result of {{@code {primitive_from_null}}}.
      */
     @Override
-    public {primitive_type} get(final long... indices)
+    public {primitive_type} weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {{
 {get_at_indices}
@@ -55,7 +55,7 @@ public class {object_type}{ndims}dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void set(final {primitive_type} value, final long... indices)
+    public void weakSet(final {primitive_type} value, final long... indices)
         throws IndexOutOfBoundsException
     {{
 {set_at_indices}
@@ -68,7 +68,7 @@ public class {object_type}{ndims}dWrappingHypercube
      * the result of {{@code {primitive_from_null}}}.
      */
     @Override
-    public {primitive_type} getAt(long index)
+    public {primitive_type} weakGetAt(long index)
         throws IndexOutOfBoundsException
     {{
 {get_at_offset}
@@ -81,7 +81,7 @@ public class {object_type}{ndims}dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void setAt(long index, final {primitive_type} value)
+    public void weakSetAt(long index, final {primitive_type} value)
         throws IndexOutOfBoundsException
     {{
 {set_at_offset}
@@ -91,20 +91,20 @@ public class {object_type}{ndims}dWrappingHypercube
      * {{@inheritDoc}}
      */
     @Override
-    public {object_type} getObjectAt(final long index)
+    public {object_type} weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {{
-        return {object_type}.valueOf(getAt(index));
+        return {object_type}.valueOf(weakGetAt(index));
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void setObjectAt(final long index, final {object_type} value)
+    public void weakSetObjectAt(final long index, final {object_type} value)
         throws IndexOutOfBoundsException
     {{
-        setAt(index, (value == null) ? {primitive_from_null} : value.{primitive_type}Value());
+        weakSetAt(index, (value == null) ? {primitive_from_null} : value.{primitive_type}Value());
     }}
 
     /**

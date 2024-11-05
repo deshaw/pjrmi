@@ -137,41 +137,62 @@ public class FloatWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public float getAt(final long index)
+    public float weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return getWrapped().getAt(index);
+        return getWrapped().weakGetAt(index);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final float value)
+    public void weakSetAt(final long index, final float value)
         throws IndexOutOfBoundsException
     {
-        getWrapped().setAt(index, value);
+        getWrapped().weakSetAt(index, value);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public float get(final long... indices)
+    public float weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getWrapped().getAt(toOffset(indices));
+        return getWrapped().weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final float d, final long... indices)
+    public void weakSet(final float d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        getWrapped().setAt(toOffset(indices), d);
+        getWrapped().weakSetAt(toOffset(indices), d);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void preRead()
+        throws IndexOutOfBoundsException
+    {
+        getWrapped().preRead();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void postWrite()
+        throws IndexOutOfBoundsException
+    {
+        getWrapped().postWrite();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -182,4 +203,4 @@ public class FloatWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: af94b4db8809b47bff08470a00a0dfab)
+// [[[end]]] (checksum: 09ea51b9829dc7bb8cb9e6ff7f674737)

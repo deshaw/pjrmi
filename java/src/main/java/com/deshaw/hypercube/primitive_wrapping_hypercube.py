@@ -130,41 +130,62 @@ public class {object_type}WrappingHypercube
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} getAt(final long index)
+    public {primitive_type} weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {{
-        return getWrapped().getAt(index);
+        return getWrapped().weakGetAt(index);
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void setAt(final long index, final {primitive_type} value)
+    public void weakSetAt(final long index, final {primitive_type} value)
         throws IndexOutOfBoundsException
     {{
-        getWrapped().setAt(index, value);
+        getWrapped().weakSetAt(index, value);
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} get(final long... indices)
+    public {primitive_type} weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {{
-        return getWrapped().getAt(toOffset(indices));
+        return getWrapped().weakGetAt(toOffset(indices));
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void set(final {primitive_type} d, final long... indices)
+    public void weakSet(final {primitive_type} d, final long... indices)
         throws IndexOutOfBoundsException
     {{
-        getWrapped().setAt(toOffset(indices), d);
+        getWrapped().weakSetAt(toOffset(indices), d);
     }}
+
+    /**
+     * {{@inheritDoc}}
+     */
+    @Override
+    public void preRead()
+        throws IndexOutOfBoundsException
+    {{
+        getWrapped().preRead();
+    }}
+
+    /**
+     * {{@inheritDoc}}
+     */
+    @Override
+    public void postWrite()
+        throws IndexOutOfBoundsException
+    {{
+        getWrapped().postWrite();
+    }}
+
     /**
      * {{@inheritDoc}}
      */

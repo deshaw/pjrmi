@@ -316,9 +316,11 @@ public interface {object_type}Hypercube
         if (that == null) {{
             return Hypercube.super.contentEquals(cube);
         }}
+        this.preRead();
+        that.preRead();
         for (long i=0; i < size; i++) {{
-            final {primitive_type} thisEl = this.getAt(i);
-            final {primitive_type} thatEl = that.getAt(i);
+            final {primitive_type} thisEl = this.weakGetAt(i);
+            final {primitive_type} thatEl = that.weakGetAt(i);
             if (thisEl != thatEl &&
                 !(Double.isNaN(thisEl{num_from_primitive}) && Double.isNaN(thatEl{num_from_primitive})))
             {{
@@ -414,8 +416,9 @@ public interface {object_type}Hypercube
     public default void fill(final {primitive_type} v)
     {{
         for (long i=0, size = getSize(); i < size; i++) {{
-            setAt(i, v);
+            weakSetAt(i, v);
         }}
+        postWrite();
     }}
 
     /**
@@ -499,8 +502,9 @@ public interface {object_type}Hypercube
         }}
 
         // Copy...
+        preRead();
         for (int i=0; i < length; i++) {{
-            dst[i + dstPos] = getAt(i + srcPos);
+            dst[i + dstPos] = weakGetAt(i + srcPos);
         }}
     }}
 
@@ -605,44 +609,45 @@ public interface {object_type}Hypercube
         final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
         final int left = (int)(length & 0xf);
         long i = srcPos;
+        preRead();
         for (final long end = srcPos + length - left; i < end; /*inside*/) {{
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 00
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 01
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 02
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 03
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 04
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 05
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 06
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 07
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 08
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 09
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 10
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 11
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 12
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 13
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 14
-            bb.put{bytebuffer_type}(getAt(i++){num_from_primitive}); // 15
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 00
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 01
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 02
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 03
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 04
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 05
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 06
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 07
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 08
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 09
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 10
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 11
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 12
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 13
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 14
+            bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive}); // 15
             os.write(buf, 0, buf.length);
             bb.position(0);
         }}
 
         // Handle any tail values
         switch (left) {{
-        case 0xf: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0xe: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0xd: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0xc: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0xb: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0xa: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x9: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x8: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x7: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x6: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x5: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x4: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x3: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x2: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
-        case 0x1: bb.put{bytebuffer_type}(getAt(i++){num_from_primitive});
+        case 0xf: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0xe: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0xd: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0xc: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0xb: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0xa: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x9: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x8: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x7: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x6: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x5: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x4: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x3: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x2: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
+        case 0x1: bb.put{bytebuffer_type}(weakGetAt(i++){num_from_primitive});
                   os.write(buf, 0, left * {size});
         }}
         os.flush();
@@ -688,8 +693,9 @@ public interface {object_type}Hypercube
         }}
 
         // Write it out
+        preRead();
         for (long i = srcPos, end = srcPos + length; i < end; i++) {{
-            buf.put{bytebuffer_type}(getAt(i){num_from_primitive});
+            buf.put{bytebuffer_type}(weakGetAt(i){num_from_primitive});
         }}
     }}
 
@@ -767,8 +773,9 @@ public interface {object_type}Hypercube
         }}
 
         // Copy...
+        preRead();
         for (long i=0; i < length; i++) {{
-            dst.set(i + dstPos, bools.getAt(i + srcPos));
+            dst.set(i + dstPos, bools.weakGetAt(i + srcPos));
         }}
     }}
 
@@ -837,8 +844,9 @@ public interface {object_type}Hypercube
 
         // Safe to set, do it the slow way by default
         for (int i=0; i < length; i++) {{
-            setAt(i + dstPos, src[i + srcPos]);
+            weakSetAt(i + dstPos, src[i + srcPos]);
         }}
+        postWrite();
     }}
 
     /**
@@ -912,44 +920,45 @@ public interface {object_type}Hypercube
         long i = dstPos;
         for (final long end = dstPos + length - left; i < end; /*inside*/) {{
             is.read(buf, 0, buf.length);
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 00
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 01
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 02
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 03
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 04
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 05
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 06
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 07
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 08
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 09
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 10
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 11
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 12
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 13
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 14
-            setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 15
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 00
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 01
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 02
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 03
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 04
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 05
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 06
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 07
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 08
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 09
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 10
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 11
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 12
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 13
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 14
+            weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive}); // 15
             bb.position(0);
         }}
         if (left != 0) {{
             is.read(buf, 0, left * {size});
             switch (left) {{
-            case 0xf: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0xe: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0xd: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0xc: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0xb: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0xa: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x9: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x8: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x7: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x6: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x5: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x4: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x3: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x2: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
-            case 0x1: setAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0xf: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0xe: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0xd: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0xc: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0xb: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0xa: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x9: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x8: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x7: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x6: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x5: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x4: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x3: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x2: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
+            case 0x1: weakSetAt(i++, bb.get{bytebuffer_type}(){num_to_primitive});
             }}
         }}
+        postWrite();
     }}
 
     /**
@@ -992,8 +1001,9 @@ public interface {object_type}Hypercube
 
         // Read them in
         for (long i = dstPos, end = dstPos + length; i < end; i++) {{
-            setAt(i, buf.get{bytebuffer_type}(){num_to_primitive});
+            weakSetAt(i, buf.get{bytebuffer_type}(){num_to_primitive});
         }}
+        postWrite();
     }}
 
     /**
@@ -1010,10 +1020,12 @@ public interface {object_type}Hypercube
         if (!matches(that)) {{
             throw new IllegalArgumentException("Given cube is not compatible");
         }}
+        that.preRead();
         final long size = getSize();
         for (long i=0; i < size; i++) {{
-            setAt(i, that.getAt(i));
+            weakSetAt(i, that.weakGetAt(i));
         }}
+        postWrite();
     }}
 
     /**
@@ -1023,13 +1035,39 @@ public interface {object_type}Hypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public {primitive_type} get(final long... indices)
+    public default {primitive_type} get(final long... indices)
+        throws IndexOutOfBoundsException
+    {{
+        preRead();
+        return weakGet(indices);
+    }}
+
+    /**
+     * Get the value at the given indices, possibly without invoking memory
+     * barriers.
+     *
+     * @param indices The indices of the element in the hypercube.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public {primitive_type} weakGet(final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
      * Set the value at the given indices.
      */
-    public void set(final {primitive_type} d, final long... indices)
+    public default void set(final {primitive_type} d, final long... indices)
+        throws IndexOutOfBoundsException
+    {{
+        weakSet(d, indices);
+        postWrite();
+    }}
+
+    /**
+     * Set the value at the given indices, possibly without invoking memory
+     * barriers.
+     */
+    public void weakSet(final {primitive_type} d, final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1127,7 +1165,20 @@ public interface {object_type}Hypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public {primitive_type} getAt(final long index)
+    public default {primitive_type} getAt(final long index)
+        throws IndexOutOfBoundsException
+    {{
+        preRead();
+        return weakGetAt(index);
+    }}
+
+    /**
+     * Get the value value at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public {primitive_type} weakGetAt(final long index)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1135,7 +1186,20 @@ public interface {object_type}Hypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public void setAt(final long index, final {primitive_type} value)
+    public default void setAt(final long index, final {primitive_type} value)
+        throws IndexOutOfBoundsException
+    {{
+        weakSetAt(index, value);
+        postWrite();
+    }}
+
+    /**
+     * Set the element at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public void weakSetAt(final long index, final {primitive_type} value)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1248,8 +1312,9 @@ public interface {object_type}Hypercube
             }}
         }}
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {{
-            if (!(getAt(i){bool_from_primitive})) {{
+            if (!(weakGetAt(i){bool_from_primitive})) {{
                 return false;
             }}
         }}
@@ -1284,8 +1349,9 @@ public interface {object_type}Hypercube
             }}
         }}
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {{
-            if (getAt(i){bool_from_primitive}) {{
+            if (weakGetAt(i){bool_from_primitive}) {{
                 return true;
             }}
         }}
@@ -1366,11 +1432,12 @@ _PRIMITIVE_HYPERCUBE_MATH = '''
      */
     public default {primitive_type} min0d()
     {{
+        preRead();
         final long size = getSize();
         boolean any = false;
         {primitive_type} min = {object_type}.MAX_VALUE;
         for (long i=0; i < size; i++) {{
-            final {primitive_type} v = getAt(i);
+            final {primitive_type} v = weakGetAt(i);
             if (v < min) {{
                 min = v;
                 any = true;
@@ -1401,11 +1468,12 @@ _PRIMITIVE_HYPERCUBE_MATH = '''
      */
     public default {primitive_type} max0d()
     {{
+        preRead();
         final long size = getSize();
         boolean any = false;
         {primitive_type} max = {object_type}.MIN_VALUE;
         for (long i=0; i < size; i++) {{
-            final {primitive_type} v = getAt(i);
+            final {primitive_type} v = weakGetAt(i);
             if (v > max) {{
                 max = v;
                 any = true;
@@ -1440,12 +1508,13 @@ _PRIMITIVE_HYPERCUBE_MATH = '''
      */
     public default {primitive_type} sum0d()
     {{
+        preRead();
         final long size = getSize();
         boolean any = false;
         boolean nan = false;
         {primitive_type} sum = 0;
         for (long i=0; i < size && !nan; i++) {{
-            final {primitive_type} v = getAt(i);
+            final {primitive_type} v = weakGetAt(i);
             if (v != 0 || v == 0) {{ // <-- Cheesy NaN check, but for ints too
                 sum += v;
                 any = true;
@@ -1481,10 +1550,11 @@ _PRIMITIVE_HYPERCUBE_MATH = '''
      */
     public default {primitive_type} nansum0d()
     {{
+        preRead();
         final long size = getSize();
         {primitive_type} sum = 0;
         for (long i=0; i < size; i++) {{
-            final {primitive_type} v = getAt(i);
+            final {primitive_type} v = weakGetAt(i);
             if (v != 0 || v == 0) {{ // <-- Cheesy NaN check, but for ints too
                 sum += v;
             }}
@@ -1895,8 +1965,9 @@ _PRIMITIVE_HYPERCUBE_PRIVATE = '''
             @SuppressWarnings("unchecked")
             final {primitive_type} value = ((Number)object).{numeric_primitive_type}Value(){num_to_primitive};
             for (long i=0; i < size; i++) {{
-                setAt(i, value);
+                weakSetAt(i, value);
             }}
+            postWrite();
         }}
         else if (object.getClass().isArray() &&
                  !object.getClass().getComponentType().isArray() &&

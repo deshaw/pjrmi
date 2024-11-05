@@ -279,50 +279,47 @@ public class LongSparseHypercube
      * {@inheritDoc}
      */
     @Override
-    public long get(final long... indices)
+    public long weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final long d, final long... indices)
+    public void weakSet(final long d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), d);
-        postWrite();
+        weakSetAt(toOffset(indices), d);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Long getObjectAt(final long index)
+    public Long weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        preRead();
-        return Long.valueOf(getAt(index));
+        return Long.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Long value)
+    public void weakSetObjectAt(final long index, final Long value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? 0L : value.longValue());
-        postWrite();
+        weakSetAt(index, (value == null) ? 0L : value.longValue());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public long getAt(final long index)
+    public long weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= getSize()) {
@@ -330,7 +327,6 @@ public class LongSparseHypercube
                 "Index " + index + " was outside the range of the cube's size, " + getSize()
             );
         }
-        preRead();
         return long2long(myMap.get(index, myNull));
     }
 
@@ -338,7 +334,7 @@ public class LongSparseHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final long value)
+    public void weakSetAt(final long index, final long value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= getSize()) {
@@ -347,7 +343,6 @@ public class LongSparseHypercube
             );
         }
         mapPut(index, long2long(value));
-        postWrite();
     }
 
     /**
@@ -381,4 +376,4 @@ public class LongSparseHypercube
     }
 }
 
-// [[[end]]] (checksum: 462c165993eb7529331e442e0a093ced)
+// [[[end]]] (checksum: 7a350fa0843e68d345288b73f991909a)

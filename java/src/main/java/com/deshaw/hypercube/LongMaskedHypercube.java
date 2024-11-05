@@ -296,42 +296,42 @@ public class LongMaskedHypercube
      * {@inheritDoc}
      */
     @Override
-    public long get(final long... indices)
+    public long weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final long value, final long... indices)
+    public void weakSet(final long value, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), value);
+        weakSetAt(toOffset(indices), value);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public long getAt(final long index)
+    public long weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
         // Give it back from the parent
-        return myHypercube.get(getWrappedIndices(index));
+        return myHypercube.weakGet(getWrappedIndices(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final long value)
+    public void weakSetAt(final long index, final long value)
         throws IndexOutOfBoundsException
     {
         // Set it in the parent
-        myHypercube.set(value, getWrappedIndices(index));
+        myHypercube.weakSet(value, getWrappedIndices(index));
     }
 
     /**
@@ -361,4 +361,4 @@ public class LongMaskedHypercube
     }
 }
 
-// [[[end]]] (checksum: c41d129cd04bab016242c946110f4539)
+// [[[end]]] (checksum: 83b8dbc10f46569ab9d67a79236d0a4b)

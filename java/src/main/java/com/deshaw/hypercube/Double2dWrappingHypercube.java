@@ -54,7 +54,7 @@ public class Double2dWrappingHypercube
      * the result of {@code Double.NaN}.
      */
     @Override
-    public double get(final long... indices)
+    public double weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -97,7 +97,7 @@ public class Double2dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void set(final double value, final long... indices)
+    public void weakSet(final double value, final long... indices)
         throws IndexOutOfBoundsException
     {
         if (indices == null) {
@@ -140,7 +140,7 @@ public class Double2dWrappingHypercube
      * the result of {@code Double.NaN}.
      */
     @Override
-    public double getAt(long index)
+    public double weakGetAt(long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -170,7 +170,7 @@ public class Double2dWrappingHypercube
      * will be silently ignored.
      */
     @Override
-    public void setAt(long index, final double value)
+    public void weakSetAt(long index, final double value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {{
@@ -197,20 +197,20 @@ public class Double2dWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public Double getObjectAt(final long index)
+    public Double weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Double.valueOf(getAt(index));
+        return Double.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Double value)
+    public void weakSetObjectAt(final long index, final Double value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? Double.NaN : value.doubleValue());
+        weakSetAt(index, (value == null) ? Double.NaN : value.doubleValue());
     }
 
     /**
@@ -227,4 +227,4 @@ public class Double2dWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: e755e226f755d05927630b117b4e4240)
+// [[[end]]] (checksum: 22ed5910408d00b6531d83907d857158)

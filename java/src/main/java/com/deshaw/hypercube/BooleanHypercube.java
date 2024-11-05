@@ -334,9 +334,11 @@ public interface BooleanHypercube
         if (that == null) {
             return Hypercube.super.contentEquals(cube);
         }
+        this.preRead();
+        that.preRead();
         for (long i=0; i < size; i++) {
-            final boolean thisEl = this.getAt(i);
-            final boolean thatEl = that.getAt(i);
+            final boolean thisEl = this.weakGetAt(i);
+            final boolean thatEl = that.weakGetAt(i);
             if (thisEl != thatEl &&
                 !(Double.isNaN(thisEl ? (byte)1 : (byte)0) && Double.isNaN(thatEl ? (byte)1 : (byte)0)))
             {
@@ -432,8 +434,9 @@ public interface BooleanHypercube
     public default void fill(final boolean v)
     {
         for (long i=0, size = getSize(); i < size; i++) {
-            setAt(i, v);
+            weakSetAt(i, v);
         }
+        postWrite();
     }
 
     /**
@@ -517,8 +520,9 @@ public interface BooleanHypercube
         }
 
         // Copy...
+        preRead();
         for (int i=0; i < length; i++) {
-            dst[i + dstPos] = getAt(i + srcPos);
+            dst[i + dstPos] = weakGetAt(i + srcPos);
         }
     }
 
@@ -623,44 +627,45 @@ public interface BooleanHypercube
         final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
         final int left = (int)(length & 0xf);
         long i = srcPos;
+        preRead();
         for (final long end = srcPos + length - left; i < end; /*inside*/) {
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 00
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 01
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 02
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 03
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 04
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 05
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 06
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 07
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 08
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 09
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 10
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 11
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 12
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 13
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 14
-            bb.put(getAt(i++) ? (byte)1 : (byte)0); // 15
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 00
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 01
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 02
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 03
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 04
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 05
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 06
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 07
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 08
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 09
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 10
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 11
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 12
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 13
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 14
+            bb.put(weakGetAt(i++) ? (byte)1 : (byte)0); // 15
             os.write(buf, 0, buf.length);
             bb.position(0);
         }
 
         // Handle any tail values
         switch (left) {
-        case 0xf: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0xe: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0xd: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0xc: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0xb: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0xa: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x9: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x8: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x7: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x6: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x5: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x4: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x3: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x2: bb.put(getAt(i++) ? (byte)1 : (byte)0);
-        case 0x1: bb.put(getAt(i++) ? (byte)1 : (byte)0);
+        case 0xf: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0xe: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0xd: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0xc: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0xb: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0xa: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x9: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x8: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x7: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x6: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x5: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x4: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x3: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x2: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
+        case 0x1: bb.put(weakGetAt(i++) ? (byte)1 : (byte)0);
                   os.write(buf, 0, left * Byte.BYTES);
         }
         os.flush();
@@ -706,8 +711,9 @@ public interface BooleanHypercube
         }
 
         // Write it out
+        preRead();
         for (long i = srcPos, end = srcPos + length; i < end; i++) {
-            buf.put(getAt(i) ? (byte)1 : (byte)0);
+            buf.put(weakGetAt(i) ? (byte)1 : (byte)0);
         }
     }
 
@@ -785,8 +791,9 @@ public interface BooleanHypercube
         }
 
         // Copy...
+        preRead();
         for (long i=0; i < length; i++) {
-            dst.set(i + dstPos, bools.getAt(i + srcPos));
+            dst.set(i + dstPos, bools.weakGetAt(i + srcPos));
         }
     }
 
@@ -855,8 +862,9 @@ public interface BooleanHypercube
 
         // Safe to set, do it the slow way by default
         for (int i=0; i < length; i++) {
-            setAt(i + dstPos, src[i + srcPos]);
+            weakSetAt(i + dstPos, src[i + srcPos]);
         }
+        postWrite();
     }
 
     /**
@@ -930,44 +938,45 @@ public interface BooleanHypercube
         long i = dstPos;
         for (final long end = dstPos + length - left; i < end; /*inside*/) {
             is.read(buf, 0, buf.length);
-            setAt(i++, bb.get() != 0); // 00
-            setAt(i++, bb.get() != 0); // 01
-            setAt(i++, bb.get() != 0); // 02
-            setAt(i++, bb.get() != 0); // 03
-            setAt(i++, bb.get() != 0); // 04
-            setAt(i++, bb.get() != 0); // 05
-            setAt(i++, bb.get() != 0); // 06
-            setAt(i++, bb.get() != 0); // 07
-            setAt(i++, bb.get() != 0); // 08
-            setAt(i++, bb.get() != 0); // 09
-            setAt(i++, bb.get() != 0); // 10
-            setAt(i++, bb.get() != 0); // 11
-            setAt(i++, bb.get() != 0); // 12
-            setAt(i++, bb.get() != 0); // 13
-            setAt(i++, bb.get() != 0); // 14
-            setAt(i++, bb.get() != 0); // 15
+            weakSetAt(i++, bb.get() != 0); // 00
+            weakSetAt(i++, bb.get() != 0); // 01
+            weakSetAt(i++, bb.get() != 0); // 02
+            weakSetAt(i++, bb.get() != 0); // 03
+            weakSetAt(i++, bb.get() != 0); // 04
+            weakSetAt(i++, bb.get() != 0); // 05
+            weakSetAt(i++, bb.get() != 0); // 06
+            weakSetAt(i++, bb.get() != 0); // 07
+            weakSetAt(i++, bb.get() != 0); // 08
+            weakSetAt(i++, bb.get() != 0); // 09
+            weakSetAt(i++, bb.get() != 0); // 10
+            weakSetAt(i++, bb.get() != 0); // 11
+            weakSetAt(i++, bb.get() != 0); // 12
+            weakSetAt(i++, bb.get() != 0); // 13
+            weakSetAt(i++, bb.get() != 0); // 14
+            weakSetAt(i++, bb.get() != 0); // 15
             bb.position(0);
         }
         if (left != 0) {
             is.read(buf, 0, left * Byte.BYTES);
             switch (left) {
-            case 0xf: setAt(i++, bb.get() != 0);
-            case 0xe: setAt(i++, bb.get() != 0);
-            case 0xd: setAt(i++, bb.get() != 0);
-            case 0xc: setAt(i++, bb.get() != 0);
-            case 0xb: setAt(i++, bb.get() != 0);
-            case 0xa: setAt(i++, bb.get() != 0);
-            case 0x9: setAt(i++, bb.get() != 0);
-            case 0x8: setAt(i++, bb.get() != 0);
-            case 0x7: setAt(i++, bb.get() != 0);
-            case 0x6: setAt(i++, bb.get() != 0);
-            case 0x5: setAt(i++, bb.get() != 0);
-            case 0x4: setAt(i++, bb.get() != 0);
-            case 0x3: setAt(i++, bb.get() != 0);
-            case 0x2: setAt(i++, bb.get() != 0);
-            case 0x1: setAt(i++, bb.get() != 0);
+            case 0xf: weakSetAt(i++, bb.get() != 0);
+            case 0xe: weakSetAt(i++, bb.get() != 0);
+            case 0xd: weakSetAt(i++, bb.get() != 0);
+            case 0xc: weakSetAt(i++, bb.get() != 0);
+            case 0xb: weakSetAt(i++, bb.get() != 0);
+            case 0xa: weakSetAt(i++, bb.get() != 0);
+            case 0x9: weakSetAt(i++, bb.get() != 0);
+            case 0x8: weakSetAt(i++, bb.get() != 0);
+            case 0x7: weakSetAt(i++, bb.get() != 0);
+            case 0x6: weakSetAt(i++, bb.get() != 0);
+            case 0x5: weakSetAt(i++, bb.get() != 0);
+            case 0x4: weakSetAt(i++, bb.get() != 0);
+            case 0x3: weakSetAt(i++, bb.get() != 0);
+            case 0x2: weakSetAt(i++, bb.get() != 0);
+            case 0x1: weakSetAt(i++, bb.get() != 0);
             }
         }
+        postWrite();
     }
 
     /**
@@ -1010,8 +1019,9 @@ public interface BooleanHypercube
 
         // Read them in
         for (long i = dstPos, end = dstPos + length; i < end; i++) {
-            setAt(i, buf.get() != 0);
+            weakSetAt(i, buf.get() != 0);
         }
+        postWrite();
     }
 
     /**
@@ -1028,10 +1038,12 @@ public interface BooleanHypercube
         if (!matches(that)) {
             throw new IllegalArgumentException("Given cube is not compatible");
         }
+        that.preRead();
         final long size = getSize();
         for (long i=0; i < size; i++) {
-            setAt(i, that.getAt(i));
+            weakSetAt(i, that.weakGetAt(i));
         }
+        postWrite();
     }
 
     /**
@@ -1041,13 +1053,39 @@ public interface BooleanHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public boolean get(final long... indices)
+    public default boolean get(final long... indices)
+        throws IndexOutOfBoundsException
+    {
+        preRead();
+        return weakGet(indices);
+    }
+
+    /**
+     * Get the value at the given indices, possibly without invoking memory
+     * barriers.
+     *
+     * @param indices The indices of the element in the hypercube.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public boolean weakGet(final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
      * Set the value at the given indices.
      */
-    public void set(final boolean d, final long... indices)
+    public default void set(final boolean d, final long... indices)
+        throws IndexOutOfBoundsException
+    {
+        weakSet(d, indices);
+        postWrite();
+    }
+
+    /**
+     * Set the value at the given indices, possibly without invoking memory
+     * barriers.
+     */
+    public void weakSet(final boolean d, final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1145,7 +1183,20 @@ public interface BooleanHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public boolean getAt(final long index)
+    public default boolean getAt(final long index)
+        throws IndexOutOfBoundsException
+    {
+        preRead();
+        return weakGetAt(index);
+    }
+
+    /**
+     * Get the value value at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public boolean weakGetAt(final long index)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1153,7 +1204,20 @@ public interface BooleanHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public void setAt(final long index, final boolean value)
+    public default void setAt(final long index, final boolean value)
+        throws IndexOutOfBoundsException
+    {
+        weakSetAt(index, value);
+        postWrite();
+    }
+
+    /**
+     * Set the element at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public void weakSetAt(final long index, final boolean value)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1266,8 +1330,9 @@ public interface BooleanHypercube
             }
         }
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {
-            if (!(getAt(i))) {
+            if (!(weakGetAt(i))) {
                 return false;
             }
         }
@@ -1302,8 +1367,9 @@ public interface BooleanHypercube
             }
         }
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {
-            if (getAt(i)) {
+            if (weakGetAt(i)) {
                 return true;
             }
         }
@@ -1402,8 +1468,9 @@ public interface BooleanHypercube
             @SuppressWarnings("unchecked")
             final boolean value = ((Number)object).byteValue() != 0;
             for (long i=0; i < size; i++) {
-                setAt(i, value);
+                weakSetAt(i, value);
             }
+            postWrite();
         }
         else if (object.getClass().isArray() &&
                  !object.getClass().getComponentType().isArray() &&
@@ -1502,4 +1569,4 @@ public interface BooleanHypercube
     }
 }
 
-// [[[end]]] (checksum: 37cedac1761bc858585c177024e75eaf)
+// [[[end]]] (checksum: 683e2526cccfceb5dbfe763b0d304f17)

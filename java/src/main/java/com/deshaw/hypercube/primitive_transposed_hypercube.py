@@ -201,7 +201,7 @@ public class {object_type}TransposedHypercube
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} get(final long... indices)
+    public {primitive_type} weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {{
         final long[] wrapped = myWrappedIndices.get();
@@ -226,14 +226,14 @@ public class {object_type}TransposedHypercube
         reverseIndices(wrapped);
 
         // And hand off to our wrapped cube
-        return myHypercube.get(wrapped);
+        return myHypercube.weakGet(wrapped);
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void set(final {primitive_type} value, final long... indices)
+    public void weakSet(final {primitive_type} value, final long... indices)
         throws IndexOutOfBoundsException
     {{
         final long[] wrapped = myWrappedIndices.get();
@@ -258,29 +258,29 @@ public class {object_type}TransposedHypercube
         reverseIndices(wrapped);
 
         // And hand off to our wrapped cube
-        myHypercube.set(value, wrapped);
+        myHypercube.weakSet(value, wrapped);
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} getAt(final long index)
+    public {primitive_type} weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {{
         // Give it back from the parent
-        return myHypercube.get(getWrappedIndices(index));
+        return myHypercube.weakGet(getWrappedIndices(index));
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void setAt(final long index, final {primitive_type} value)
+    public void weakSetAt(final long index, final {primitive_type} value)
         throws IndexOutOfBoundsException
     {{
         // Set it in the parent
-        myHypercube.set(value, getWrappedIndices(index));
+        myHypercube.weakSet(value, getWrappedIndices(index));
     }}
 
     /**

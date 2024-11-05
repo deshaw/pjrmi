@@ -388,47 +388,47 @@ public class FloatMappedHypercube
      * {@inheritDoc}
      */
     @Override
-    public float get(final long... indices)
+    public float weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final float d, final long... indices)
+    public void weakSet(final float d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), d);
+        weakSetAt(toOffset(indices), d);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Float getObjectAt(final long index)
+    public Float weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return Float.valueOf(getAt(index));
+        return Float.valueOf(weakGetAt(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Float value)
+    public void weakSetObjectAt(final long index, final Float value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? Float.NaN : value.floatValue());
+        weakSetAt(index, (value == null) ? Float.NaN : value.floatValue());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public float getAt(final long index)
+    public float weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
 
@@ -441,7 +441,7 @@ public class FloatMappedHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final float value)
+    public void weakSetAt(final long index, final float value)
         throws IndexOutOfBoundsException
     {
         final FloatBuffer buffer =
@@ -465,4 +465,4 @@ public class FloatMappedHypercube
     }
 }
 
-// [[[end]]] (checksum: c3c09550117cf6dd61170f9a5b353ab9)
+// [[[end]]] (checksum: 9d84f7b80b8fa440f43e1771bbb15a54)

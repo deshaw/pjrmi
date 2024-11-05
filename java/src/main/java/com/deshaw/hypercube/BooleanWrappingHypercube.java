@@ -137,41 +137,62 @@ public class BooleanWrappingHypercube
      * {@inheritDoc}
      */
     @Override
-    public boolean getAt(final long index)
+    public boolean weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return getWrapped().getAt(index);
+        return getWrapped().weakGetAt(index);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final boolean value)
+    public void weakSetAt(final long index, final boolean value)
         throws IndexOutOfBoundsException
     {
-        getWrapped().setAt(index, value);
+        getWrapped().weakSetAt(index, value);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public boolean get(final long... indices)
+    public boolean weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getWrapped().getAt(toOffset(indices));
+        return getWrapped().weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final boolean d, final long... indices)
+    public void weakSet(final boolean d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        getWrapped().setAt(toOffset(indices), d);
+        getWrapped().weakSetAt(toOffset(indices), d);
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void preRead()
+        throws IndexOutOfBoundsException
+    {
+        getWrapped().preRead();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void postWrite()
+        throws IndexOutOfBoundsException
+    {
+        getWrapped().postWrite();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -182,4 +203,4 @@ public class BooleanWrappingHypercube
     }
 }
 
-// [[[end]]] (checksum: b72ad8d6502d2939190cdb2b555704b5)
+// [[[end]]] (checksum: 523ca174de75679bec5d13c0272880eb)

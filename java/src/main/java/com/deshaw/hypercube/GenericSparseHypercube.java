@@ -196,13 +196,12 @@ public class GenericSparseHypercube<T>
      * {@inheritDoc}
      */
     @Override
-    public T getObjectAt(final long index)
+    public T weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= getSize()) {
             throw new IndexOutOfBoundsException("Bad index: " + index);
         }
-        preRead();
         return myElements.get(index);
     }
 
@@ -210,7 +209,7 @@ public class GenericSparseHypercube<T>
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final T obj)
+    public void weakSetObjectAt(final long index, final T obj)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= getSize()) {
@@ -222,7 +221,6 @@ public class GenericSparseHypercube<T>
         else {
             myElements.put(index, obj);
         }
-        postWrite();
     }
 
     /**

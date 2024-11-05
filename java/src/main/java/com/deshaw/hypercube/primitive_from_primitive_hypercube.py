@@ -43,10 +43,10 @@ public class {object_type}From{inner_object_type}Hypercube
      * {{@inheritDoc}}
      */
     @Override
-    public {object_type} getObjectAt(final long index)
+    public {object_type} weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {{
-        final {inner_object_type} obj = myHypercube.getObjectAt(index);
+        final {inner_object_type} obj = myHypercube.weakGetObjectAt(index);
         return (obj == null) ? null : ({primitive_type})(obj.{inner_primitive_type}Value(){num_to_primitive});
     }}
 
@@ -54,10 +54,10 @@ public class {object_type}From{inner_object_type}Hypercube
      * {{@inheritDoc}}
      */
     @Override
-    public void setObjectAt(final long index, final {object_type} value)
+    public void weakSetObjectAt(final long index, final {object_type} value)
         throws IndexOutOfBoundsException
     {{
-        myHypercube.setObjectAt(
+        myHypercube.weakSetObjectAt(
             index,
             (value == null) ? null : ({inner_primitive_type})(value.{primitive_type}Value(){num_from_primitive})
         );
@@ -67,40 +67,40 @@ public class {object_type}From{inner_object_type}Hypercube
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} getAt(final long index)
+    public {primitive_type} weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {{
-        return ({primitive_type})(myHypercube.getAt(index){num_to_primitive});
+        return ({primitive_type})(myHypercube.weakGetAt(index){num_to_primitive});
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void setAt(final long index, final {primitive_type} value)
+    public void weakSetAt(final long index, final {primitive_type} value)
         throws IndexOutOfBoundsException
     {{
-        myHypercube.setAt(index, ({inner_primitive_type})(value{num_from_primitive}));
+        myHypercube.weakSetAt(index, ({inner_primitive_type})(value{num_from_primitive}));
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public {primitive_type} get(final long... indices)
+    public {primitive_type} weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {{
-        return ({primitive_type})(myHypercube.get(indices){num_to_primitive});
+        return ({primitive_type})(myHypercube.weakGet(indices){num_to_primitive});
     }}
 
     /**
      * {{@inheritDoc}}
      */
     @Override
-    public void set(final {primitive_type} value, final long... indices)
+    public void weakSet(final {primitive_type} value, final long... indices)
         throws IndexOutOfBoundsException
     {{
-        myHypercube.set(({inner_primitive_type})(value{num_from_primitive}), indices);
+        myHypercube.weakSet(({inner_primitive_type})(value{num_from_primitive}), indices);
     }}
 
     /**

@@ -208,7 +208,7 @@ public class IntegerTransposedHypercube
      * {@inheritDoc}
      */
     @Override
-    public int get(final long... indices)
+    public int weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
         final long[] wrapped = myWrappedIndices.get();
@@ -233,14 +233,14 @@ public class IntegerTransposedHypercube
         reverseIndices(wrapped);
 
         // And hand off to our wrapped cube
-        return myHypercube.get(wrapped);
+        return myHypercube.weakGet(wrapped);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final int value, final long... indices)
+    public void weakSet(final int value, final long... indices)
         throws IndexOutOfBoundsException
     {
         final long[] wrapped = myWrappedIndices.get();
@@ -265,29 +265,29 @@ public class IntegerTransposedHypercube
         reverseIndices(wrapped);
 
         // And hand off to our wrapped cube
-        myHypercube.set(value, wrapped);
+        myHypercube.weakSet(value, wrapped);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public int getAt(final long index)
+    public int weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
         // Give it back from the parent
-        return myHypercube.get(getWrappedIndices(index));
+        return myHypercube.weakGet(getWrappedIndices(index));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final int value)
+    public void weakSetAt(final long index, final int value)
         throws IndexOutOfBoundsException
     {
         // Set it in the parent
-        myHypercube.set(value, getWrappedIndices(index));
+        myHypercube.weakSet(value, getWrappedIndices(index));
     }
 
     /**
@@ -317,4 +317,4 @@ public class IntegerTransposedHypercube
     }
 }
 
-// [[[end]]] (checksum: b874f0c16cd61299022223eed3b9515c)
+// [[[end]]] (checksum: 4cbc77f2eb5e9eb02d6e327a94b0b0be)

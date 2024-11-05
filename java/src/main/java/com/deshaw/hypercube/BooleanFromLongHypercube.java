@@ -50,10 +50,10 @@ public class BooleanFromLongHypercube
      * {@inheritDoc}
      */
     @Override
-    public Boolean getObjectAt(final long index)
+    public Boolean weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        final Long obj = myHypercube.getObjectAt(index);
+        final Long obj = myHypercube.weakGetObjectAt(index);
         return (obj == null) ? null : (boolean)(obj.longValue() != 0);
     }
 
@@ -61,10 +61,10 @@ public class BooleanFromLongHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Boolean value)
+    public void weakSetObjectAt(final long index, final Boolean value)
         throws IndexOutOfBoundsException
     {
-        myHypercube.setObjectAt(
+        myHypercube.weakSetObjectAt(
             index,
             (value == null) ? null : (long)(value.booleanValue() ? (byte)1 : (byte)0)
         );
@@ -74,40 +74,40 @@ public class BooleanFromLongHypercube
      * {@inheritDoc}
      */
     @Override
-    public boolean getAt(final long index)
+    public boolean weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
-        return (boolean)(myHypercube.getAt(index) != 0);
+        return (boolean)(myHypercube.weakGetAt(index) != 0);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final boolean value)
+    public void weakSetAt(final long index, final boolean value)
         throws IndexOutOfBoundsException
     {
-        myHypercube.setAt(index, (long)(value ? (byte)1 : (byte)0));
+        myHypercube.weakSetAt(index, (long)(value ? (byte)1 : (byte)0));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public boolean get(final long... indices)
+    public boolean weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return (boolean)(myHypercube.get(indices) != 0);
+        return (boolean)(myHypercube.weakGet(indices) != 0);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final boolean value, final long... indices)
+    public void weakSet(final boolean value, final long... indices)
         throws IndexOutOfBoundsException
     {
-        myHypercube.set((long)(value ? (byte)1 : (byte)0), indices);
+        myHypercube.weakSet((long)(value ? (byte)1 : (byte)0), indices);
     }
 
     /**
@@ -126,4 +126,4 @@ public class BooleanFromLongHypercube
     }
 }
 
-// [[[end]]] (checksum: eeda7d2e55cec96381d0f8c5d468ba84)
+// [[[end]]] (checksum: 86f54db595cde15689b9b1b8da0e6c99)

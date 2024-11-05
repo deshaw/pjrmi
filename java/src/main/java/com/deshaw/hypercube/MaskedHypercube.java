@@ -305,7 +305,7 @@ public class MaskedHypercube<T>
      * {@inheritDoc}
      */
     @Override
-    public T getObjectAt(final long index)
+    public T weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
         // Give it back from the parent
@@ -316,7 +316,7 @@ public class MaskedHypercube<T>
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final T obj)
+    public void weakSetObjectAt(final long index, final T obj)
         throws IndexOutOfBoundsException
     {
         // Set it in the parent

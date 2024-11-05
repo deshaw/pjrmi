@@ -673,8 +673,9 @@ public interface Hypercube<T>
     public default void fill(final T v)
     {
         for (long i=0, size = getSize(); i < size; i++) {
-            setObjectAt(i, v);
+            weakSetObjectAt(i, v);
         }
+        postWrite();
     }
 
     /**
@@ -693,6 +694,16 @@ public interface Hypercube<T>
     {
         // By default this does nothing
     }
+
+    /**
+     * Call before a read to ensure that the memory barrier is flushed.
+     */
+    public void preRead();
+
+    /**
+     * Call after a write to ensure that the memory barrier is set up.
+     */
+    public void postWrite();
 
     /**
      * Get a flattened view of the elements of this hypercube. These are
@@ -1078,8 +1089,9 @@ public interface Hypercube<T>
 
         // Safe to set, do it the slow way by default
         for (int i=0; i < length; i++) {
-            setObjectAt(i + dstPos, src[i + srcPos]);
+            weakSetObjectAt(i + dstPos, src[i + srcPos]);
         }
+        postWrite();
     }
 
     /**
@@ -1178,8 +1190,9 @@ public interface Hypercube<T>
 
         // Safe to set, do it the slow way by default
         for (long i = dstPos, end = dstPos + length; i < end; i++) {
-            setObjectAt(i, readElement(is, bo));
+            weakSetObjectAt(i, readElement(is, bo));
         }
+        postWrite();
     }
 
     /**
@@ -1258,8 +1271,9 @@ public interface Hypercube<T>
 
         // Safe to set, do it the slow way by default
         for (long i = dstPos, end = dstPos + length; i < end; i++) {
-            setObjectAt(i, readElement(buf));
+            weakSetObjectAt(i, readElement(buf));
         }
+        postWrite();
     }
 
     /**
@@ -1278,8 +1292,9 @@ public interface Hypercube<T>
         }
         final long size = getSize();
         for (long i=0; i < size; i++) {
-            setObjectAt(i, that.getObjectAt(i));
+            weakSetObjectAt(i, that.getObjectAt(i));
         }
+        postWrite();
     }
 
     /**
@@ -1342,7 +1357,19 @@ public interface Hypercube<T>
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public T getObjectAt(final long index)
+    public default T getObjectAt(final long index)
+        throws IndexOutOfBoundsException
+    {
+        preRead();
+        return weakGetObjectAt(index);
+    }
+
+    /**
+     * Get the element at the given index in the flattened representation.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public T weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1444,7 +1471,19 @@ public interface Hypercube<T>
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public void setObjectAt(final long index, final T object)
+    public default void setObjectAt(final long index, final T object)
+        throws IndexOutOfBoundsException
+    {
+        weakSetObjectAt(index, object);
+        postWrite();
+    }
+
+    /**
+     * Set the element at the given index in the flattened representation.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public void weakSetObjectAt(final long index, final T object)
         throws IndexOutOfBoundsException;
 
     /**
@@ -2063,8 +2102,9 @@ public interface Hypercube<T>
                                 );
                             }
                             for (int idx = 0; idx < arrayLength; idx++) {
-                                setObjectAt(i + idx, (T)Array.get(array, idx));
+                                weakSetObjectAt(i + idx, (T)Array.get(array, idx));
                             }
+                            postWrite();
                         }
                     }
                     catch (Exception e) {
@@ -2082,8 +2122,9 @@ public interface Hypercube<T>
             @SuppressWarnings("unchecked")
             final T value = (T)object;
             for (long i=0; i < getSize(); i++) {
-                setObjectAt(i, value);
+                weakSetObjectAt(i, value);
             }
+            postWrite();
         }
         else {
             // I just can't handle this...

@@ -331,9 +331,11 @@ public interface FloatHypercube
         if (that == null) {
             return Hypercube.super.contentEquals(cube);
         }
+        this.preRead();
+        that.preRead();
         for (long i=0; i < size; i++) {
-            final float thisEl = this.getAt(i);
-            final float thatEl = that.getAt(i);
+            final float thisEl = this.weakGetAt(i);
+            final float thatEl = that.weakGetAt(i);
             if (thisEl != thatEl &&
                 !(Double.isNaN(thisEl) && Double.isNaN(thatEl)))
             {
@@ -429,8 +431,9 @@ public interface FloatHypercube
     public default void fill(final float v)
     {
         for (long i=0, size = getSize(); i < size; i++) {
-            setAt(i, v);
+            weakSetAt(i, v);
         }
+        postWrite();
     }
 
     /**
@@ -514,8 +517,9 @@ public interface FloatHypercube
         }
 
         // Copy...
+        preRead();
         for (int i=0; i < length; i++) {
-            dst[i + dstPos] = getAt(i + srcPos);
+            dst[i + dstPos] = weakGetAt(i + srcPos);
         }
     }
 
@@ -620,44 +624,45 @@ public interface FloatHypercube
         final ByteBuffer bb = ByteBuffer.wrap(buf).order(bo);
         final int left = (int)(length & 0xf);
         long i = srcPos;
+        preRead();
         for (final long end = srcPos + length - left; i < end; /*inside*/) {
-            bb.putFloat(getAt(i++)); // 00
-            bb.putFloat(getAt(i++)); // 01
-            bb.putFloat(getAt(i++)); // 02
-            bb.putFloat(getAt(i++)); // 03
-            bb.putFloat(getAt(i++)); // 04
-            bb.putFloat(getAt(i++)); // 05
-            bb.putFloat(getAt(i++)); // 06
-            bb.putFloat(getAt(i++)); // 07
-            bb.putFloat(getAt(i++)); // 08
-            bb.putFloat(getAt(i++)); // 09
-            bb.putFloat(getAt(i++)); // 10
-            bb.putFloat(getAt(i++)); // 11
-            bb.putFloat(getAt(i++)); // 12
-            bb.putFloat(getAt(i++)); // 13
-            bb.putFloat(getAt(i++)); // 14
-            bb.putFloat(getAt(i++)); // 15
+            bb.putFloat(weakGetAt(i++)); // 00
+            bb.putFloat(weakGetAt(i++)); // 01
+            bb.putFloat(weakGetAt(i++)); // 02
+            bb.putFloat(weakGetAt(i++)); // 03
+            bb.putFloat(weakGetAt(i++)); // 04
+            bb.putFloat(weakGetAt(i++)); // 05
+            bb.putFloat(weakGetAt(i++)); // 06
+            bb.putFloat(weakGetAt(i++)); // 07
+            bb.putFloat(weakGetAt(i++)); // 08
+            bb.putFloat(weakGetAt(i++)); // 09
+            bb.putFloat(weakGetAt(i++)); // 10
+            bb.putFloat(weakGetAt(i++)); // 11
+            bb.putFloat(weakGetAt(i++)); // 12
+            bb.putFloat(weakGetAt(i++)); // 13
+            bb.putFloat(weakGetAt(i++)); // 14
+            bb.putFloat(weakGetAt(i++)); // 15
             os.write(buf, 0, buf.length);
             bb.position(0);
         }
 
         // Handle any tail values
         switch (left) {
-        case 0xf: bb.putFloat(getAt(i++));
-        case 0xe: bb.putFloat(getAt(i++));
-        case 0xd: bb.putFloat(getAt(i++));
-        case 0xc: bb.putFloat(getAt(i++));
-        case 0xb: bb.putFloat(getAt(i++));
-        case 0xa: bb.putFloat(getAt(i++));
-        case 0x9: bb.putFloat(getAt(i++));
-        case 0x8: bb.putFloat(getAt(i++));
-        case 0x7: bb.putFloat(getAt(i++));
-        case 0x6: bb.putFloat(getAt(i++));
-        case 0x5: bb.putFloat(getAt(i++));
-        case 0x4: bb.putFloat(getAt(i++));
-        case 0x3: bb.putFloat(getAt(i++));
-        case 0x2: bb.putFloat(getAt(i++));
-        case 0x1: bb.putFloat(getAt(i++));
+        case 0xf: bb.putFloat(weakGetAt(i++));
+        case 0xe: bb.putFloat(weakGetAt(i++));
+        case 0xd: bb.putFloat(weakGetAt(i++));
+        case 0xc: bb.putFloat(weakGetAt(i++));
+        case 0xb: bb.putFloat(weakGetAt(i++));
+        case 0xa: bb.putFloat(weakGetAt(i++));
+        case 0x9: bb.putFloat(weakGetAt(i++));
+        case 0x8: bb.putFloat(weakGetAt(i++));
+        case 0x7: bb.putFloat(weakGetAt(i++));
+        case 0x6: bb.putFloat(weakGetAt(i++));
+        case 0x5: bb.putFloat(weakGetAt(i++));
+        case 0x4: bb.putFloat(weakGetAt(i++));
+        case 0x3: bb.putFloat(weakGetAt(i++));
+        case 0x2: bb.putFloat(weakGetAt(i++));
+        case 0x1: bb.putFloat(weakGetAt(i++));
                   os.write(buf, 0, left * Float.BYTES);
         }
         os.flush();
@@ -703,8 +708,9 @@ public interface FloatHypercube
         }
 
         // Write it out
+        preRead();
         for (long i = srcPos, end = srcPos + length; i < end; i++) {
-            buf.putFloat(getAt(i));
+            buf.putFloat(weakGetAt(i));
         }
     }
 
@@ -782,8 +788,9 @@ public interface FloatHypercube
         }
 
         // Copy...
+        preRead();
         for (long i=0; i < length; i++) {
-            dst.set(i + dstPos, bools.getAt(i + srcPos));
+            dst.set(i + dstPos, bools.weakGetAt(i + srcPos));
         }
     }
 
@@ -852,8 +859,9 @@ public interface FloatHypercube
 
         // Safe to set, do it the slow way by default
         for (int i=0; i < length; i++) {
-            setAt(i + dstPos, src[i + srcPos]);
+            weakSetAt(i + dstPos, src[i + srcPos]);
         }
+        postWrite();
     }
 
     /**
@@ -927,44 +935,45 @@ public interface FloatHypercube
         long i = dstPos;
         for (final long end = dstPos + length - left; i < end; /*inside*/) {
             is.read(buf, 0, buf.length);
-            setAt(i++, bb.getFloat()); // 00
-            setAt(i++, bb.getFloat()); // 01
-            setAt(i++, bb.getFloat()); // 02
-            setAt(i++, bb.getFloat()); // 03
-            setAt(i++, bb.getFloat()); // 04
-            setAt(i++, bb.getFloat()); // 05
-            setAt(i++, bb.getFloat()); // 06
-            setAt(i++, bb.getFloat()); // 07
-            setAt(i++, bb.getFloat()); // 08
-            setAt(i++, bb.getFloat()); // 09
-            setAt(i++, bb.getFloat()); // 10
-            setAt(i++, bb.getFloat()); // 11
-            setAt(i++, bb.getFloat()); // 12
-            setAt(i++, bb.getFloat()); // 13
-            setAt(i++, bb.getFloat()); // 14
-            setAt(i++, bb.getFloat()); // 15
+            weakSetAt(i++, bb.getFloat()); // 00
+            weakSetAt(i++, bb.getFloat()); // 01
+            weakSetAt(i++, bb.getFloat()); // 02
+            weakSetAt(i++, bb.getFloat()); // 03
+            weakSetAt(i++, bb.getFloat()); // 04
+            weakSetAt(i++, bb.getFloat()); // 05
+            weakSetAt(i++, bb.getFloat()); // 06
+            weakSetAt(i++, bb.getFloat()); // 07
+            weakSetAt(i++, bb.getFloat()); // 08
+            weakSetAt(i++, bb.getFloat()); // 09
+            weakSetAt(i++, bb.getFloat()); // 10
+            weakSetAt(i++, bb.getFloat()); // 11
+            weakSetAt(i++, bb.getFloat()); // 12
+            weakSetAt(i++, bb.getFloat()); // 13
+            weakSetAt(i++, bb.getFloat()); // 14
+            weakSetAt(i++, bb.getFloat()); // 15
             bb.position(0);
         }
         if (left != 0) {
             is.read(buf, 0, left * Float.BYTES);
             switch (left) {
-            case 0xf: setAt(i++, bb.getFloat());
-            case 0xe: setAt(i++, bb.getFloat());
-            case 0xd: setAt(i++, bb.getFloat());
-            case 0xc: setAt(i++, bb.getFloat());
-            case 0xb: setAt(i++, bb.getFloat());
-            case 0xa: setAt(i++, bb.getFloat());
-            case 0x9: setAt(i++, bb.getFloat());
-            case 0x8: setAt(i++, bb.getFloat());
-            case 0x7: setAt(i++, bb.getFloat());
-            case 0x6: setAt(i++, bb.getFloat());
-            case 0x5: setAt(i++, bb.getFloat());
-            case 0x4: setAt(i++, bb.getFloat());
-            case 0x3: setAt(i++, bb.getFloat());
-            case 0x2: setAt(i++, bb.getFloat());
-            case 0x1: setAt(i++, bb.getFloat());
+            case 0xf: weakSetAt(i++, bb.getFloat());
+            case 0xe: weakSetAt(i++, bb.getFloat());
+            case 0xd: weakSetAt(i++, bb.getFloat());
+            case 0xc: weakSetAt(i++, bb.getFloat());
+            case 0xb: weakSetAt(i++, bb.getFloat());
+            case 0xa: weakSetAt(i++, bb.getFloat());
+            case 0x9: weakSetAt(i++, bb.getFloat());
+            case 0x8: weakSetAt(i++, bb.getFloat());
+            case 0x7: weakSetAt(i++, bb.getFloat());
+            case 0x6: weakSetAt(i++, bb.getFloat());
+            case 0x5: weakSetAt(i++, bb.getFloat());
+            case 0x4: weakSetAt(i++, bb.getFloat());
+            case 0x3: weakSetAt(i++, bb.getFloat());
+            case 0x2: weakSetAt(i++, bb.getFloat());
+            case 0x1: weakSetAt(i++, bb.getFloat());
             }
         }
+        postWrite();
     }
 
     /**
@@ -1007,8 +1016,9 @@ public interface FloatHypercube
 
         // Read them in
         for (long i = dstPos, end = dstPos + length; i < end; i++) {
-            setAt(i, buf.getFloat());
+            weakSetAt(i, buf.getFloat());
         }
+        postWrite();
     }
 
     /**
@@ -1025,10 +1035,12 @@ public interface FloatHypercube
         if (!matches(that)) {
             throw new IllegalArgumentException("Given cube is not compatible");
         }
+        that.preRead();
         final long size = getSize();
         for (long i=0; i < size; i++) {
-            setAt(i, that.getAt(i));
+            weakSetAt(i, that.weakGetAt(i));
         }
+        postWrite();
     }
 
     /**
@@ -1038,13 +1050,39 @@ public interface FloatHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public float get(final long... indices)
+    public default float get(final long... indices)
+        throws IndexOutOfBoundsException
+    {
+        preRead();
+        return weakGet(indices);
+    }
+
+    /**
+     * Get the value at the given indices, possibly without invoking memory
+     * barriers.
+     *
+     * @param indices The indices of the element in the hypercube.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public float weakGet(final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
      * Set the value at the given indices.
      */
-    public void set(final float d, final long... indices)
+    public default void set(final float d, final long... indices)
+        throws IndexOutOfBoundsException
+    {
+        weakSet(d, indices);
+        postWrite();
+    }
+
+    /**
+     * Set the value at the given indices, possibly without invoking memory
+     * barriers.
+     */
+    public void weakSet(final float d, final long... indices)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1142,7 +1180,20 @@ public interface FloatHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public float getAt(final long index)
+    public default float getAt(final long index)
+        throws IndexOutOfBoundsException
+    {
+        preRead();
+        return weakGetAt(index);
+    }
+
+    /**
+     * Get the value value at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public float weakGetAt(final long index)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1150,7 +1201,20 @@ public interface FloatHypercube
      *
      * @throws IndexOutOfBoundsException If the indices were bad.
      */
-    public void setAt(final long index, final float value)
+    public default void setAt(final long index, final float value)
+        throws IndexOutOfBoundsException
+    {
+        weakSetAt(index, value);
+        postWrite();
+    }
+
+    /**
+     * Set the element at the given index in the flattened representation,
+     * possibly without invoking memory barriers.
+     *
+     * @throws IndexOutOfBoundsException If the indices were bad.
+     */
+    public void weakSetAt(final long index, final float value)
         throws IndexOutOfBoundsException;
 
     /**
@@ -1263,8 +1327,9 @@ public interface FloatHypercube
             }
         }
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {
-            if (!(getAt(i) != 0)) {
+            if (!(weakGetAt(i) != 0)) {
                 return false;
             }
         }
@@ -1299,8 +1364,9 @@ public interface FloatHypercube
             }
         }
 
+        preRead();
         for (long i = 0, size = getSize(); i < size; i++) {
-            if (getAt(i) != 0) {
+            if (weakGetAt(i) != 0) {
                 return true;
             }
         }
@@ -1379,11 +1445,12 @@ public interface FloatHypercube
      */
     public default float min0d()
     {
+        preRead();
         final long size = getSize();
         boolean any = false;
         float min = Float.MAX_VALUE;
         for (long i=0; i < size; i++) {
-            final float v = getAt(i);
+            final float v = weakGetAt(i);
             if (v < min) {
                 min = v;
                 any = true;
@@ -1414,11 +1481,12 @@ public interface FloatHypercube
      */
     public default float max0d()
     {
+        preRead();
         final long size = getSize();
         boolean any = false;
         float max = Float.MIN_VALUE;
         for (long i=0; i < size; i++) {
-            final float v = getAt(i);
+            final float v = weakGetAt(i);
             if (v > max) {
                 max = v;
                 any = true;
@@ -1453,12 +1521,13 @@ public interface FloatHypercube
      */
     public default float sum0d()
     {
+        preRead();
         final long size = getSize();
         boolean any = false;
         boolean nan = false;
         float sum = 0;
         for (long i=0; i < size && !nan; i++) {
-            final float v = getAt(i);
+            final float v = weakGetAt(i);
             if (v != 0 || v == 0) { // <-- Cheesy NaN check, but for ints too
                 sum += v;
                 any = true;
@@ -1494,10 +1563,11 @@ public interface FloatHypercube
      */
     public default float nansum0d()
     {
+        preRead();
         final long size = getSize();
         float sum = 0;
         for (long i=0; i < size; i++) {
-            final float v = getAt(i);
+            final float v = weakGetAt(i);
             if (v != 0 || v == 0) { // <-- Cheesy NaN check, but for ints too
                 sum += v;
             }
@@ -1781,8 +1851,9 @@ public interface FloatHypercube
             @SuppressWarnings("unchecked")
             final float value = ((Number)object).floatValue();
             for (long i=0; i < size; i++) {
-                setAt(i, value);
+                weakSetAt(i, value);
             }
+            postWrite();
         }
         else if (object.getClass().isArray() &&
                  !object.getClass().getComponentType().isArray() &&
@@ -1881,4 +1952,4 @@ public interface FloatHypercube
     }
 }
 
-// [[[end]]] (checksum: 3abfd9fe6f063f83a52739f6d17ac95e)
+// [[[end]]] (checksum: 0344600eec6d4c925412056b2302d004)

@@ -271,48 +271,47 @@ public class BooleanBitSetHypercube
      * {@inheritDoc}
      */
     @Override
-    public boolean get(final long... indices)
+    public boolean weakGet(final long... indices)
         throws IndexOutOfBoundsException
     {
-        return getAt(toOffset(indices));
+        return weakGetAt(toOffset(indices));
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void set(final boolean d, final long... indices)
+    public void weakSet(final boolean d, final long... indices)
         throws IndexOutOfBoundsException
     {
-        setAt(toOffset(indices), d);
+        weakSetAt(toOffset(indices), d);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Boolean getObjectAt(final long index)
+    public Boolean weakGetObjectAt(final long index)
         throws IndexOutOfBoundsException
     {
-        preRead();
-        return getAt(index);
+        return weakGetAt(index);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public void setObjectAt(final long index, final Boolean value)
+    public void weakSetObjectAt(final long index, final Boolean value)
         throws IndexOutOfBoundsException
     {
-        setAt(index, (value == null) ? false : value.booleanValue());
+        weakSetAt(index, (value == null) ? false : value.booleanValue());
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public boolean getAt(final long index)
+    public boolean weakGetAt(final long index)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {
@@ -321,7 +320,6 @@ public class BooleanBitSetHypercube
             );
         }
 
-        preRead();
         if (index < MAX_BITSET_SIZE) {
             return myElements0.get((int)index);
         }
@@ -335,7 +333,7 @@ public class BooleanBitSetHypercube
      * {@inheritDoc}
      */
     @Override
-    public void setAt(final long index, final boolean value)
+    public void weakSetAt(final long index, final boolean value)
         throws IndexOutOfBoundsException
     {
         if (index < 0 || index >= size) {
@@ -352,7 +350,6 @@ public class BooleanBitSetHypercube
             final BitSet bitset = myElements[idx];
             bitset.set((int)(index & MAX_BITSET_MASK), value);
         }
-        postWrite();
     }
 
     /**

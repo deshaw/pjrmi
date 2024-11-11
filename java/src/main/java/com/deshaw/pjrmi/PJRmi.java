@@ -1041,7 +1041,7 @@ public abstract class PJRmi
 
             myClass = klass;
 
-            myName = klass.getName();
+            myName = klass.getName().intern();
 
             myTypeId = id;
 
@@ -5746,6 +5746,7 @@ public abstract class PJRmi
                     // Now read the payload. We keep reading until we believe
                     // that we got everything we care about. The payload might
                     // be split over several packets etc.
+                    payload.ensureCapacity(size);
                     int totalRead = 0;
                     while (totalRead < size) {
                         // Pull in all the data we can into the local buffer
@@ -6490,7 +6491,7 @@ public abstract class PJRmi
             switch (wireType) {
             case VALUE: {
                 // First read the type information
-                final int typeId = readInt(bytes, offset);
+                final int typeId = bytes.getInt(offset);
                 offset += Integer.BYTES;
 
                 final TypeDescription typeDesc = myTypeMapping.getDescription(typeId);
@@ -6529,35 +6530,31 @@ public abstract class PJRmi
                 else if (typeDesc.getName().equals("double") ||
                          typeDesc.getName().equals("java.lang.Double"))
                 {
-                    result = Double.valueOf(
-                        Double.longBitsToDouble(readLong(bytes, offset))
-                    );
+                    result = Double.valueOf(bytes.getDouble(offset));
                     offset += Long.BYTES;
                 }
                 else if (typeDesc.getName().equals("float") ||
                          typeDesc.getName().equals("java.lang.Float"))
                 {
-                    result = Float.valueOf(
-                        Float.intBitsToFloat(readInt(bytes, offset))
-                    );
+                    result = Float.valueOf(bytes.getFloat(offset));
                     offset += Integer.BYTES;
                 }
                 else if (typeDesc.getName().equals("int") ||
                          typeDesc.getName().equals("java.lang.Integer"))
                 {
-                    result = Integer.valueOf(readInt(bytes, offset));
+                    result = Integer.valueOf(bytes.getInt(offset));
                     offset += Integer.BYTES;
                 }
                 else if (typeDesc.getName().equals("long") ||
                          typeDesc.getName().equals("java.lang.Long"))
                 {
-                    result = Long.valueOf(readLong(bytes, offset));
+                    result = Long.valueOf(bytes.getLong(offset));
                     offset += Long.BYTES;
                 }
                 else if (typeDesc.getName().equals("short") ||
                          typeDesc.getName().equals("java.lang.Short"))
                 {
-                    result = Short.valueOf(readShort(bytes, offset));
+                    result = Short.valueOf(bytes.getShort(offset));
                     offset += Short.BYTES;
                 }
                 else if (typeDesc.getName().equals("char")                ||
@@ -6567,7 +6564,7 @@ public abstract class PJRmi
                 {
                     // Strings, char[]s, chars are sent over as UTF-16 strings
                     // and handled appropriately
-                    final int count = readInt(bytes, offset);
+                    final int count = bytes.getInt(offset);
                     offset += Integer.BYTES;
                     final byte[] buffer = getByteArray(count);
                     for (int i=0; i < count; i++) {
@@ -6599,73 +6596,69 @@ public abstract class PJRmi
                     }
                 }
                 else if (typeDesc.getName().equals("[Z")) {
-                    final boolean[] array = new boolean[readInt(bytes, offset)];
+                    final boolean[] array = new boolean[bytes.getInt(offset)];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
-                        array[i] = (
-                            bytes.get(offset++) != 0
-                        );
+                        array[i] = bytes.getBoolean(offset++);
                     }
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[B")) {
-                    final byte[] array = new byte[readInt(bytes, offset)];
+                    final byte[] array = new byte[bytes.getInt(offset)];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
-                        array[i] = (
-                            bytes.get(offset++)
-                        );
+                        array[i] = bytes.get(offset++);
                     }
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[D")) {
-                    final double[] array = new double[readInt(bytes, offset)];
+                    final double[] array = new double[bytes.getInt(offset)];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
-                        array[i] = Double.longBitsToDouble(readLong(bytes, offset));
+                        array[i] = bytes.getDouble(offset);
                         offset += Long.BYTES;
                     }
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[F")) {
-                    final float[] array = new float[readInt(bytes, offset)];
+                    final float[] array = new float[bytes.getInt(offset)];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
-                        array[i] = Float.intBitsToFloat(readInt(bytes, offset));
+                        array[i] = bytes.getFloat(offset);
                         offset += Integer.BYTES;
                     }
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[I")) {
-                    final int[] array = new int[readInt(bytes, offset)];
+                    final int[] array = new int[bytes.getInt(offset)];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
-                        array[i] = readInt(bytes, offset);
+                        array[i] = bytes.getInt(offset);
                         offset += Integer.BYTES;
                     }
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[J")) {
-                    final long[] array = new long[readInt(bytes, offset)];
+                    final long[] array = new long[bytes.getInt(offset)];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
-                        array[i] = readLong(bytes, offset);
+                        array[i] = bytes.getLong(offset);
                         offset += Long.BYTES;
                     }
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[S")) {
-                    final short[] array = new short[readInt(bytes, offset)];
+                    final short[] array = new short[bytes.getInt(offset)];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
-                        array[i] = readShort(bytes, offset);
+                        array[i] = bytes.getShort(offset);
                         offset += Short.BYTES;
                     }
                     result = array;
                 }
                 else if (typeDesc.getName().startsWith("[")) {
                     // An array of <something>s with a known length
-                    final int length = readInt(bytes, offset);
+                    final int length = bytes.getInt(offset);
                     offset += Integer.BYTES;
 
                     // Create an array of the right type by reflection, and
@@ -6680,11 +6673,11 @@ public abstract class PJRmi
                 }
                 else if (typeDesc.getName().equals("java.util.Map")) {
                     // How many entries
-                    final int count = readInt(bytes, offset);
+                    final int count = bytes.getInt(offset);
                     offset += Integer.BYTES;
 
                     // Create and populate
-                    final Map<Object, Object> map = new HashMap<>();
+                    final Map<Object, Object> map = new HashMap<>(count);
                     for (int i=0; i < count; i++) {
                         // Pull out the key and value
                         final ReadObjectResult keyRor   = readObject(bytes, offset);
@@ -6699,10 +6692,10 @@ public abstract class PJRmi
                     result = map;
                 }
                 else if (typeDesc.getName().equals("java.util.Set")) {
-                    final int count = readInt(bytes, offset);
+                    final int count = bytes.getInt(offset);
                     offset += Integer.BYTES;
 
-                    final Set<Object> set = new HashSet<>();
+                    final Set<Object> set = new HashSet<>(count);
                     for (int i=0; i < count; i++) {
                         final ReadObjectResult ror = readObject(bytes, offset);
                         offset = ror.offset;
@@ -6714,7 +6707,7 @@ public abstract class PJRmi
                          typeDesc.getName().equals("java.util.Collection") ||
                          typeDesc.getName().equals("java.util.List"))
                 {
-                    final int count = readInt(bytes, offset);
+                    final int count = bytes.getInt(offset);
                     offset += Integer.BYTES;
 
                     final List<Object> list = new ArrayList<>(count);
@@ -6727,7 +6720,7 @@ public abstract class PJRmi
                 }
                 else if (typeDesc.getName().equals("com.deshaw.pjrmi.PythonObject")) {
                     // A negative ID means null
-                    final int objectId = readInt(bytes, offset);
+                    final int objectId = bytes.getInt(offset);
                     offset += Integer.BYTES;
                     result = (objectId < 0)
                         ? null
@@ -6766,7 +6759,7 @@ public abstract class PJRmi
                     ReadObjectResult ror = readObject(bytes, offset);
                     offset = ror.offset;
                     final Object shape = ror.object;
-                    final int chunks = readInt(bytes, offset);
+                    final int chunks = bytes.getInt(offset);
                     offset += Integer.BYTES;
                     ror = readObject(bytes, offset);
                     offset = ror.offset;
@@ -6811,7 +6804,7 @@ public abstract class PJRmi
             case REFERENCE: {
                 // Simply grab the handle and add the associated object, it
                 // may be null which is okay
-                final long handle = readLong(bytes, offset);
+                final long handle = bytes.getLong(offset);
                 offset += Long.BYTES;
 
                 if (LOG.isLoggable(Level.FINEST)) {
@@ -6826,7 +6819,7 @@ public abstract class PJRmi
                 // {@link JniPJRmi$ArrayHandle}, to read it.
 
                 // First, we read the filename as a String
-                final int countString = readInt(bytes, offset);
+                final int countString = bytes.getInt(offset);
                 offset += Integer.BYTES;
                 final byte[] bufferString = getByteArray(countString);
                 for (int i=0; i < countString; i++) {
@@ -6839,7 +6832,7 @@ public abstract class PJRmi
                 }
 
                 // Then we read the number of elements
-                final int numElems = Integer.valueOf(readInt(bytes, offset));
+                final int numElems = Integer.valueOf(bytes.getInt(offset));
                 offset += Integer.BYTES;
 
                 if (LOG.isLoggable(Level.FINEST)) {
@@ -6847,7 +6840,7 @@ public abstract class PJRmi
                 }
 
                 // Read in the array type
-                final int countChar = readInt(bytes, offset);
+                final int countChar = bytes.getInt(offset);
                 offset += Integer.BYTES;
                 final byte[] bufferChar = getByteArray(countChar);
                 for (int i=0; i < countChar; i++) {
@@ -6895,13 +6888,13 @@ public abstract class PJRmi
                 // wire format.
 
                 final boolean isConstructor = (bytes.get(offset++) != 0);
-                final int ifaceId = readInt(bytes, offset);
+                final int ifaceId = bytes.getInt(offset);
                 offset += Integer.BYTES;
-                final int klassId = readInt(bytes, offset);
+                final int klassId = bytes.getInt(offset);
                 offset += Integer.BYTES;
-                final int methodId = readInt(bytes, offset);
+                final int methodId = bytes.getInt(offset);
                 offset += Integer.BYTES;
-                final long handleId = readLong(bytes, offset);
+                final long handleId = bytes.getLong(offset);
                 offset += Long.BYTES;
 
                 // Now resolve what we can
@@ -6949,15 +6942,15 @@ public abstract class PJRmi
                 // The argument is given by invoking a lambda. We should get
                 // method details (similar to the above) and then the arguments.
                 final boolean isConstructor = (bytes.get(offset++) != 0);
-                final int klassId = readInt(bytes, offset);
+                final int klassId = bytes.getInt(offset);
                 offset += Integer.BYTES;
-                final int methodId = readInt(bytes, offset);
+                final int methodId = bytes.getInt(offset);
                 offset += Integer.BYTES;
-                final long handleId = readLong(bytes, offset);
+                final long handleId = bytes.getLong(offset);
                 offset += Long.BYTES;
 
                 // Now the arguments
-                final short numArgs = readShort(bytes, offset);
+                final short numArgs = bytes.getShort(offset);
                 offset += Short.BYTES;
                 final Object args[] = new Object[numArgs];
                 for (int i=0; i < numArgs; i++) {
@@ -7046,7 +7039,7 @@ public abstract class PJRmi
             }
 
             // Grab the name of the object which we want
-            final int size = readInt(payload, 0);
+            final int size = payload.getInt(0);
 
             // These are sent over as UTF-16
             final byte[] buffer = getByteArray(size);
@@ -7095,7 +7088,7 @@ public abstract class PJRmi
                 );
             }
 
-            final long handle = readLong(payload, 0);
+            final long handle = payload.getLong(0);
             myHandleMapping.addReference(handle);
 
             buildMessage(buf.dataOut, MessageType.EMPTY_ACK, threadId, reqId, null);
@@ -7127,7 +7120,7 @@ public abstract class PJRmi
             int offset = 0;
 
             // How many to drop
-            final int count = readInt(payload, offset);
+            final int count = payload.getInt(offset);
             offset += Integer.BYTES;
 
             if (LOG.isLoggable(Level.FINEST)) {
@@ -7136,7 +7129,7 @@ public abstract class PJRmi
 
             // Drop them
             for (int i=0; i < count; i++) {
-                final long handle = readLong(payload, offset);
+                final long handle = payload.getLong(offset);
                 offset += Long.BYTES;
 
                 myHandleMapping.dropReference(handle);
@@ -7181,7 +7174,7 @@ public abstract class PJRmi
 
             // Get the type description
             final TypeDescription desc;
-            final int int32 = readInt(payload, offset);
+            final int int32 = payload.getInt(offset);
             offset += Integer.BYTES;
 
             if (isById) {
@@ -7272,17 +7265,17 @@ public abstract class PJRmi
             // the, optional, arguments
             final boolean isConstructor = (payload.get(offset++) != 0);
 
-            final int typeId = readInt(payload, offset);
+            final int typeId = payload.getInt(offset);
             offset += Integer.BYTES;
 
             final byte valueFormatId = payload.get(offset++);
 
             final byte syncModeId = payload.get(offset++);
 
-            final long handle = readLong(payload, offset);
+            final long handle = payload.getLong(offset);
             offset += Long.BYTES;
 
-            final int index = readInt(payload, offset);
+            final int index = payload.getInt(offset);
             offset += Integer.BYTES;
 
             // Figure out what we need to know in order to invoke this method
@@ -7556,7 +7549,7 @@ public abstract class PJRmi
                 );
             }
 
-            final long handle = readLong(payload, 0);
+            final long handle = payload.getLong(0);
 
             final Object instance = myHandleMapping.getObject(handle);
             final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
@@ -7598,9 +7591,9 @@ public abstract class PJRmi
                 );
             }
 
-            final int  typeId = readInt (payload,  0);
-            final long handle = readLong(payload,  4);
-            final int  index  = readInt (payload, 12);
+            final int  typeId = payload.getInt ( 0);
+            final long handle = payload.getLong( 4);
+            final int  index  = payload.getInt (12);
 
             final TypeDescription desc = myTypeMapping.getDescription(typeId);
             final Object object = myHandleMapping.getObject(handle);
@@ -7664,9 +7657,9 @@ public abstract class PJRmi
                 );
             }
 
-            final int objTypeId = readInt (payload,  0);
-            final long handle   = readLong(payload,  4);
-            final int index     = readInt (payload, 12);
+            final int objTypeId = payload.getInt ( 0);
+            final long handle   = payload.getLong( 4);
+            final int index     = payload.getInt (12);
 
             final Object value = readObject(payload, 16).object;
 
@@ -7712,7 +7705,7 @@ public abstract class PJRmi
                 );
             }
 
-            final long handle = readLong(payload, 0);
+            final long handle = payload.getLong(0);
 
             final Object object = myHandleMapping.getObject(handle);
             if (object == null) {
@@ -7756,8 +7749,8 @@ public abstract class PJRmi
                 );
             }
 
-            final int typeId = readInt(payload, 0);
-            final int length = readInt(payload, 4);
+            final int typeId = payload.getInt(0);
+            final int length = payload.getInt(4);
 
             // Known type?
             final TypeDescription klass  = myTypeMapping.getDescription(typeId);
@@ -7805,8 +7798,8 @@ public abstract class PJRmi
                 );
             }
 
-            final int typeId  = readInt (payload, 0);
-            final long handle = readLong(payload, 4);
+            final int typeId  = payload.getInt (0);
+            final long handle = payload.getLong(4);
 
             // Known type?
             final TypeDescription klass  = myTypeMapping.getDescription(typeId);
@@ -7864,7 +7857,7 @@ public abstract class PJRmi
                 );
             }
             else {
-                final int length = readInt(payload, 0);
+                final int length = payload.getInt(0);
                 final CharSequence name = new HashableSubSequence(payload, 4, length);
                 myLockManager.getExclusiveLockFor(name).lock();
             }
@@ -7894,7 +7887,7 @@ public abstract class PJRmi
                 );
             }
             else {
-                final int length = readInt(payload, 0);
+                final int length = payload.getInt(0);
                 final CharSequence name = new HashableSubSequence(payload, 4, length);
                 myLockManager.getExclusiveLockFor(name).unlock();
             }
@@ -7970,7 +7963,7 @@ public abstract class PJRmi
             int offset = 0;
 
             // Get the class name
-            final int lenClassName = readInt(payload, offset);
+            final int lenClassName = payload.getInt(offset);
             offset += Integer.BYTES;
             final StringBuilder sbClassName = new StringBuilder();
             while (sbClassName.length() < lenClassName) {
@@ -7979,7 +7972,7 @@ public abstract class PJRmi
             final String className = sbClassName.toString();
 
             // Get the source code
-            final int lenSource = readInt(payload, offset);
+            final int lenSource = payload.getInt(offset);
             offset += Integer.BYTES;
             final StringBuilder sbSource = new StringBuilder();
             while (sbSource.length() < lenSource) {
@@ -8015,8 +8008,8 @@ public abstract class PJRmi
 
             // Pull in the full payload, including the bytecode at the end
             int offset = 0;
-            final int typeId = readInt(payload, offset); offset += Integer.BYTES;
-            final int len    = readInt(payload, offset); offset += Integer.BYTES;
+            final int typeId = payload.getInt(offset); offset += Integer.BYTES;
+            final int len    = payload.getInt(offset); offset += Integer.BYTES;
             final byte[] bytecode = new byte[len];
             for (int i=0; i < len; i++) {
                 bytecode[i] = payload.get(offset++);
@@ -8075,7 +8068,7 @@ public abstract class PJRmi
             }
 
             // The object handle
-            final long handle = readLong(payload, 0);
+            final long handle = payload.getLong(0);
 
             // The return format
             final PythonValueFormat valueFormat =
@@ -8184,8 +8177,8 @@ public abstract class PJRmi
             }
 
             // The object handle
-            final int functionId = readInt(payload, 0);
-            final int typeId     = readInt(payload, 4);
+            final int functionId = payload.getInt(0);
+            final int typeId     = payload.getInt(4);
             final int numArgs    = payload.get(8) & 0xff; // '&' up-casts to int
 
             // Create the appropriate function wrapper
@@ -8365,9 +8358,9 @@ public abstract class PJRmi
             }
 
             // The Java request ID
-            final int     requestId   = readInt    (payload, 0);
-            final boolean isException = readBoolean(payload, 4);
-            final Object  result      = readObject (payload, 5).object;
+            final int     requestId   = payload.getInt    (0);
+            final boolean isException = payload.getBoolean(4);
+            final Object  result      = readObject(payload, 5).object;
 
             // Give them to the appropriate callback listener, if we can find it
             final PythonCallbackResult cbr =
@@ -8406,8 +8399,8 @@ public abstract class PJRmi
             }
 
             // The object handle
-            final int objectId = readInt(payload, 0);
-            final int typeId   = readInt(payload, 4);
+            final int objectId = payload.getInt(0);
+            final int typeId   = payload.getInt(4);
 
             // Grab the type
             final TypeDescription typeDesc = myTypeMapping.getDescription(typeId);
@@ -8596,49 +8589,6 @@ public abstract class PJRmi
                          threadId,
                          reqId,
                          bados.bytes);
-        }
-
-        /**
-         * Read a boolean from a ByteList.
-         */
-        private boolean readBoolean(ByteList bytes, int offset)
-        {
-            return (bytes.get(offset) != 0);
-        }
-
-        /**
-         * Read a short from a ByteList.
-         */
-        private short readShort(ByteList bytes, int offset)
-        {
-            return (short) ((Byte.toUnsignedInt(bytes.get(offset++)) << 8) |
-                            (Byte.toUnsignedInt(bytes.get(offset++))     ));
-        }
-
-        /**
-         * Read an integer from a ByteList.
-         */
-        private int readInt(ByteList bytes, int offset)
-        {
-            return (Byte.toUnsignedInt(bytes.get(offset++)) << 24) |
-                   (Byte.toUnsignedInt(bytes.get(offset++)) << 16) |
-                   (Byte.toUnsignedInt(bytes.get(offset++)) <<  8) |
-                   (Byte.toUnsignedInt(bytes.get(offset++))      );
-        }
-
-        /**
-         * Read a long from a ByteList.
-         */
-        private long readLong(ByteList bytes, int offset)
-        {
-            return (Byte.toUnsignedLong(bytes.get(offset++)) << 56) |
-                   (Byte.toUnsignedLong(bytes.get(offset++)) << 48) |
-                   (Byte.toUnsignedLong(bytes.get(offset++)) << 40) |
-                   (Byte.toUnsignedLong(bytes.get(offset++)) << 32) |
-                   (Byte.toUnsignedLong(bytes.get(offset++)) << 24) |
-                   (Byte.toUnsignedLong(bytes.get(offset++)) << 16) |
-                   (Byte.toUnsignedLong(bytes.get(offset++)) <<  8) |
-                   (Byte.toUnsignedLong(bytes.get(offset++))      );
         }
 
         /**
@@ -8843,7 +8793,7 @@ public abstract class PJRmi
 
         sb.append('<');
         for (int i=0; i < bytes.size(); i++) {
-            final byte b = bytes.getNoCheck(i);
+            final byte b = bytes.get(i);
             if (b < (byte)' ' || b > (byte)'~') {
                 sb.append("\\x");
                 appendHexByte(sb, b);

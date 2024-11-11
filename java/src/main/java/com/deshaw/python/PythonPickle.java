@@ -358,7 +358,7 @@ public class PythonPickle
         writeBinStringHeader((long) n);
 
         for (int i=0; i < n; ++i) {
-            write(o.getNoCheck(i));
+            write(o.get(i));
         }
 
         addNumpyArrayEnding(DType.Type.INT8, o);

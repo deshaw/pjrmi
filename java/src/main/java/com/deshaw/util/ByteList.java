@@ -210,29 +210,151 @@ public class ByteList
     public byte get(final int index)
         throws IndexOutOfBoundsException
     {
-        if (index >= mySize) {
-            throw new IndexOutOfBoundsException(index);
-        }
-
-        // This will throw exception on negative index.
         return myData[index];
     }
 
     /**
-     * Get the element value at the given index without checking against the
-     * list size.
+     * Get the {@code boolean} value at the given index, encoded as a byte where
+     * any non-zero value is {@code true} and zero is {@code false}.
      *
      * @param index  The index to get the byte from.
      *
      * @return the byte at the given index.
      *
-     * @throws IndexOutOfBoundsException if the given index was out of the
-     *                                   bounds of the underlying array.
+     * @throws IndexOutOfBoundsException if, surprise, the given index was out
+     *                                   of bounds.
      */
-    public byte getNoCheck(final int index)
+    public boolean getBoolean(final int index)
+        throws IndexOutOfBoundsException
+    {
+        return (myData[index] != 0);
+    }
+
+    /**
+     * Get the {@code byte} value at the given index. This is equivalent to
+     * {@link #get(int)}.
+     *
+     * @param index  The index to get the byte from.
+     *
+     * @return the byte at the given index.
+     *
+     * @throws IndexOutOfBoundsException if, surprise, the given index was out
+     *                                   of bounds.
+     */
+    public byte getByte(final int index)
         throws IndexOutOfBoundsException
     {
         return myData[index];
+    }
+
+    /**
+     * Get the {@code short} value at the given index, assuming a big-endian
+     * format.
+     *
+     * @param index  The index to get the short from.
+     *
+     * @return the short at the given index.
+     *
+     * @throws IndexOutOfBoundsException if, surprise, the given index was out
+     *                                   of bounds.
+     */
+    public short getShort(final int index)
+        throws IndexOutOfBoundsException
+    {
+        return (short) (((((int)myData[index    ]) & 0xff) << 8) |
+                        ((((int)myData[index + 1]) & 0xff)     ));
+    }
+
+    /**
+     * Get the {@code int} value at the given index, assuming a big-endian
+     * format.
+     *
+     * @param index  The index to get the int from.
+     *
+     * @return the int at the given index.
+     *
+     * @throws IndexOutOfBoundsException if, surprise, the given index was out
+     *                                   of bounds.
+     */
+    public int getInt(final int index)
+        throws IndexOutOfBoundsException
+    {
+        return (((((int)myData[index    ]) & 0xff) << 24) |
+                ((((int)myData[index + 1]) & 0xff) << 16) |
+                ((((int)myData[index + 2]) & 0xff) <<  8) |
+                ((((int)myData[index + 3]) & 0xff)      ));
+    }
+
+    /**
+     * Get the {@code long} value at the given index, assuming a big-endian
+     * format.
+     *
+     * @param index  The index to get the long from.
+     *
+     * @return the long at the given index.
+     *
+     * @throws IndexOutOfBoundsException if, surprise, the given index was out
+     *                                   of bounds.
+     */
+    public long getLong(final int index)
+        throws IndexOutOfBoundsException
+    {
+        return (((((long)myData[index    ]) & 0xffL) << 56) |
+                ((((long)myData[index + 1]) & 0xffL) << 48) |
+                ((((long)myData[index + 2]) & 0xffL) << 40) |
+                ((((long)myData[index + 3]) & 0xffL) << 32) |
+                ((((long)myData[index + 4]) & 0xffL) << 24) |
+                ((((long)myData[index + 5]) & 0xffL) << 16) |
+                ((((long)myData[index + 6]) & 0xffL) <<  8) |
+                ((((long)myData[index + 7]) & 0xffL)      ));
+    }
+
+    /**
+     * Get the {@code float} value at the given index, assuming a big-endian
+     * format.
+     *
+     * @param index  The index to get the float from.
+     *
+     * @return the float at the given index.
+     *
+     * @throws IndexOutOfBoundsException if, surprise, the given index was out
+     *                                   of bounds.
+     */
+    public float getFloat(final int index)
+        throws IndexOutOfBoundsException
+    {
+        return Float.intBitsToFloat(
+            ((((int)myData[index    ]) & 0xff) << 24) |
+            ((((int)myData[index + 1]) & 0xff) << 16) |
+            ((((int)myData[index + 2]) & 0xff) <<  8) |
+            ((((int)myData[index + 3]) & 0xff)      )
+        );
+    }
+
+    /**
+     * Get the {@code double} value at the given index, assuming a big-endian
+     * format.
+     *
+     * @param index  The index to get the double from.
+     *
+     * @return the double at the given index.
+     *
+     * @throws IndexOutOfBoundsException if, surprise, the given index was out
+     *                                   of bounds.
+     */
+    public double getDouble(final int index)
+        throws IndexOutOfBoundsException
+    {
+        return Double.longBitsToDouble(
+            ((((long)myData[index    ]) & 0xffL) << 56) |
+            ((((long)myData[index + 1]) & 0xffL) << 48) |
+            ((((long)myData[index + 2]) & 0xffL) << 40) |
+            ((((long)myData[index + 3]) & 0xffL) << 32) |
+            ((((long)myData[index + 4]) & 0xffL) << 24) |
+            ((((long)myData[index + 5]) & 0xffL) << 16) |
+            ((((long)myData[index + 6]) & 0xffL) <<  8) |
+            ((((long)myData[index + 7]) & 0xffL)      )
+        );
     }
 
     /**

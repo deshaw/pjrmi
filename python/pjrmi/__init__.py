@@ -3541,12 +3541,20 @@ public class TestInjectSource {
                         self._format_int32(self._get_object_id(value)))
 
             elif (klass._type_id == self._com_deshaw_hypercube_Hypercube._type_id and
-                  type(value) is numpy.ndarray):
+                  (type(value) is numpy.ndarray or hasattr(value, '__iter__'))):
+                # Using asarray() will ensure that we share the same semantics
+                # as how numpy would convert a value to an ndarray. However,
+                # this might differ from how PJRmi handles integer values (i.e.
+                # everything winds up being a long).
+                arr = numpy.asarray(value)
                 return (self._ARGUMENT_VALUE +
                         self._format_int32(klass._type_id) +
-                        self._format_by_class(self._L_java_lang_long, value.shape) +
+                        self._format_by_class(self._L_java_lang_long, arr.shape) +
                         self._format_int32(1) + # num arrays to follow
-                        self._format_by_class(self._java_lang_Object, value.flatten()))
+                        self._format_by_class(
+                            self._java_lang_Object,
+                            arr.flatten() if len(arr.shape) > 1 else arr)
+                        )
 
             elif isinstance(value, JavaMethod) and value._can_format_as(klass):
                 return self._format_method_as(value, klass)

@@ -1354,6 +1354,13 @@ public class TestInjectSource {
         CubeMath                 = get_pjrmi().class_for_name('com.deshaw.hypercube.CubeMath')
         IllegalArgumentException = get_pjrmi().class_for_name('java.lang.IllegalArgumentException')
 
+        # Ensure that calling sum() and copy() for non-ndarrays works. This
+        # tests marshalling non-ndarrays as Hypercubes.
+        l22 = [[0,1],
+               [2,3]]
+        self.assertEqual(CubeMath.sum(range(10)), 45)
+        self.assertTrue(numpy.all(CubeMath.copy(l22) == numpy.asarray(l22)))
+
         # Create an ndarray to work on. We futz with the values a little so that
         # floating point noise doesn't cause some of the comparisons (e.g. the
         # trig ones) to fail.
@@ -1387,8 +1394,8 @@ public class TestInjectSource {
         self.assertTrue(numpy.all((dac / dac) == (nda / nda)))
 
         # We get floating point noise for some of the tests in the below since
-        # CubeMath and numpy work slightly differently and we get floating point
-        # noise. Compare against an epsilon value in order to handle this.
+        # CubeMath and numpy work slightly differently. Compare against an
+        # epsilon value in order to handle this.
         EPS = 1e-15
 
         # Hyperbolic and trig

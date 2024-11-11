@@ -9129,6 +9129,7 @@ public abstract class PJRmi
 
                 "java.util.AbstractMap",
                 "java.util.AbstractSet",
+                "java.util.Arrays",
                 "java.util.Collection",
                 "java.util.HashMap",
                 "java.util.HashMap$Node",
@@ -9149,6 +9150,7 @@ public abstract class PJRmi
                 "java.util.logging.Level",
                 "java.util.logging.LogManager",
                 "java.util.stream.DoubleStream",
+                "java.util.stream.Collectors",
                 "java.util.stream.IntStream",
                 "java.util.stream.LongStream",
                 "java.util.stream.Stream",

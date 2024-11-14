@@ -6286,7 +6286,7 @@ public abstract class PJRmi
 
             default:
                 throw new IllegalArgumentException(
-                    "Unhandled return format" + valueFormat
+                    "Unhandled return format " + valueFormat
                 );
             }
         }
@@ -9109,7 +9109,9 @@ public abstract class PJRmi
                 "java.lang.IndexOutOfBoundsException",
                 "java.lang.Integer",
                 "java.lang.Iterable",
+                "java.lang.LinkageError",
                 "java.lang.Long",
+                "java.lang.NoClassDefFoundError",
                 "java.lang.NoSuchFieldException",
                 "java.lang.NoSuchMethodException",
                 "java.lang.Number",

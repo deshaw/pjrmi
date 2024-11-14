@@ -133,6 +133,12 @@ def get_pjrmi():
 
     # Connect to PJRmi
     _pjrmi_connection = pjrmi.connect_to_child_jvm(
+        # We need around least 3Gb of heap for these tests but we give it a bit
+        # of headroom just in case. Some systems with a smaller memory footprint
+        # will have a smaller default heap size. It's safe to set the maximum
+        # value to higher number than the available memory, since the JVM will
+        # only allocate what it needs to.
+        java_args=("-Xmx4g",),
         # Turning class blocking on but allowing class injection does reduce
         # the fidelity of these tests compared to production but it's at least
         # better than not having class blocking.
@@ -759,10 +765,13 @@ class TestPJRmi(TestCase):
         except IOError:
             child_python_pid, java_pid = (None, None)
 
-        # Now if we have found the file, we will wait for 1 second to let the
-        # processes cleanup.
+        # Now if we have found the file, we will wait for a bit to let the
+        # processes cleanup. This is a little racy in nature since the child can
+        # take longer to die on some systems so we try to do it vaguely nicely.
         if child_python_pid:
-            time.sleep(1)
+            for i in range(50):
+                if _kill_alive_process(child_python_pid):
+                    time.sleep(0.1)
 
         # Need to poll the parent process, so that it gets cleared from defunct
         # state, if it has exited.

@@ -4819,6 +4819,22 @@ public class TestInjectSource {
         This is mostly making the Java stuff code play nice with the Python
         world.
         """
+        def augment(klass, attr_name, attr):
+            """
+            A version of `setattr()` which will only set if the attribute is not
+            already present. This prevents us clobbering versions of methods which
+            have been explicitly crafted on the Java side.
+
+            We will sometimes want to use this when it's likely that the Java
+            side might have added its own version. For some classes (e.g. final
+            ones) or methods (e.g. `_repr_pretty_`) this won't/can't happen.
+            """
+            # We inspect the members of the class directly here, since calling
+            # hasattr() will call getattr() under the hood and that isn't quite
+            # the semantics that we want (as well as having side-effects).
+            if attr_name not in dir(klass):
+                setattr(klass, attr_name, attr)
+
         def isjavasubclass(javaclass, classname, attrname):
             """
             Whether the `javaclass` is a subclass of the one specified via the given
@@ -4909,8 +4925,11 @@ public class TestInjectSource {
         # Map methods. We do the explicit test for Map to avoid recursing
         # forever if we are creating a Map.
         if isjavasubclass(klass, "java.util.Map", '_java_util_Map'):
-            def __getitem__(self_, index):
-                return self_.get(index)
+            def __getitem__(self_, key):
+                return self_.get(key)
+
+            def __setitem__(self_, key, value):
+                return self_.put(key, value)
 
             def __len__(self_):
                 return self_.size()
@@ -4945,9 +4964,10 @@ public class TestInjectSource {
                             p.text(": ")
                             p.pretty(v)
 
-            setattr(klass, "__getitem__",   __getitem__  )
-            setattr(klass, "__len__",       __len__      )
-            setattr(klass, "__iter__",      __iter__     )
+            augment(klass, "__getitem__",   __getitem__  )
+            augment(klass, "__setitem__",   __setitem__  )
+            augment(klass, "__len__",       __len__      )
+            augment(klass, "__iter__",      __iter__     )
             setattr(klass, "_repr_pretty_", _repr_pretty_)
 
         if isjavasubclass(klass, "java.util.Map$Entry", '_java_util_Map_Entry'):
@@ -4961,6 +4981,7 @@ public class TestInjectSource {
             def __len__(self_):
                 return 2
 
+            # Explicity set here
             setattr(klass, "__getitem__", __getitem__)
             setattr(klass, "__len__",     __len__    )
 
@@ -4973,8 +4994,8 @@ public class TestInjectSource {
             def __setitem__(self_, key, value):
                 return self_.set(strict_number(numpy.int32, key), value)
 
-            setattr(klass, "__getitem__",   __getitem__)
-            setattr(klass, "__setitem__",   __setitem__)
+            augment(klass, "__getitem__",   __getitem__)
+            augment(klass, "__setitem__",   __setitem__)
 
         # Collection methods. We do the explicit test for Collection to avoid
         # recursing forever if we are creating a Collection.
@@ -5001,7 +5022,7 @@ public class TestInjectSource {
                         return
                     raise
 
-            setattr(klass, "__iter__", __iter__)
+            augment(klass, "__iter__", __iter__)
 
         if isjavasubclass(klass, 'java.lang.Iterable', '_java_lang_Iterable'):
             def __iter__(self_):
@@ -5047,7 +5068,7 @@ public class TestInjectSource {
                                 p.breakable()
                             p.pretty(el)
 
-            setattr(klass, "__iter__",      __iter__     )
+            augment(klass, "__iter__",      __iter__     )
             setattr(klass, "_repr_pretty_", _repr_pretty_)
 
         # If something is an Comparable then we make it comparable under Python too.
@@ -5057,7 +5078,7 @@ public class TestInjectSource {
             def __cmp__(self_, that):
                 return self_.compareTo(that)
 
-            setattr(klass, "__cmp__", __cmp__)
+            augment(klass, "__cmp__", __cmp__)
 
         # If something is an AutoCloseable then we add the __enter__() and
         # __exit__() methods for Python. We need to handle the boot-strapping

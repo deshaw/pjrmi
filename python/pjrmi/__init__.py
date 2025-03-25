@@ -22,6 +22,7 @@ import weakref
 from   builtins         import ascii
 from   collections.abc  import Iterable
 from   inspect          import getfullargspec
+from   psutil           import NoSuchProcess, Process
 from   threading        import (Condition, Lock, RLock, Thread,
                                 current_thread, local as ThreadLocal)
 from   traceback        import format_tb
@@ -665,10 +666,14 @@ class PJRmi:
             LOG.debug("Started a shmdata cleaner thread")
 
 
-    def disconnect(self):
+    def disconnect(self, block=False):
         """
         Disconnect from the server. Once this is called then the instance is no
         longer usable.
+
+        :param block: Whether to wait for the disconnection to be fully
+                      complete. In cases where the Python process controls the
+                      Java one this will wait for the Java process to exit.
         """
 
         if self._connected:
@@ -688,14 +693,14 @@ class PJRmi:
                             pass
 
             self._connected = False
-            self._transport.disconnect()
+            self._transport.disconnect(block=block)
 
 
-    def close(self):
+    def close(self, block=False):
         """
         Synonym for disconnect().
         """
-        self.disconnect()
+        self.disconnect(block=block)
 
 
     def object_for_name(self, object_name):
@@ -6212,9 +6217,11 @@ class SocketTransport:
         self._socket.connect((self._host, self._port))
 
 
-    def disconnect(self):
+    def disconnect(self, block=False):
         """
         Close the connection. This renders it unusable.
+
+        :param block: Ignored, since we don't control the Java process.
         """
 
         try:
@@ -6383,9 +6390,12 @@ class InprocessTransport:
         pass
 
 
-    def disconnect(self):
+    def disconnect(self, block=False):
         """
         Close the connection. This renders it unusable.
+
+        :param block: Ignored, since there is nothing to block on (disconnection
+                      is instantaneous internally).
         """
         pjrmi.extension.disconnect()
 
@@ -6578,8 +6588,14 @@ class UnixFifoTransport:
             # Since we have exec()'d above, this line is never reached
             assert False, "Never reached"
 
-        # We are the parent
+        # We are the parent. Remember the details of the child, so we can
+        # canonically look it up later. Be a little paranoid about this, since
+        # we don't want this weirdly croaking if the child immediately dies.
         self._pid = pid
+        try:
+            self._pid_time = Process(pid).create_time()
+        except Exception:
+            self._pid_time = None
 
         # Ensure that we clean up as best we can.  Use a weakref to avoid
         # holding onto a reference to this object in the atexit queue.
@@ -6628,9 +6644,11 @@ class UnixFifoTransport:
         pass
 
 
-    def disconnect(self):
+    def disconnect(self, block=False):
         """
         Close the connection. This renders it unusable.
+
+        :param block: Wait for the Java child process to exit.
         """
 
         if self._closed:
@@ -6674,24 +6692,23 @@ class UnixFifoTransport:
         # thread waiting for it.
         class Killer(Thread):
             def run(self_):
-                # Junk the Java process, if the watching isn't working
-                os.kill(self._pid, signal.SIGTERM)
-
-                # Give it time to die then forcefully kill it
                 try:
-                    # Wait about 10s to do this
+                    # Junk the Java process, if the watching isn't working
+                    os.kill(self._pid, signal.SIGTERM)
+
+                    # Give it time to die then forcefully kill it. Wait about
+                    # 10s to do this. The Process() CTOR will throw an exception
+                    # if the PID is not found.
                     until = time.time() + 10
-                    while time.time() < until:
-                        # "Ping" the process, this will raise an execption if
-                        # it's not found etc
-                        os.kill(self._pid, 0)
+                    while (time.time() < until and
+                           Process(self._pid).create_time() == self._pid_time):
                         time.sleep(1)
 
                     # If we got here then we need to really kill it
                     os.kill(self._pid, signal.SIGKILL)
 
-                except Exception:
-                    # os.kill failed, process must be dead
+                except (NoSuchProcess, ProcessLookupError):
+                    # Process() or os.kill() failed, process must be dead
                     pass
 
         # Reap the child to collect the exit status; if we don't do this the
@@ -6702,6 +6719,10 @@ class UnixFifoTransport:
                 # Keep trying until waitpid() returns gracefully
                 while True:
                     try:
+                        if Process(self._pid).create_time() != self._pid_time:
+                            # Looks like the PID got reused, so the child must
+                            # have died.
+                            break
                         os.waitpid(self._pid, 0)
                         break
                     except Exception:
@@ -6710,6 +6731,21 @@ class UnixFifoTransport:
         # Spawn them
         Killer().start()
         Reaper().start()
+
+        # Wait for the child process to exit
+        if block:
+            # Let's wait for a minute. That's probably enough time to ensure
+            # that the process is really dead. Also, a minute is suspiciously
+            # obvious enough to make it easy for a human to infer that some sort
+            # of timeout is being used.
+            try:
+                until = time.time() + 60
+                while (time.time() < until and
+                       Process(self._pid).create_time() == self._pid_time):
+                    time.sleep(0.1)
+            except (NoSuchProcess, ProcessLookupError):
+                # This is okay, the proces was not found and we can be done.
+                pass
 
         # We're closed now
         self._closed = True
@@ -6806,9 +6842,11 @@ class StdioTransport:
         self._connected = True
 
 
-    def disconnect(self):
+    def disconnect(self, block=False):
         """
         Close the connection. This is achieved by terminating the process.
+
+        :param block: Ignored, since we don't control the Java process.
         """
 
         self._tell_java('Disconnecting...')

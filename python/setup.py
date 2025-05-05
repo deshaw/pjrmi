@@ -16,7 +16,7 @@ name = 'pjrmi'
 
 # Parameters which are set by the Gradle build enironment.
 version     = os.environ.get('PJRMI_VERSION')
-cpp_include = os.environ.get("INCLUDE_PATH")
+cpp_include = os.environ.get('INCLUDE_PATH')
 java_home   = os.environ.get('JAVA_HOME')
 
 # For the libjvm.so library.

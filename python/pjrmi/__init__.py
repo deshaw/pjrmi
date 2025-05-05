@@ -571,7 +571,7 @@ class PJRmi:
         #
         # Here, we discard files that have been around for more than 5s, since
         # they are most likely no longer needed.
-        if self._transport.is_localhost():
+        if self._transport.is_localhost() and self._use_shmdata:
             class ShmdataCleaner(Thread):
                 def __init__(self_):
                     super().__init__()
@@ -582,20 +582,18 @@ class PJRmi:
 
                 def run(self_):
                     while self._connected and not self._eof:
-                        # Wait for 100us before we check. This also allows
-                        # potential race conditions with _shmdata_files to
-                        # rattle out (hopefully!). This also lessens the
-                        # likelihood that our main thread dies while we're
-                        # sleeping.
-                        time.sleep(1e-4)
+                        # Wait for 100ms before we check, since we only act
+                        # every second anyhow. This also allows potential race
+                        # conditions with _shmdata_files to rattle out.
+                        time.sleep(0.1)
 
                         # We'll determine if we need to check our files based
                         # on this. We also use it as a baseline for removing
                         # old files.
                         curr_time = time.time()
 
-                        # We're only removing files older than 5s,
-                        # so don't busy-spin the thread.
+                        # We're only removing files older than 5s, so don't
+                        # busy-spin the thread.
                         if curr_time - self_._last_time < 1:
                             continue
 

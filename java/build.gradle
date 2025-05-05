@@ -4,6 +4,7 @@
 
 plugins {
     id 'java-library'
+    id 'maven-publish'
 }
 
 configurations {
@@ -26,6 +27,14 @@ configurations {
         }
         canBeConsumed = false
         canBeResolved = true
+    }
+    pomFiles {
+        description = 'POM files'
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, 'pom-file'))
+        }
+        canBeConsumed = true
+        canBeResolved = false
     }
 }
 
@@ -68,10 +77,30 @@ java {
     }
 }
 
+publishing {
+    publications {
+        pjrmi(MavenPublication) {
+            version = pjrmiVersion
+            groupId = "com.deshaw"
+            pom {
+                name = 'pjrmi'
+                description = 'pjrmi'
+                url = 'https://github.com/deshaw/pjrmi'
+            }
+            from components.java
+        }
+    }
+}
+
 jar {
     // Just the raw 'pjrmi.jar' name, unversioned. This is deployed as a
     // resource for the Python package and is therefore scoped by that.
     archiveBaseName = 'pjrmi'
+
+    into("META-INF/maven/$project.group/$project.name") {
+        from { generatePomFileForPjrmiPublication }
+        rename '.*', 'pom.xml'
+    }
 
     // Make fat-jar to make python packaging easier.
     from {
@@ -98,6 +127,9 @@ repositories {
 artifacts {
     jniHeaders(compileJava.options.headerOutputDirectory) {
         builtBy(compileJava)
+    }
+    pomFiles(generatePomFileForPjrmiPublication.destination) {
+        builtBy(generatePomFileForPjrmiPublication)
     }
 }
 

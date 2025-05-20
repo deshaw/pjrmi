@@ -969,13 +969,13 @@ class PJRmi:
         # For receiving arrays on the same host
         if (self._transport.is_localhost() and
             self._use_shmdata              and
-            (obj.__class__ == self._L_java_lang_boolean or
-             obj.__class__ == self._L_java_lang_byte    or
-             obj.__class__ == self._L_java_lang_short   or
-             obj.__class__ == self._L_java_lang_int     or
-             obj.__class__ == self._L_java_lang_long    or
-             obj.__class__ == self._L_java_lang_float   or
-             obj.__class__ == self._L_java_lang_double)):
+            obj.__class__ in (self._L_java_lang_boolean,
+                              self._L_java_lang_byte,
+                              self._L_java_lang_short,
+                              self._L_java_lang_int,
+                              self._L_java_lang_long,
+                              self._L_java_lang_float,
+                              self._L_java_lang_double)):
             value_format = self._VALUE_FORMAT_SHMDATA
 
         # Send the request
@@ -1202,9 +1202,9 @@ public class TestInjectSource {
 
         except (AttributeError,KeyError) as e:
             raise ValueError(
-                "%s does not appear to be a Java class: %s" %
-                (klass, e)
-            )
+                "%s does not appear to be a Java class" %
+                (klass,)
+            ) from e
 
 
     def get_bound_method(self,
@@ -1252,9 +1252,9 @@ public class TestInjectSource {
 
         except (AttributeError,KeyError) as e:
             raise ValueError(
-                "%s does not appear to be a method of a Java class: %s" %
-                (method, e)
-            )
+                "%s does not appear to be a method of a Java class" %
+                (method,)
+            ) from e
 
 
     def get_java_logger(self,
@@ -1361,7 +1361,7 @@ public class TestInjectSource {
 
         # Check for the degenerate case and early-out
         if candidates is None or len(candidates) == 0:
-            return
+            return None
 
         # If we have multiple candidates but no hinting then we can't make a match
         if arg_types is None:
@@ -1690,7 +1690,7 @@ public class TestInjectSource {
             # Read all the super-type IDs
             (num_supertypes, idx) = self._read_int32(payload, idx)
             supertype_ids = list()
-            for supertype_idx in range(num_supertypes):
+            for _ in range(num_supertypes):
                 (supertype_id, idx) = self._read_int32(payload, idx)
                 supertype_ids.append(supertype_id)
 
@@ -1874,19 +1874,19 @@ public class TestInjectSource {
 
     def _handle_ascii_value(self, msg_type: bytes, payload: bytes) -> str:
         # This is a string
-        (value, idx) = self._read_ascii(payload, 0)
+        value = self._read_ascii(payload, 0)[0]
         return value
 
 
     def _handle_utf16_value(self, msg_type: bytes, payload: bytes) -> str:
         # This is a unicode string
-        (value, idx) = self._read_utf16(payload, 0)
+        value = self._read_utf16(payload, 0)[0]
         return value
 
 
     def _handle_pickle_bytes(self, msg_type: bytes, payload: bytes) -> Any:
         # Read in the array of bytes (as a string)
-        (value, idx) = self._read_byte_array(payload, 0)
+        value = self._read_byte_array(payload, 0)[0]
 
         # Get the value encoding format, and the data. For the format we use a
         # slice of length 1, instead of indexing with [0], because direct
@@ -1935,12 +1935,12 @@ public class TestInjectSource {
 
     def _handle_array_length(self, msg_type: bytes, payload: bytes) -> int:
         # This is an int
-        (value, idx) = self._read_int32(payload, 0)
+        value = self._read_int32(payload, 0)[0]
         return value
 
 
     def _handle_python_reference(self, msg_type: bytes, payload: bytes) -> Any:
-        (object_id, idx) = self._read_int32(payload, 0)
+        object_id = self._read_int32(payload, 0)[0]
         return self._get_callback_object(object_id)
 
 
@@ -2044,7 +2044,7 @@ public class TestInjectSource {
 
                         # And figure out its arguments
                         args = list()
-                        for i in range(num_args):
+                        for _ in range(num_args):
                             (arg, idx) = self._read_argument(payload, idx)
                             args.append(arg)
 
@@ -4124,11 +4124,7 @@ public class TestInjectSource {
             if klass_doc_url is None:
                 doc_link = ''
             else:
-                doc_link = "\n%s%s%s#%s(%s)" % (indent,
-                                                indent,
-                                                klass_doc_url,
-                                                method_name,
-                                                ','.join(arg_classnames))
+                doc_link = "\n%s%s%s" % (indent, indent, klass_doc_url)
 
             # Add the details
             result += ("%s%s%s\n" % (indent, signature, doc_link))
@@ -4483,7 +4479,6 @@ public class TestInjectSource {
                                 # that we simply don't append it.
                                 if log_debug:
                                     LOG.debug("Dropping old match %s", match[0])
-                                pass
 
                         # See if we want to use new_matches as our new list
                         if assign:
@@ -4590,7 +4585,7 @@ public class TestInjectSource {
             # Internal call?
             if len(args) == 1 and 'rmi' in kwargs and 'handle' in kwargs:
                 result = klass.__real_new__(args[0])
-                super(klass, args[0]).__init__(result, kwargs['rmi'], kwargs['handle'])
+                super().__init__(result, kwargs['rmi'], kwargs['handle'])
                 return result
             elif len(args) == 2:
                 return self._create_array(klass, args[1])
@@ -5218,7 +5213,7 @@ public class TestInjectSource {
                     # And render the cube over the wire
                     result = self.value_of(self_)
 
-                except Exception:
+                except Exception as e:
                     # Handle it manually. Use SHM-passing if we can, since it's
                     # more efficient.
                     fmt = (
@@ -5241,7 +5236,7 @@ public class TestInjectSource {
                             raise NotImplementedError(
                                 "Conversion to dtypes not supported "
                                 "for cubes of type '%s'" % (type(self_))
-                            )
+                            ) from e
 
                     # If we have something to convert then we downcast it to its
                     # actual type, since we will need to access the toArray()
@@ -5789,7 +5784,6 @@ used as in a `with` conntext.
             Any extra details which might be informative to the handler.
         """
         # By default we do nothing here
-        pass
 
 
 def _handle_pickle_bytes_create_object(pjrmi_id: int,
@@ -6220,7 +6214,7 @@ class JavaMethod:
         # argument list, or none at all
         if not self._is_static:
             if (len(args) == len(self._argument_type_ids) + 1 and
-                type(args[0]) == self._klass):
+                type(args[0]) is self._klass):
                 this = args[0]
                 args = args[1:]
             else:
@@ -6255,8 +6249,8 @@ class JavaMethod:
                                                           strict_types=strict)
             except (KeyError, ImpreciseRepresentationError) as e:
                 raise ValueError(
-                    "Failed to handle argument <%s>: %s" % (argument, e)
-                )
+                    "Failed to handle argument <%s>" % (argument,)
+                ) from e
 
         # And call it
         return self._pjrmi._call_method(this,
@@ -6491,8 +6485,8 @@ class InprocessTransport:
             # We'll connect right away since we know it exists
             pjrmi.extension.connect()
 
-        except NameError:
-            raise ValueError("PJRmi C extension not loaded")
+        except NameError as e:
+            raise ValueError("PJRmi C extension not loaded") from e
 
     def __str__(self) -> str:
         """
@@ -6505,7 +6499,6 @@ class InprocessTransport:
         """
         This is a NOP since we connect in __init__()
         """
-        pass
 
 
     def disconnect(self, block: bool = False) -> None:
@@ -6766,7 +6759,6 @@ class UnixFifoTransport:
         """
         This is a NOP since we connect in __init__()
         """
-        pass
 
 
     def disconnect(self, block: bool = False) -> None:
@@ -6989,11 +6981,11 @@ class StdioTransport:
         return self._connected
 
 
-    def send(self, bytes) -> None:
+    def send(self, bytes_) -> None:
         """
         Write a bag of bytes into the FIFO.
         """
-        self._to.write(bytes)
+        self._to.write(bytes_)
         self._to.flush()
 
 
@@ -7110,11 +7102,11 @@ class _ClassGetter:
     find yourself with a _ClassGetter instance instead of a Java Class.
     """
 
-    def __init__(self, pjrmi: PJRmi, parts: Tuple[str,...]):
-        self._pjrmi = pjrmi
+    def __init__(self, pjrmi_: PJRmi, parts: Tuple[str,...]):
+        self._pjrmi = pjrmi_
         self._parts = parts
-        self._ClassNotFoundError = pjrmi.class_for_name("java.lang.ClassNotFoundException")
-        self._SecurityException  = pjrmi.class_for_name("java.lang.SecurityException")
+        self._ClassNotFoundError = pjrmi_.class_for_name("java.lang.ClassNotFoundException")
+        self._SecurityException  = pjrmi_.class_for_name("java.lang.SecurityException")
 
 
     def __getattr__(self, k: str) -> Any:
@@ -7303,7 +7295,6 @@ class _JavaObject:
     This is a stub class. The constructor documentation is associated with the
     class's `new` method.
     """
-
     def __del__(self) -> None:
         """
         Try to ensure that we drop any reference on the Java side too.

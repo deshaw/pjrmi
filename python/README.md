@@ -15,6 +15,10 @@ As well as the examples below, you can try out the Jupyter
 [notebook](https://github.com/deshaw/pjrmi/blob/main/python/tests/pjrmi.ipynb)
 for live versions.
 
+We have also [written about PJRmi](https://www.deshaw.com/library/pjrmi),
+including how it relates to our other open source efforts, in our external
+document [library](https://www.deshaw.com/library).
+
 
 ### Highlights
 

@@ -1,3 +1,10 @@
+"""
+PJRmi provides a mechanism to allow Python and Java to seamlessly
+interoperate.
+"""
+
+from __future__         import annotations
+
 import atexit
 import collections.abc
 import itertools
@@ -26,6 +33,8 @@ from   psutil           import NoSuchProcess, Process
 from   threading        import (Condition, Lock, RLock, Thread,
                                 current_thread, local as ThreadLocal)
 from   traceback        import format_tb
+from   typing           import (Any, Callable, Dict, List, Mapping, Optional,
+                                Sequence, Tuple, Union)
 from   types            import (BuiltinMethodType, FunctionType, MethodType)
 
 from   ._config         import (PJRMI_VERSION)
@@ -198,7 +207,9 @@ class PJRmi:
     _INSTANCES = weakref.WeakValueDictionary()
 
 
-    def __init__(self, transport, use_shm_arg_passing=False):
+    def __init__(self,
+                 transport          : Any,
+                 use_shm_arg_passing: bool = False) -> None:
         """
         PJRmi constructor method.
 
@@ -282,7 +293,7 @@ class PJRmi:
         }
 
 
-    def __del__(self):
+    def __del__(self) -> None:
         # Drop the connection upon deletion and remove ourselves from the global
         # table of instances
         self.disconnect()
@@ -293,7 +304,7 @@ class PJRmi:
             pass
 
 
-    def __enter__(self):
+    def __enter__(self) -> PJRmi:
         # Attempt to connect, this might fail if we're already connected so
         # we'll ignore errors. If it fails for another reason then we'll see
         # that in other ways later on when we try to use it.
@@ -306,7 +317,10 @@ class PJRmi:
         return self
 
 
-    def __exit__(self, typ, value, traceback):
+    def __exit__(self,
+                 typ      : type,
+                 value    : BaseException,
+                 traceback: type) -> None:
         # If we exited via a Java exception then, as we're about to disconnect,
         # PJRmi won't be available if and when it comes time to render it as a
         # string. As such we need to force rendering before we disconnect.
@@ -320,7 +334,7 @@ class PJRmi:
         self.disconnect()
 
 
-    def connect(self):
+    def connect(self) -> None:
         """
         Connect to the server. If this fails it will leave the instance in an
         unusable state.
@@ -665,7 +679,7 @@ class PJRmi:
             LOG.debug("Started a shmdata cleaner thread")
 
 
-    def disconnect(self, block=False):
+    def disconnect(self, block: bool = False) -> None:
         """
         Disconnect from the server. Once this is called then the instance is no
         longer usable.
@@ -695,14 +709,14 @@ class PJRmi:
             self._transport.disconnect(block=block)
 
 
-    def close(self, block=False):
+    def close(self, block: bool = False) -> None:
         """
         Synonym for disconnect().
         """
         self.disconnect(block=block)
 
 
-    def object_for_name(self, object_name):
+    def object_for_name(self, object_name: str) -> Any:
         """
         Get a reference to an object in the server, exposed under a given name.
 
@@ -722,7 +736,7 @@ class PJRmi:
         return self._read_result(req_id)
 
 
-    def class_for_name(self, name):
+    def class_for_name(self, name: str) -> type:
         """
         Get the Java Class instance for a given name.
 
@@ -746,7 +760,7 @@ class PJRmi:
         return klass
 
 
-    def lock_for_name(self, lock_name):
+    def lock_for_name(self, lock_name: str) -> _JavaLock:
         """
         Get the exclusive Java lock associated with a given string, creating it if
         need be. This allows Python clients to avoid tripping over one-another.
@@ -767,7 +781,7 @@ class PJRmi:
 
 
     @property
-    def javaclass(self):
+    def javaclass(self) -> _ClassGetter:
         if self._class_getter is None:
             # It's okay for this not to be thread-safe. We don't mind multiple
             # instances being created.
@@ -775,7 +789,9 @@ class PJRmi:
         return self._class_getter
 
 
-    def is_instance_of(self, subclass_or_object, superclass):
+    def is_instance_of(self,
+                       subclass_or_object: Any,
+                       superclass        : list[type]|type) -> bool:
         """
         Whether the given Java subclass or object is an instance of the given Java
         superclass(es).
@@ -815,7 +831,7 @@ class PJRmi:
         return subclass_or_object._instance_of(superclass)
 
 
-    def cast_to(self, obj, klass):
+    def cast_to(self, obj: _JavaObject, klass: type) -> _JavaObject:
         """
         Cast the given Java object to the given Java type.
 
@@ -853,9 +869,9 @@ class PJRmi:
 
 
     def value_of(self,
-                 obj,
-                 compress   =True,
-                 best_effort=False):
+                 obj        : _JavaObject,
+                 compress   : bool = True,
+                 best_effort: bool = False) -> Any:
         """
         Get a Python copy of the given Java object of the given object, if
         supported.
@@ -971,7 +987,10 @@ class PJRmi:
         return self._read_result(req_id)
 
 
-    def collect(self, value, timeout_secs=2**31, as_value=False):
+    def collect(self,
+                value       : Any,
+                timeout_secs: float = 2**31,
+                as_value    : bool  = False) -> Any:
         """
         Collect the results of all the Java ``Future``s found in the given value.
 
@@ -1033,7 +1052,7 @@ class PJRmi:
             return value
 
 
-    def inject_class(self, filename):
+    def inject_class(self, filename: str) -> type:
         """
         Read some Java bytecode from a file and inject it into the running Java
         instance as a ``Class``.
@@ -1063,7 +1082,7 @@ class PJRmi:
             return klass
 
 
-    def inject_source(self, class_name, source):
+    def inject_source(self, class_name: str, source: str) -> type:
         """
         Compile the Java class source-code with the given class name.
 
@@ -1103,7 +1122,7 @@ public class TestInjectSource {
             return klass
 
 
-    def replace_class(self, klass, filename):
+    def replace_class(self, klass: type, filename: str) -> type:
         """
         Read some Java bytecode from a file and use it to replace the implementation
         of an existing class in the JVM.
@@ -1143,7 +1162,11 @@ public class TestInjectSource {
             return new_klass
 
 
-    def get_constructor(self, klass, arg_types=None):
+    def get_constructor(
+            self,
+            klass    : type,
+            arg_types: Optional[List[type]] = None
+    ) -> JavaMethod:
         """
         Get a handle on the Java version of the constructor for the given class,
         potentially using any given argument types to disambiguate overloaded
@@ -1184,7 +1207,9 @@ public class TestInjectSource {
             )
 
 
-    def get_bound_method(self, method, arg_types=None):
+    def get_bound_method(self,
+                         method   : Union[Callable,_JavaObject],
+                         arg_types: Optional[List[type]] = None) -> JavaMethod:
         """
         Get a handle on the Java version of the given method, potentially using any
         given argument types to disambiguate overloaded instances.
@@ -1232,7 +1257,9 @@ public class TestInjectSource {
             )
 
 
-    def get_java_logger(self, logger_name_or_class):
+    def get_java_logger(self,
+                        logger_name_or_class: Union[_JavaObject,str]) \
+            -> _JavaObject:
         """
         Helper method which looks up the Java Logger instance for a given name
         or class.
@@ -1260,7 +1287,10 @@ public class TestInjectSource {
         return Logger.getLogger(handle)
 
 
-    def set_java_log_level(self, logger_name_or_class, level_name_or_value, recursive=False):
+    def set_java_log_level(self,
+                           logger_name_or_class: Union[_JavaObject,str],
+                           level_name_or_value : Union[_JavaObject,str],
+                           recursive           : bool = False) -> None:
         """
         Helper method which looks up the Java Logger instance for a given name
         or class and sets its logging level to the given level.
@@ -1317,7 +1347,13 @@ public class TestInjectSource {
                     logger.setLevel(level)
 
 
-    def _match_method(self, description, klass, candidates, arg_types):
+    def _match_method(
+            self,
+            description: str,
+            klass      : type,
+            candidates : Optional[Sequence[Mapping[str,Any]]],
+            arg_types  : Optional[Sequence[Union[str,_JavaObject]]]
+    ) -> Optional[Dict[str,Any]]:
         """
         Attempt to match a method/constructor from a list of candidates, using any
         given argument types as criteria.
@@ -1363,7 +1399,9 @@ public class TestInjectSource {
         return None
 
 
-    def _send(self, msg_type, payload):
+    def _send(self,
+              msg_type: bytes,
+              payload : bytes) -> int:
         """
         Send a message to the other side.
 
@@ -1420,7 +1458,7 @@ public class TestInjectSource {
         return request_id
 
 
-    def _recv(self):
+    def _recv(self) -> Tuple[bytes,int,bytes]:
         """
         Pull data in off the wire.
 
@@ -1472,7 +1510,7 @@ public class TestInjectSource {
                 return (msg_type, request_id, payload)
 
 
-    def _read_result(self, want_request_id):
+    def _read_result(self, want_request_id: int) -> Any:
         """
         Read the result of a send() call.
         """
@@ -1572,7 +1610,9 @@ public class TestInjectSource {
     # These all have the prototype of func(self, msg_type, payload)
 
 
-    def _handle_object_reference(self, msg_type, payload):
+    def _handle_object_reference(self,
+                                 msg_type: bytes,
+                                 payload : bytes) -> _JavaObject:
         # This is a reference to an object
         #  int32   : Type ID
         #  int64   : Handle
@@ -1589,7 +1629,9 @@ public class TestInjectSource {
         return self._create_object(type_id, handle, raw)
 
 
-    def _handle_type_description(self, msg_type, payload):
+    def _handle_type_description(self,
+                                 msg_type: bytes,
+                                 payload : bytes) -> Dict[str,Any]:
         # This is a type description:
         #  int32    : Type ID, or -1 if the type was not found
         #  int16    : Name length
@@ -1782,7 +1824,7 @@ public class TestInjectSource {
                      'methods'               : methods_by_name }
 
 
-    def _handle_arbitrary_item(self, msg_type, payload):
+    def _handle_arbitrary_item(self, msg_type: bytes, payload: bytes) -> Any:
         # This is an object of an unknown type being sent over the wire
         #  int32   : Type ID
         #  bytes[] : Result (if any)
@@ -1808,7 +1850,7 @@ public class TestInjectSource {
         return value
 
 
-    def _handle_exception(self, msg_type, payload):
+    def _handle_exception(self, msg_type: bytes, payload: bytes) -> None:
         # This is the result of calling a method on an object
         #  int32  : Type ID
         #  int32  : Handle
@@ -1830,19 +1872,19 @@ public class TestInjectSource {
         raise ex
 
 
-    def _handle_ascii_value(self, msg_type, payload):
+    def _handle_ascii_value(self, msg_type: bytes, payload: bytes) -> str:
         # This is a string
         (value, idx) = self._read_ascii(payload, 0)
         return value
 
 
-    def _handle_utf16_value(self, msg_type, payload):
+    def _handle_utf16_value(self, msg_type: bytes, payload: bytes) -> str:
         # This is a unicode string
         (value, idx) = self._read_utf16(payload, 0)
         return value
 
 
-    def _handle_pickle_bytes(self, msg_type, payload):
+    def _handle_pickle_bytes(self, msg_type: bytes, payload: bytes) -> Any:
         # Read in the array of bytes (as a string)
         (value, idx) = self._read_byte_array(payload, 0)
 
@@ -1861,7 +1903,7 @@ public class TestInjectSource {
         return pickle.loads(data, encoding='bytes')
 
 
-    def _handle_shmdata_bytes(self, msg_type, payload):
+    def _handle_shmdata_bytes(self, msg_type: bytes, payload: bytes) -> Any:
         # We are receiving the components of a JniPJRmi$ArrayHandle
         # which we will use to read an array, in the following format:
         #  byte    : Return format
@@ -1886,23 +1928,23 @@ public class TestInjectSource {
                                           arr_type.encode('utf-8'))
 
 
-    def _handle_empty_ack(self, msg_type, payload):
+    def _handle_empty_ack(self, msg_type: bytes, payload: bytes) -> None:
         # Nothing in this
         return None
 
 
-    def _handle_array_length(self, msg_type, payload):
+    def _handle_array_length(self, msg_type: bytes, payload: bytes) -> int:
         # This is an int
         (value, idx) = self._read_int32(payload, 0)
         return value
 
 
-    def _handle_python_reference(self, msg_type, payload):
+    def _handle_python_reference(self, msg_type: bytes, payload: bytes) -> Any:
         (object_id, idx) = self._read_int32(payload, 0)
         return self._get_callback_object(object_id)
 
 
-    def _unhandled_message_type(self, msg_type, payload):
+    def _unhandled_message_type(self, msg_type: bytes, payload: bytes) -> None:
         raise ValueError("Received unhandled message type: %s" % msg_type)
 
     #
@@ -1910,7 +1952,10 @@ public class TestInjectSource {
     #
     # --------------------------------------------------------------------------
 
-    def _handle_incoming_request(self, msg_type, thread_id, payload):
+    def _handle_incoming_request(self,
+                                 msg_type : bytes,
+                                 thread_id: int,
+                                 payload  : bytes) -> None:
         """
         Handle an unsolicited message coming from Java to us.
         """
@@ -1924,7 +1969,7 @@ public class TestInjectSource {
                 self_._condition = Condition()
                 self_._task = None
 
-            def run(self_):
+            def run(self_) -> None:
                 """
                 Entry point.
                 """
@@ -1952,7 +1997,10 @@ public class TestInjectSource {
                     self._workers.append(self_)
 
 
-            def work(self_, msg_type, thread_id, payload):
+            def work(self_,
+                     msg_type : bytes,
+                     thread_id: int,
+                     payload  : bytes) -> None:
                 """
                 Get told to do the work by another thread.
                 """
@@ -1964,7 +2012,10 @@ public class TestInjectSource {
                 self_._condition.release()
 
 
-            def _work(self_, msg_type, thread_id, payload):
+            def _work(self_,
+                      msg_type : bytes,
+                      thread_id: int,
+                      payload  : bytes) -> None:
                 """
                 Actually do the work.
                 """
@@ -2532,7 +2583,7 @@ public class TestInjectSource {
         worker.work(msg_type, thread_id, payload)
 
 
-    def _format_string(self, string):
+    def _format_string(self, string: Union[str,bytes]) -> bytes:
         """
         Format a string as [int32:size][bytes[]:string], to send down the wire
         """
@@ -2542,7 +2593,7 @@ public class TestInjectSource {
         return self._format_int32(len(string)) + string
 
 
-    def _format_utf16(self, string):
+    def _format_utf16(self, string: str) -> bytes:
         """
         Format a string as [int32:size][bytes[]:utf16], to send down the wire.
 
@@ -2554,7 +2605,7 @@ public class TestInjectSource {
         return self._format_int32(len(payload)) + payload
 
 
-    def _format_float(self, value):
+    def _format_float(self, value: float) -> bytes:
         """
         Format a float as 4 raw bytes.
         """
@@ -2562,7 +2613,7 @@ public class TestInjectSource {
         return struct.pack('!f', value)
 
 
-    def _format_double(self, value):
+    def _format_double(self, value: float) -> bytes:
         """
         Format a double as 8 raw bytes.
         """
@@ -2570,7 +2621,7 @@ public class TestInjectSource {
         return struct.pack('!d', value)
 
 
-    def _format_int64(self, value):
+    def _format_int64(self, value: int) -> bytes:
         """
         Format a 64-bit int as raw bytes.
         """
@@ -2578,7 +2629,7 @@ public class TestInjectSource {
         return struct.pack('!q', value)
 
 
-    def _format_int32(self, value):
+    def _format_int32(self, value: int) -> bytes:
         """
         Format a 32-bit int as raw bytes.
         """
@@ -2586,7 +2637,7 @@ public class TestInjectSource {
         return struct.pack('!i', value)
 
 
-    def _format_int16(self, value):
+    def _format_int16(self, value: int) -> bytes:
         """
         Format a 16-bit int as raw bytes.
         """
@@ -2594,7 +2645,7 @@ public class TestInjectSource {
         return struct.pack('!h', value)
 
 
-    def _format_int8(self, value):
+    def _format_int8(self, value: int) -> bytes:
         """
         Format an 8-bit int as raw bytes.
         """
@@ -2602,7 +2653,7 @@ public class TestInjectSource {
         return (b"%c" % (value & 0xff))
 
 
-    def _format_boolean(self, value):
+    def _format_boolean(self, value: bool) -> bytes:
         """
         Format a boolean as a byte.
         """
@@ -2610,7 +2661,9 @@ public class TestInjectSource {
         return (b"%c" % (1 if value else 0))
 
 
-    def _format_array(self, value, dtype):
+    def _format_array(self,
+                      value: Iterable,
+                      dtype: numpy.dtype) -> bytes:
         """
         Serializes the data of a one-dimensional array, or an iterable, according to
         the given dtype.
@@ -2634,7 +2687,7 @@ public class TestInjectSource {
                                    order='C').data)
 
 
-    def _format_method_as(self, value, klass):
+    def _format_method_as(self, value: JavaMethod, klass: type) -> bytes:
         """
         Format a Python Java method handle, targeting the given Java class.
         """
@@ -2666,8 +2719,10 @@ public class TestInjectSource {
 
 
     def _format_as_lambda(self,
-                          method, *args,
-                          strict_types=True, allow_format_shmdata=True):
+                          method              : JavaMethod,
+                          *args               : Any,
+                          strict_types        : bool = True,
+                          allow_format_shmdata: bool = True) -> bytes:
         """
         Format a method and its arguments as something which can be invoked on the
         Java side.
@@ -2730,7 +2785,7 @@ public class TestInjectSource {
         return result
 
 
-    def _can_format_shmdata(self, value, klass):
+    def _can_format_shmdata(self, value: Any, klass: type) -> bool:
         """
         Returns whether we can marshall the given value using SHM methods.
         As of now, this means the process is on the same host, the value
@@ -2816,7 +2871,10 @@ public class TestInjectSource {
             )
 
 
-    def _format_shmdata(self, klass, value, strict_types):
+    def _format_shmdata(self,
+                        klass       : type,
+                        value       : Any,
+                        strict_types: bool) -> bytes:
         """
         Returns the byte string for the result of a SHM write.
         """
@@ -2844,8 +2902,11 @@ public class TestInjectSource {
                 self._format_utf16(str(native_type)))
 
 
-    def _format_by_class(self, klass, value,
-                         strict_types=True, allow_format_shmdata=True):
+    def _format_by_class(self,
+                         klass               : type,
+                         value               : Any,
+                         strict_types        : bool = True,
+                         allow_format_shmdata: bool = True) -> bytes:
         """
         Format a value according to the given class.
         """
@@ -3587,7 +3648,7 @@ public class TestInjectSource {
                                  (str(value), str(value.__class__), klass._classname))
 
 
-    def _read_ascii(self, bytes, index):
+    def _read_ascii(self, bytes_: bytes, index: int) -> Tuple[str,int]:
         """
         Read a string from some data looking like [int32:size][bytes[]:string]
         from a byte buffer.
@@ -3595,21 +3656,21 @@ public class TestInjectSource {
         :return: The string, the new offset into the byte buffer.
         """
 
-        if len(bytes) < 4 + index:
+        if len(bytes_) < 4 + index:
             return (None, 0)
 
-        (length, index) = self._read_int32(bytes, index)
+        (length, index) = self._read_int32(bytes_, index)
         if length < 0:
             return (None, index)
         elif length == 0:
             return ("", index)
         else:
             # We want to return a native string
-            val = bytes[index:index+length]
+            val = bytes_[index:index+length]
             return (val.decode('ascii'), index+length)
 
 
-    def _read_utf16(self, bytes, index):
+    def _read_utf16(self, bytes_: bytes, index: int) -> Tuple[str,int]:
         """
         Read a unicode string from some data looking like [int32:size][bytes[]:utf16]
         from a byte buffer.
@@ -3617,89 +3678,89 @@ public class TestInjectSource {
         :return: The string, the new offset into the byte buffer.
         """
 
-        if len(bytes) < 4 + index:
+        if len(bytes_) < 4 + index:
             return (None, 0)
 
-        (length, index) = self._read_int32(bytes, index)
+        (length, index) = self._read_int32(bytes_, index)
         if length < 0:
             return (None, index)
         elif length == 0:
             return ("", index)
         else:
-            return (str(bytes[index:index+length], encoding='utf_16'), index+length)
+            return (str(bytes_[index:index+length], encoding='utf_16'), index+length)
 
 
-    def _read_float(self, bytes, index):
+    def _read_float(self, bytes_: bytes, index: int) -> Tuple[float,int]:
         """
         Read a float from the wire as 32 raw bits.
 
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!f', bytes[index:index+4])[0], index+4)
+        return (struct.unpack('!f', bytes_[index:index+4])[0], index+4)
 
 
-    def _read_double(self, bytes, index):
+    def _read_double(self, bytes_: bytes, index: int) -> Tuple[float,int]:
         """
         Read a double from the wire as 64 raw bits.
 
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!d', bytes[index:index+8])[0], index+8)
+        return (struct.unpack('!d', bytes_[index:index+8])[0], index+8)
 
 
-    def _read_int64(self, bytes, index):
+    def _read_int64(self, bytes_: bytes, index: int) -> Tuple[int,int]:
         """
         Read a 64 bit int from raw bytes.
 
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!q', bytes[index:index+8])[0], index+8)
+        return (struct.unpack('!q', bytes_[index:index+8])[0], index+8)
 
 
-    def _read_int32(self, bytes, index):
+    def _read_int32(self, bytes_: bytes, index: int) -> Tuple[int,int]:
         """
         Read a 32 bit int from raw bytes.
 
         :return: The value, the new offset into the byte buffer
         """
 
-        return (struct.unpack('!i', bytes[index:index+4])[0], index+4)
+        return (struct.unpack('!i', bytes_[index:index+4])[0], index+4)
 
 
-    def _read_int16(self, bytes, index):
+    def _read_int16(self, bytes_: bytes, index: int) -> Tuple[int,int]:
         """
         Read a 16 bit int from raw bytes.
 
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!h', bytes[index:index+2])[0], index+2)
+        return (struct.unpack('!h', bytes_[index:index+2])[0], index+2)
 
 
-    def _read_int8(self, bytes, index):
+    def _read_int8(self, bytes_: bytes, index: int) -> Tuple[int,int]:
         """
         Read an 8 bit int from raw bytes.
 
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!b', bytes[index:index+1])[0], index+1)
+        return (struct.unpack('!b', bytes_[index:index+1])[0], index+1)
 
 
-    def _read_byte(self, bytes, index):
+    def _read_byte(self, bytes_: bytes, index: int) -> Tuple[bytes,int]:
         """
          Read a byte from raw bytes.
 
          :return: The value, the new offset into the byte buffer.
          """
 
-        return (bytes[index:index+1], index+1)
+        return (bytes_[index:index+1], index+1)
 
 
-    def _read_char(self, bytes, index):
+    def _read_char(self, bytes_: bytes, index: int) -> Tuple[str,int]:
         """
         Read a 16 bit Java char from raw bytes, encoded as UTF-16 (high byte
         first).
@@ -3709,20 +3770,20 @@ public class TestInjectSource {
 
         # These are sent as specified by DataOutput#writeChar() which dictates
         # that the high-byte is written first (i.e. big endian).
-        return (bytes[index:index+2].decode("utf_16_be"), index+2)
+        return (bytes_[index:index+2].decode("utf_16_be"), index+2)
 
 
-    def _read_boolean(self, bytes, index):
+    def _read_boolean(self, bytes_: bytes, index: int) -> Tuple[bool,int]:
         """
         Read a boolean from raw bytes.
 
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (bytes[index] != 0, index+1)
+        return (bytes_[index] != 0, index+1)
 
 
-    def _read_byte_array(self, bytes, index):
+    def _read_byte_array(self, bytes_: bytes, index: int) -> Tuple[bytes,int]:
         """
         Reads a byte array from some data looking like [int32:size][byte[]:data]
         from a byte buffer.
@@ -3731,19 +3792,21 @@ public class TestInjectSource {
                  buffer.
         """
 
-        if len(bytes) < 4 + index:
+        if len(bytes_) < 4 + index:
             return (None, 0)
 
-        (length, index) = self._read_int32(bytes, index)
+        (length, index) = self._read_int32(bytes_, index)
         if length < 0:
             return (None, index)
         elif length == 0:
             return ("", index)
         else:
-            return (bytes[index:index+length], index+length)
+            return (bytes_[index:index+length], index+length)
 
 
-    def _read_int8_array(self, bytes, index):
+    def _read_int8_array(self,
+                         bytes_: bytes,
+                         index : int) ->  Tuple[numpy.ndarray,int]:
         """
         Reads an array of 8 bit integers array from some data looking like
         [int32:size][byte[]:data] from a byte buffer.
@@ -3752,7 +3815,7 @@ public class TestInjectSource {
         """
 
         # Hand off to the version which reads the values as a string
-        (byte_array, index) = self._read_byte_array(bytes, index)
+        (byte_array, index) = self._read_byte_array(bytes_, index)
 
         # Convert to an array of int8s
         int8_array = numpy.array(bytearray(byte_array)).astype(numpy.int8)
@@ -3760,7 +3823,7 @@ public class TestInjectSource {
         return (int8_array, index)
 
 
-    def _read_argument(self, bytes, idx):
+    def _read_argument(self, bytes_: bytes, idx: int) -> Tuple[Any,int]:
         """
         Reads a function call argument from the stream. This might be by reference
         or by (compressed) value.
@@ -3768,34 +3831,34 @@ public class TestInjectSource {
         :return: The argument, the new offset into the byte buffer.
         """
 
-        (arg_type, idx) = self._read_byte(bytes, idx)
+        (arg_type, idx) = self._read_byte(bytes_, idx)
         if arg_type == self._VALUE_FORMAT_REFERENCE:
-            (type_id, idx) = self._read_int32(bytes, idx)
-            (handle,  idx) = self._read_int64(bytes, idx)
-            (raw_len, idx) = self._read_int32(bytes, idx)
+            (type_id, idx) = self._read_int32(bytes_, idx)
+            (handle,  idx) = self._read_int64(bytes_, idx)
+            (raw_len, idx) = self._read_int32(bytes_, idx)
             if raw_len >= 0:
-                raw  = bytes[idx : idx + raw_len]
+                raw  = bytes_[idx : idx + raw_len]
                 idx += raw_len
             else:
                 raw = None
             arg = self._create_object(type_id, handle, raw)
 
         elif arg_type == self._VALUE_FORMAT_RAW_PICKLE:
-            (data, idx) = self._read_byte_array(bytes, idx)
+            (data, idx) = self._read_byte_array(bytes_, idx)
             arg = pickle.loads(data)
 
         elif arg_type == self._VALUE_FORMAT_SNAPPY_PICKLE:
-            (data, idx) = self._read_byte_array(bytes, idx)
+            (data, idx) = self._read_byte_array(bytes_, idx)
             arg = pickle.loads(snappy.decompress(data), encoding="bytes")
 
         elif arg_type == self._VALUE_FORMAT_PYTHON_REFERENCE:
-            (object_id, idx) = self._read_int32(bytes, idx)
+            (object_id, idx) = self._read_int32(bytes_, idx)
             arg = self._get_callback_object(object_id)
 
         elif arg_type == self._VALUE_FORMAT_SHMDATA:
-            (filename,  idx) = self._read_utf16(bytes, idx)
-            (num_elems, idx) = self._read_int32(bytes, idx)
-            (arr_type,  idx) = self._read_char (bytes, idx)
+            (filename,  idx) = self._read_utf16(bytes_, idx)
+            (num_elems, idx) = self._read_int32(bytes_, idx)
+            (arr_type,  idx) = self._read_char (bytes_, idx)
 
             # Read the data
             arg = pjrmi.extension.read_array(filename,
@@ -3810,7 +3873,7 @@ public class TestInjectSource {
         return (arg, idx)
 
 
-    def _get_class(self, type_id):
+    def _get_class(self, type_id: int) -> type:
         """
         Get the Class instance for a given type ID.
         """
@@ -3825,7 +3888,7 @@ public class TestInjectSource {
         return klass
 
 
-    def _request_class(self, type_id_or_name):
+    def _request_class(self, type_id_or_name: Union[int,str]) -> type:
         """
         Request and create the Class instance for a given type ID.
         """
@@ -3849,7 +3912,7 @@ public class TestInjectSource {
             return self._create_class(type_dict)
 
 
-    def _create_class(self, type_dict):
+    def _create_class(self, type_dict: Dict[str,Any]) -> type:
         """
         Create the Python shim of a Java Class instance, from the given
         ``type_dict`` instance.
@@ -3954,7 +4017,9 @@ public class TestInjectSource {
         return klass
 
 
-    def _add_supertypes(self, klass, supertype_ids):
+    def _add_supertypes(self,
+                        klass        : type,
+                        supertype_ids: List[int]) -> None:
         """
         Adds the given super-type information to the given klass.
         """
@@ -3986,7 +4051,7 @@ public class TestInjectSource {
         setattr(klass, "_instance_of", _instance_of.__get__(klass, klass.__class__))
 
 
-    def _add_field(self, klass, field):
+    def _add_field(self, klass: type, field: Dict[str,Any]) -> None:
         """
         Adds a field as a property on a the given class.
         """
@@ -4030,7 +4095,11 @@ public class TestInjectSource {
             setattr(klass, field['name'], property(get_field, set_field))
 
 
-    def _get_doc(self, klass, is_ctor, method_name, methods):
+    def _get_doc(self,
+                 klass      : type,
+                 is_ctor    : bool,
+                 method_name: str,
+                 methods    : List[Dict[str,Any]]) -> str:
         """
         Create a Java method doc string.
         """
@@ -4067,7 +4136,10 @@ public class TestInjectSource {
         return result
 
 
-    def _get_signatures(self, is_ctor, method_name, methods):
+    def _get_signatures(self,
+                        is_ctor    : bool,
+                        method_name: str,
+                        methods    : List[Dict[str,Any]]) -> str:
         """
         Create a list of pretty method signatures, in a sensible order.
         """
@@ -4131,7 +4203,10 @@ public class TestInjectSource {
         return signatures
 
 
-    def _create_method(self, klass, method_name, methods):
+    def _create_method(self,
+                       klass      : type,
+                       method_name: str,
+                       methods    : List[Dict[str,Any]]) -> Callable:
         """
         Creates a method instance for the given class type and method
         definitions. This is all for methods of a single name (i.e. they are
@@ -4767,7 +4842,7 @@ public class TestInjectSource {
         return staticmethod(__new__)
 
 
-    def _add_array_methods(self, klass):
+    def _add_array_methods(self, klass: type) -> None:
         """
         Add methods required for array usage to the class.
         """
@@ -4817,13 +4892,13 @@ public class TestInjectSource {
         setattr(klass, "_repr_pretty_", _repr_pretty_)
 
 
-    def _add_type_specific_methods(self, klass):
+    def _add_type_specific_methods(self, klass: type) -> None:
         """
         For a given Java class representation we add any type-specific methods.
         This is mostly making the Java stuff code play nice with the Python
         world.
         """
-        def augment(klass, attr_name, attr):
+        def augment(klass, attr_name: str, attr: Any) -> None:
             """
             A version of `setattr()` which will only set if the attribute is not
             already present. This prevents us clobbering versions of methods which
@@ -4839,7 +4914,9 @@ public class TestInjectSource {
             if attr_name not in dir(klass):
                 setattr(klass, attr_name, attr)
 
-        def isjavasubclass(javaclass, classname, attrname):
+        def isjavasubclass(javaclass: type,
+                           classname: str,
+                           attrname : str) -> bool:
             """
             Whether the `javaclass` is a subclass of the one specified via the given
             details.
@@ -4881,7 +4958,7 @@ public class TestInjectSource {
                 # And give it back
                 return self_._pjrmi_str
         else:
-            def __str__(self_):
+            def __str__(self_) -> str:
                 # Look for a cached value
                 if hasattr(self_, '_pjrmi_str'):
                     return getattr(self_, '_pjrmi_str')
@@ -4908,7 +4985,7 @@ public class TestInjectSource {
 
         # Now some special handling
         if isjavasubclass(klass, "java.lang.String", "_java_lang_String"):
-            def __add__(self_, that):
+            def __add__(self_, that) -> str:
                 if isinstance(that, (str, _JavaObject)):
                     return self_.__str__() + str(that)
                 else:
@@ -4929,20 +5006,20 @@ public class TestInjectSource {
         # Map methods. We do the explicit test for Map to avoid recursing
         # forever if we are creating a Map.
         if isjavasubclass(klass, "java.util.Map", '_java_util_Map'):
-            def __getitem__(self_, key):
+            def __getitem__(self_, key: Any) -> Any:
                 return self_.get(key)
 
-            def __setitem__(self_, key, value):
+            def __setitem__(self_, key: Any, value: Any) -> Any:
                 return self_.put(key, value)
 
-            def __len__(self_):
+            def __len__(self_) -> int:
                 return self_.size()
 
-            def __iter__(self_):
+            def __iter__(self_) -> Any:
                 # Mimic dict's __iter__ idiom
                 return self_.keySet().__iter__()
 
-            def _repr_pretty_(self_, p, cycle):
+            def _repr_pretty_(self_, p: Any, cycle: bool) -> None:
                 simple_name = klass._classname.split(".")[-1]
                 if cycle:
                     p.text(f"{simple_name}(...)")
@@ -4992,10 +5069,10 @@ public class TestInjectSource {
         # List methods. We do the explicit test for List to avoid recursing
         # forever if we are creating a List.
         if isjavasubclass(klass, "java.util.List", '_java_util_List'):
-            def __getitem__(self_, key):
+            def __getitem__(self_, key: Any) -> Any:
                 return self_.get(strict_number(numpy.int32, key))
 
-            def __setitem__(self_, key, value):
+            def __setitem__(self_, key: Any, value: Any) -> Any:
                 return self_.set(strict_number(numpy.int32, key), value)
 
             augment(klass, "__getitem__",   __getitem__)
@@ -5004,7 +5081,7 @@ public class TestInjectSource {
         # Collection methods. We do the explicit test for Collection to avoid
         # recursing forever if we are creating a Collection.
         if isjavasubclass(klass, "java.util.Collection", '_java_util_Collection'):
-            def __len__(self_):
+            def __len__(self_) -> int:
                 return self_.size()
 
             setattr(klass, "__len__", __len__)
@@ -5013,7 +5090,7 @@ public class TestInjectSource {
         # under Python too. We need to handle the boot-strapping case where
         # we're creating the _java_blah_blah values here too.
         if isjavasubclass(klass, 'java.util.Iterator', '_java_util_Iterator'):
-            def __iter__(self_):
+            def __iter__(self_) -> Any:
                 # We "ask for forgiveness not permission" here (i.e., catch
                 # NoSuchElementException instead of calling hasNext()) to avoid
                 # an additional remote call per iteration (vs the exception
@@ -5029,11 +5106,11 @@ public class TestInjectSource {
             augment(klass, "__iter__", __iter__)
 
         if isjavasubclass(klass, 'java.lang.Iterable', '_java_lang_Iterable'):
-            def __iter__(self_):
+            def __iter__(self_) -> Any:
                 # Hand off to the java.util.Iterator case
                 return iter(self_.iterator())
 
-            def _repr_pretty_(self_, p, cycle):
+            def _repr_pretty_(self_, p: Any, cycle: bool) -> None:
                 # Whether to name the container objects as we recurse down. For
                 # Hypercubes this is mainly noise down the line so we suppress
                 # it as we recurse. (There is probably a better way of telling
@@ -5088,9 +5165,9 @@ public class TestInjectSource {
         # __exit__() methods for Python. We need to handle the boot-strapping
         # case where we're creating the _java_lang_AutoCloseable value here too.
         if isjavasubclass(klass, 'java.lang.AutoCloseable', '_java_lang_AutoCloseable'):
-            def __enter__(self_):
+            def __enter__(self_) -> Any:
                 return self_
-            def __exit__(self_, typ, value, traceback):
+            def __exit__(self_, typ: type, value: Any, traceback: Any) -> None:
                 self_.close()
 
             setattr(klass, "__enter__", __enter__)
@@ -5104,7 +5181,7 @@ public class TestInjectSource {
             # efficient (to put it mildly) but it works, and is better than
             # having per-element access.
 
-            def dtype_to_simplename(dtype):
+            def dtype_to_simplename(dtype: numpy.dtype):
                 # Get the class name of the a dtype, if any
                 if isinstance(dtype, numpy.dtype):
                     dtype = dtype.name
@@ -5114,7 +5191,7 @@ public class TestInjectSource {
                 elif dtype == 'int64':   return 'Long'
                 else: raise ValueError("Unhandled dtype: %s" % (dtype,))
 
-            def __array__(self_, dtype=None):
+            def __array__(self_, dtype: numpy.dtype = None):
                 # Do this by best-effort assuming that it's one which we can
                 # cast and pickle but, if we encounter an error, then just go
                 # with doing it "by hand".
@@ -5209,7 +5286,7 @@ public class TestInjectSource {
             setattr(klass, "__array__", __array__)
 
 
-    def _get_class_doc_url(self, klass):
+    def _get_class_doc_url(self, klass: type) -> str:
         """
         Attempt to get the JavaDoc URL for the given class.
 
@@ -5223,7 +5300,10 @@ public class TestInjectSource {
         return None
 
 
-    def _create_object(self, type_id, handle, raw):
+    def _create_object(self,
+                       type_id: int,
+                       handle : int,
+                       raw    : bytes) -> _JavaObject:
         """
         Get an object of a given type ID using the given handle and any raw
         representation.
@@ -5288,9 +5368,9 @@ used as in a `with` conntext.
             return result
 
 
-    def _create_array(self, klass, length):
+    def _create_array(self, klass: type, length: int) -> _JavaObject:
         """
-        Create a new instance of the given Java class, is should be an array.
+        Create a new instance of the given Java class, it should be an array.
         """
 
         # Must be an array
@@ -5306,13 +5386,13 @@ used as in a `with` conntext.
 
 
     def _call_method(self,
-                     obj,
-                     type_id,
-                     is_ctor,
-                     value_format,
-                     sync_mode,
-                     method_id,
-                     args):
+                     obj         : Optional[_JavaObject],
+                     type_id     : int,
+                     is_ctor     : bool,
+                     value_format: bytes,
+                     sync_mode   : bytes,
+                     method_id   : int,
+                     args        : bytes) -> Any:
         """
         Call a given method on the Java side
         """
@@ -5334,7 +5414,7 @@ used as in a `with` conntext.
         return self._read_result(req_id)
 
 
-    def _drop_reference(self, type_, handle):
+    def _drop_reference(self, handle: int) -> None:
         """
         Drop a reference to a given handle on the Java side.
         """
@@ -5347,7 +5427,7 @@ used as in a `with` conntext.
             self._pending_drops.append(handle)
 
 
-    def _handle_pending_drops(self):
+    def _handle_pending_drops(self) -> None:
         """
         Possibly send the pending drops to the Java side.
         """
@@ -5382,7 +5462,10 @@ used as in a `with` conntext.
         self._read_result(req_id)
 
 
-    def _get_field(self, object_class, handle, index):
+    def _get_field(self,
+                   object_class: type,
+                   handle      : int,
+                   index       : int) -> Any:
         """
         Get a given field's value.
         """
@@ -5397,7 +5480,12 @@ used as in a `with` conntext.
         return self._read_result(req_id)
 
 
-    def _set_field(self, object_klass, handle, index, value_klass, value):
+    def _set_field(self,
+                   object_klass: type,
+                   handle      : int,
+                   index       : int,
+                   value_klass : type,
+                   value       : Any) -> None:
         """
         Set a given field's value.
         """
@@ -5409,19 +5497,19 @@ used as in a `with` conntext.
                    self._format_by_class(value_klass, value))
         req_id = self._send(self._SET_FIELD, payload)
 
-        # Read the ACK, return nothing
+        # Read the ACK, which should return nothing
         self._read_result(req_id)
 
 
     @property
-    def _has_receiver(self):
+    def _has_receiver(self) -> bool:
         """
         Whether or not this class has a receiver thread.
         """
         return self._receiver is not None
 
 
-    def _get_callback_function(self, function_id):
+    def _get_callback_function(self, function_id: int) -> Callable:
         """
         Get the function associated with a given function ID.
         """
@@ -5429,7 +5517,9 @@ used as in a `with` conntext.
             return self._callback_id2func.get(function_id, None)
 
 
-    def _get_callback_wrapper(self, function, klass=None):
+    def _get_callback_wrapper(self,
+                              function: Callable,
+                              klass   : Optional[type] = None) -> Callable:
         """
         Get a callback wrapper for the given function.
         """
@@ -5505,7 +5595,7 @@ used as in a `with` conntext.
             return wrapper
 
 
-    def _get_callback_object(self, object_id):
+    def _get_callback_object(self, object_id: int) -> Any:
         """
         Get the object associated with a given object ID.
         """
@@ -5513,7 +5603,7 @@ used as in a `with` conntext.
             return self._callback_id2obj.get(object_id, None)
 
 
-    def _get_object_id(self, python_object):
+    def _get_object_id(self, python_object: Any) -> int:
         """
         Get the ID corresponding to a Python object instance.
         """
@@ -5546,7 +5636,9 @@ used as in a `with` conntext.
             return object_id
 
 
-    def _get_object_wrapper(self, python_object, java_class):
+    def _get_object_wrapper(self,
+                            python_object: Any,
+                            java_class   : type) -> _JavaObject:
         """
         Get a wrapper for the given python object so that it may be treated as an
         instance of the given Java interface. This is done by creating a Java
@@ -5634,7 +5726,7 @@ used as in a `with` conntext.
             return wrapper
 
 
-    def _add_object_reference(self, object_id):
+    def _add_object_reference(self, object_id: int) -> None:
         """
         Increment the refcount for a given object ID.
         """
@@ -5655,7 +5747,7 @@ used as in a `with` conntext.
                 pass
 
 
-    def _drop_object_reference(self, object_id):
+    def _drop_object_reference(self, object_id: int) -> None:
         """
         Decrement the refcount for a given object ID.
         """
@@ -5685,16 +5777,14 @@ used as in a `with` conntext.
                 pass
 
 
-    def _log_deprecated(self, method_name, message):
+    def _log_deprecated(self, method_name: str, message: str) -> None:
         """
         Log the details of a call to a deprecated Java method. Subclasses can add
         their own hooks here in order to keep track of such calls.
 
-        :type  method_name: str
         :param method_name:
             The fully-qualified name of the deprecated method.
 
-        :type  message: str
         :param message:
             Any extra details which might be informative to the handler.
         """
@@ -5702,7 +5792,9 @@ used as in a `with` conntext.
         pass
 
 
-def _handle_pickle_bytes_create_object(pjrmi_id, type_id, handle):
+def _handle_pickle_bytes_create_object(pjrmi_id: int,
+                                       type_id : int,
+                                       handle  : int) -> _JavaObject:
     """
     Special helper method for ``_handle_pickle_bytes()`` which can fetch the
     appropriate PJRmi instance and invoke ``_create_object`` on it using the
@@ -5717,13 +5809,13 @@ def _handle_pickle_bytes_create_object(pjrmi_id, type_id, handle):
 
 # -----------------------------------------------------------------------------
 
-def connect_to_socket(host,
-                      port,
-                      mode    ='raw',
-                      store   =None,
-                      password=None,
-                      impl    =PJRmi,
-                      timeout =60):
+def connect_to_socket(host    : str,
+                      port    : int,
+                      mode    : str           = 'raw',
+                      store   : Optional[str] = None,
+                      password: Optional[str] = None,
+                      impl    : type          = PJRmi,
+                      timeout : float         = 60) -> PJRmi:
     """
     Connect to a PJRmi instance on the given server, with the expected server
     name.
@@ -5780,8 +5872,10 @@ def connect_to_socket(host,
                 raise
 
 
-def connect_to_inprocess_jvm(classpath=(), java_args=(), application_args=(),
-                             impl=PJRmi):
+def connect_to_inprocess_jvm(classpath       : Tuple[str,...] = (),
+                             java_args       : Tuple[str,...] = (),
+                             application_args: Tuple[str,...] = (),
+                             impl            : type       = PJRmi) -> PJRmi:
     """
     Create an in-process JVM instance and connect to it. See
     `connect_to_child_jvm` for details of the ``application_args``.
@@ -5807,13 +5901,22 @@ def connect_to_inprocess_jvm(classpath=(), java_args=(), application_args=(),
     return c
 
 
-def connect_to_child_jvm(main_class='com.deshaw.pjrmi.UnixFifoProvider',
-                         environment=None, java_executable=None,
-                         classpath=(), java_args=(), application_args=(), timeout=60,
-                         stdin='/dev/stdin', stdout='/dev/stdout', stderr='/dev/stderr',
-                         interactive_mode=True, use_shm_arg_passing=False,
-                         use_pjrmi_agent=False,
-                         impl=PJRmi):
+def connect_to_child_jvm(
+        main_class         : str                     = 'com.deshaw.pjrmi.UnixFifoProvider',
+        environment        : Optional[Dict[str,str]] = None,
+        java_executable    : Optional[str]           = None,
+        classpath          : Tuple[str,...]          = (),
+        java_args          : Tuple[str,...]          = (),
+        application_args   : Tuple[str,...]          = (),
+        timeout            : float                   = 60,
+        stdin              : str                     = '/dev/stdin',
+        stdout             : str                     = '/dev/stdout',
+        stderr             : str                     = '/dev/stderr',
+        interactive_mode   : bool                    = True,
+        use_shm_arg_passing: bool                    = False,
+        use_pjrmi_agent    : bool                    = False,
+        impl               : type                    = PJRmi
+) -> PJRmi:
     """
     Create a child JVM instance and connect to it.
 
@@ -5890,9 +5993,13 @@ def connect_to_child_jvm(main_class='com.deshaw.pjrmi.UnixFifoProvider',
     return c
 
 
-def become_pjrmi_minion(stdin=None, stdout=None, stderr=None,
-                        use_shm_arg_passing=False,
-                        impl=PJRmi):
+def become_pjrmi_minion(
+        stdin              : Optional[Union[str,int,io.IOBase]] = None,
+        stdout             : Optional[Union[str,int,io.IOBase]] = None,
+        stderr             : Optional[Union[str,int,io.IOBase]] = None,
+        use_shm_arg_passing: bool                               = False,
+        impl               : type                               = PJRmi
+) -> None:
     """
     Turn this process into a passive child of a Java process, which will drive
     us over STDIO. The resulting PJRmi connection is stored in the global
@@ -5916,7 +6023,7 @@ def become_pjrmi_minion(stdin=None, stdout=None, stderr=None,
     while t.connected():
         time.sleep(1)
 
-def get_config():
+def get_config() -> Dict[str,str]:
     """
     Return information about the pjrmi installation. This can be used by
     external scripts to determine the installation's classpath and libpath etc.
@@ -5937,20 +6044,20 @@ class char(str):
     Object argument.
     """
 
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         value = str(value)
         if len(value) != 1:
             raise ValueError("Given input was not of length 1: \"%s\"" % value)
 
 
-def str2obj(str):
+def str2obj(str_: str) -> Any:
     """
     Given an object/function name as a string attempt to resolve it to an actual
     instance.
     """
 
     # Pull the name apart to figure out the module and name
-    (mod_name, _, func_name) = str.rpartition('.')
+    (mod_name, _, func_name) = str_.rpartition('.')
     if mod_name == '':
         # If it's not qualified then assume that it's a built-in
         mod_name = 'builtins'
@@ -5960,11 +6067,11 @@ def str2obj(str):
     # been imported so look for it in the globals. If that fails then fall back
     # to eval as a best effort.
     return (getattr(mod, func_name, None) or
-            globals().get(str, None)      or
-            eval(str))
+            globals().get(str_, None)      or
+            eval(str_))
 
 
-def _tb2jexstr(tb):
+def _tb2jexstr(tb: type) -> str:
     """
     Turn a traceback into a string which are good for printing in Java
     exceptions.
@@ -5987,13 +6094,15 @@ class _LazyTypeError(TypeError):
     `TypeError` s.
     """
 
-    def __init__(self, expected_class, actual_value):
+    def __init__(self,
+                 expected_class: type,
+                 actual_value  : Any) -> None:
         self._expected_class = expected_class
         self._actual_value   = actual_value
         self._error_message  = None
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self._error_message is None:
             try:
                 self._error_message = (
@@ -6027,7 +6136,7 @@ class JavaProxyBase:
     might be why.
     """
 
-    def equals(self, that):
+    def equals(self, that: Any) -> bool:
         """
         Indicates whether some other object is "equal to" this one.
         """
@@ -6035,7 +6144,7 @@ class JavaProxyBase:
         return (self == that)
 
 
-    def hashCode(self):
+    def hashCode(self) -> int:
         """
         Returns a hash code value for the object.
         """
@@ -6043,7 +6152,7 @@ class JavaProxyBase:
         return hash(self)
 
 
-    def toString(self):
+    def toString(self) -> str:
         """
         A placeholder method. This can't call __str__ since that will infinitely
         recurse (since that will call this method) so we'll defer to our
@@ -6058,7 +6167,12 @@ class JavaMethod:
     A local handle representing a bound method of a Java class or object
     instance.
     """
-    def __init__(self, rmi, is_ctor, details, klass, this):
+    def __init__(self,
+                 rmi    : PJRmi,
+                 is_ctor: bool,
+                 details: Dict[str,Any],
+                 klass  : type,
+                 this   : Optional[_JavaObject]) -> None:
         """
         :param rmi:      The PJRmi instance.
         :param is_ctor:  Whether the method is a constructor.
@@ -6077,7 +6191,7 @@ class JavaMethod:
         self._this              = this
 
 
-    def _can_format_as(self, klass):
+    def _can_format_as(self, klass: type) -> bool:
         """
         Whether this method can (probably) be rendered as the given Java class for
         passing as an argument. This is only true for Java's functional
@@ -6088,14 +6202,14 @@ class JavaMethod:
         return issubclass(klass, _JavaObject) and klass._is_functional
 
 
-    def _repr_pretty_(self, p, cycle):
+    def _repr_pretty_(self, p: Any, cycle: bool) -> None:
         if cycle:
             p.text("...")
         else:
             p.text(self.__str__())
 
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Any:
         """
         Invoke the method with the given arguments.
 
@@ -6154,7 +6268,7 @@ class JavaMethod:
                                         java_args)
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "%s::%s(%s)" % (
             self._klass.__name__,
             self._name,
@@ -6163,7 +6277,7 @@ class JavaMethod:
         )
 
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return (type(other) is JavaMethod       and
                 self._pjrmi   == other._pjrmi   and
                 self._details == other._details and
@@ -6188,7 +6302,7 @@ class SocketTransport:
     An underlying transport for talking to Java, implemented using raw sockets.
     """
 
-    def __init__(self, host, port):
+    def __init__(self, host: str, port: Union[int,str]) -> None:
         """
         :param host:
             The host to connect to.
@@ -6201,7 +6315,7 @@ class SocketTransport:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         A brief description of the transport.
         """
@@ -6209,7 +6323,7 @@ class SocketTransport:
         return "%s[%s:%d]" % (self.__class__.__name__, self._host, self._port)
 
 
-    def connect(self):
+    def connect(self) -> None:
         """
         Connect to the server.
         """
@@ -6217,7 +6331,7 @@ class SocketTransport:
         self._socket.connect((self._host, self._port))
 
 
-    def disconnect(self, block=False):
+    def disconnect(self, block: bool = False) -> None:
         """
         Close the connection. This renders it unusable.
 
@@ -6230,15 +6344,15 @@ class SocketTransport:
             pass
 
 
-    def send(self, bytes):
+    def send(self, bytes_: bytes) -> None:
         """
         Send a bag of bytes over the connection.
         """
 
-        self._socket.sendall(bytes)
+        self._socket.sendall(bytes_)
 
 
-    def recv(self, count):
+    def recv(self, count: int) -> bytes:
         """
         Receive at most 'count' bytes from the connection. This will block until
         data is available and return an empty list on EOF.
@@ -6247,7 +6361,7 @@ class SocketTransport:
         return self._socket.recv(count)
 
 
-    def is_localhost(self):
+    def is_localhost(self) -> bool:
         """
         Returns whether we are guaranteed to be on the same host. Might return
         `False` even if we are but never `True` if we are not.
@@ -6264,15 +6378,19 @@ class SSLSocketTransport(SocketTransport):
     """
 
     def __init__(self,
-                 host,
-                 port,
-                 store,
-                 password=''):
+                 host    : str,
+                 port    : Union[int,str],
+                 store   : str,
+                 password: str = '') -> None:
         """
         :param host:
             The host to connect to.
         :param port:
             The port to connect to.
+        :param store:
+            The path to the secret store.
+        :param password:
+            The the password to unlock the store.
         """
         from cryptography.hazmat.primitives               import serialization
         from cryptography.hazmat.primitives.serialization import pkcs12
@@ -6349,9 +6467,9 @@ class InprocessTransport:
     """
 
     def __init__(self,
-                 classpath       =(),
-                 java_args       =(),
-                 application_args=()):
+                 classpath       : Tuple[str,...] = (),
+                 java_args       : Tuple[str,...] = (),
+                 application_args: Tuple[str,...] = ()):
         """
         Create the JVM.
 
@@ -6376,21 +6494,21 @@ class InprocessTransport:
         except NameError:
             raise ValueError("PJRmi C extension not loaded")
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         A brief description of the transport.
         """
         return "In-process pipe"
 
 
-    def connect(self):
+    def connect(self) -> None:
         """
         This is a NOP since we connect in __init__()
         """
         pass
 
 
-    def disconnect(self, block=False):
+    def disconnect(self, block: bool = False) -> None:
         """
         Close the connection. This renders it unusable.
 
@@ -6400,14 +6518,14 @@ class InprocessTransport:
         pjrmi.extension.disconnect()
 
 
-    def send(self, bytes):
+    def send(self, bytes_: bytes) -> None:
         """
         Send a bag of bytes over the connection.
         """
-        pjrmi.extension.write(bytes)
+        pjrmi.extension.write(bytes_)
 
 
-    def recv(self, count):
+    def recv(self, count: int) -> bytes:
         """
         Receive at most 'count' bytes from the connection. This will block until
         data is available and return an empty list on EOF.
@@ -6415,7 +6533,7 @@ class InprocessTransport:
         return pjrmi.extension.read(count)
 
 
-    def is_localhost(self):
+    def is_localhost(self) -> bool:
         """
         Returns whether we are guaranteed to be on the same host. Might return
         `False` even if we are but never `True` if we are not.
@@ -6429,12 +6547,19 @@ class UnixFifoTransport:
     process and which sits on the end of a unix pipe.
     """
 
-    def __init__(self,
-                 main_class,
-                 environment=None, java_executable=None,
-                 classpath=(), java_args=(), application_args=(),
-                 timeout=60,
-                 stdin='/dev/stdin', stdout='/dev/stdout', stderr='/dev/stderr'):
+    def __init__(
+            self,
+            main_class      : str,
+            environment     : Optional[Dict[str,str]]       = None,
+            java_executable : str                           = None,
+            classpath       : Tuple[str,...]                = (),
+            java_args       : Tuple[str,...]                = (),
+            application_args: Tuple[str,...]                = (),
+            timeout         : float                         = 60,
+            stdin           : Union[str,int,io.IOBase,None] = '/dev/stdin',
+            stdout          : Union[str,int,io.IOBase,None] = '/dev/stdout',
+            stderr          : Union[str,int,io.IOBase,None] = '/dev/stderr'
+    ) -> None:
         """
         Create the JVM.
 
@@ -6630,21 +6755,21 @@ class UnixFifoTransport:
             raise RuntimeError("Timed out connecting to Java subprocess")
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         A brief description of the transport.
         """
         return "FIFO:" + self._tmpdir
 
 
-    def connect(self):
+    def connect(self) -> None:
         """
         This is a NOP since we connect in __init__()
         """
         pass
 
 
-    def disconnect(self, block=False):
+    def disconnect(self, block: bool = False) -> None:
         """
         Close the connection. This renders it unusable.
 
@@ -6751,15 +6876,15 @@ class UnixFifoTransport:
         self._closed = True
 
 
-    def send(self, bytes):
+    def send(self, bytes_: bytes) -> None:
         """
         Write a bag of bytes into the FIFO.
         """
-        self._to_fifo.write(bytes)
+        self._to_fifo.write(bytes_)
         self._to_fifo.flush()
 
 
-    def recv(self, count):
+    def recv(self, count: int) -> bytes:
         """
         Read at most 'count' bytes from the FIFO. This will block until data is
         available and return an empty list on EOF.
@@ -6767,7 +6892,7 @@ class UnixFifoTransport:
         return self._from_fifo.read(count)
 
 
-    def is_localhost(self):
+    def is_localhost(self) -> bool:
         """
         Returns whether we are guaranteed to be on the same host. Might return
         `False` even if we are but never `True` if we are not.
@@ -6785,7 +6910,10 @@ class StdioTransport:
     # to ensure that we don't accidently clash with another hello string.
     _HELLO = b"PYTHON IS READY: %c%c%c%c" % (0xfe, 0xed, 0xbe, 0xef)
 
-    def __init__(self, stdin=None, stdout=None, stderr=None):
+    def __init__(self,
+                 stdin : Union[str,int,io.IOBase,None] = None,
+                 stdout: Union[str,int,io.IOBase,None] = None,
+                 stderr: Union[str,int,io.IOBase,None] = None) -> None:
         """
         Set up comms via stdio.
         """
@@ -6824,14 +6952,14 @@ class StdioTransport:
             self.disconnect()
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         A brief description of the transport.
         """
         return "STDIO"
 
 
-    def connect(self):
+    def connect(self) -> None:
         """
         Send Java the "I am ready" string.
         """
@@ -6842,7 +6970,7 @@ class StdioTransport:
         self._connected = True
 
 
-    def disconnect(self, block=False):
+    def disconnect(self, block: bool = False) -> None:
         """
         Close the connection. This is achieved by terminating the process.
 
@@ -6854,14 +6982,14 @@ class StdioTransport:
         sys.exit(0)
 
 
-    def connected(self):
+    def connected(self) -> bool:
         """
         Whether we are open and active.
         """
         return self._connected
 
 
-    def send(self, bytes):
+    def send(self, bytes) -> None:
         """
         Write a bag of bytes into the FIFO.
         """
@@ -6869,7 +6997,7 @@ class StdioTransport:
         self._to.flush()
 
 
-    def recv(self, count):
+    def recv(self, count: int) -> bytes:
         """
         Read at most 'count' bytes from the FIFO. This will block until data is
         available and return an empty list on EOF.
@@ -6882,21 +7010,21 @@ class StdioTransport:
         return result
 
 
-    def _tell_java(self, message):
+    def is_localhost(self) -> bool:
+        """
+        Returns whether we are guaranteed to be on the same host. Might return
+        `False` even if we are but never `True` if we are not.
+        """
+        return True
+
+
+    def _tell_java(self, message: str) -> None:
         """
         Send an ASCII message to the Java side via our stderr stream.
         """
         bytes_message = str(message).encode('ascii')
         self._err.write(b"%s\n" % bytes_message)
         self._err.flush()
-
-
-    def is_localhost(self):
-        """
-        Returns whether we are guaranteed to be on the same host. Might return
-        `False` even if we are but never `True` if we are not.
-        """
-        return True
 
 
 class JavaLogHandler(logging.Handler):
@@ -6911,7 +7039,7 @@ class JavaLogHandler(logging.Handler):
     Logger's level.
     """
 
-    def __init__(self, rmi, java_logger):
+    def __init__(self, rmi: PJRmi, java_logger: _JavaObject):
         """
         Instantiate with a PJRmi connection and a Java java.util.logger.Log
         instance.
@@ -6945,7 +7073,7 @@ class JavaLogHandler(logging.Handler):
         return None
 
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Log a given record.
         """
@@ -6982,14 +7110,14 @@ class _ClassGetter:
     find yourself with a _ClassGetter instance instead of a Java Class.
     """
 
-    def __init__(self, pjrmi, parts):
+    def __init__(self, pjrmi: PJRmi, parts: Tuple[str,...]):
         self._pjrmi = pjrmi
         self._parts = parts
         self._ClassNotFoundError = pjrmi.class_for_name("java.lang.ClassNotFoundException")
         self._SecurityException  = pjrmi.class_for_name("java.lang.SecurityException")
 
 
-    def __getattr__(self, k):
+    def __getattr__(self, k: str) -> Any:
         # Build upon ourselves by adding the latest part
         parts = self._parts + (k,)
 
@@ -7029,14 +7157,14 @@ class _ContextGuard:
     when its context is entered. The context is only visible to the current
     thread.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialiser for Java objects.
         """
         self.__frozen__ = ThreadLocal()
 
 
-    def active(self):
+    def active(self) -> bool:
         """
         Whether the guard is active or not.
         """
@@ -7045,7 +7173,7 @@ class _ContextGuard:
         return getattr(self.__frozen__, 'count', 0) == 0
 
 
-    def __enter__(self):
+    def __enter__(self) -> _ContextGuard:
         if hasattr(self.__frozen__, 'count'):
             self.__frozen__.count += 1
         else:
@@ -7053,7 +7181,7 @@ class _ContextGuard:
         return self
 
 
-    def __exit__(self, typ, value, traceback):
+    def __exit__(self, typ: type, value: Any, traceback: Any) -> None:
         self.__frozen__.count -= 1
 
 
@@ -7082,7 +7210,11 @@ class _JavaMethod:
     """
     _NO_ARGS = tuple()
 
-    def __init__(self, klass, function, is_ctor, instance):
+    def __init__(self,
+                 klass   : type,
+                 function: Callable,
+                 is_ctor : bool,
+                 instance: _JavaObject) -> None:
         self.__klass__ = klass
         self.__name__  = 'new' if is_ctor else function.__name__
         self.__this__  = instance
@@ -7090,14 +7222,14 @@ class _JavaMethod:
         self._function = function
 
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Any:
         if self._is_ctor:
             return self._function(*args, **kwargs)
         else:
             return self._function(self.__this__, *args, **kwargs)
 
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         """
         Sugar method to allow the user the unbind the method from the class or
         instance.
@@ -7121,11 +7253,11 @@ class _JavaMethod:
             return gettor(key)
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__name__
 
 
-    def _repr_pretty_(self, p, cycle):
+    def _repr_pretty_(self, p: Any, cycle: bool) -> None:
         if cycle:
             p.text("...")
         else:
@@ -7138,14 +7270,17 @@ class _JavaMethodAccessor(property):
     this indirection to prevent infinite recursion when getting the doc, since
     that method calls back in.
     """
-    def __init__(self, function, is_ctor, get_doc):
+    def __init__(self,
+                 function: Callable,
+                 is_ctor : bool,
+                 get_doc : Callable):
         self.function = function
         self.is_ctor  = is_ctor
         self.get_doc  = get_doc
         self.__doc__  = None
 
 
-    def __get__(self, instance, cls):
+    def __get__(self, instance: _JavaObject, cls: type) -> _JavaMethod:
         # Create a function which will handle this
         f = _JavaMethod(cls, self.function, self.is_ctor, instance)
 
@@ -7169,18 +7304,18 @@ class _JavaObject:
     class's `new` method.
     """
 
-    def __del__(self):
+    def __del__(self) -> None:
         """
         Try to ensure that we drop any reference on the Java side too.
         """
         try:
-            self._pjrmi_inst._drop_reference(type(self), self._pjrmi_handle)
+            self._pjrmi_inst._drop_reference(self._pjrmi_handle)
         except Exception:
             # Best effort
             pass
 
 
-    def __eq__(self, that):
+    def __eq__(self, that: Any) -> bool:
         """
         True if this is the same Java object (i.e. it shares the same pointer)
         or equals() returns true.
@@ -7199,21 +7334,21 @@ class _JavaObject:
             return self.equals(that)
 
 
-    def __ne__(self, that):
+    def __ne__(self, that: Any) -> bool:
         """
         The inverse of __eq__()
         """
         return not (self == that)
 
 
-    def __interactive_display__(self):
+    def __interactive_display__(self) -> str:
         # For Java objects, toString() will usually create the most meaningful
         # output to a human user in an interactive session, so make sure to use
         # that.
         return str(self)
 
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         We defer to the Java's hash-code in order to ensure that semantics are
         preserved. (E.g. two different instances of a String "Foo" should have
@@ -7235,7 +7370,7 @@ class _JavaObject:
             return result
 
 
-    def __reduce__(self):
+    def __reduce__(self) -> bytes:
         """
         Java Objects are tighly coupled to the server, none of their data lives in
         the Python process. This means that there's nothing to pickle.
@@ -7246,7 +7381,7 @@ class _JavaObject:
         )
 
 
-    def __setattr__(self, k, v):
+    def __setattr__(self, k: str, v: Any) -> Any:
         """
         Disallow calling `__setattr__` to create new attributes if the object is
         guarded. Modification is allowed since we assume that people know what
@@ -7263,7 +7398,7 @@ class _JavaObject:
             object.__setattr__(self, k, v)
 
 
-    def __delattr__(self, k):
+    def __delattr__(self, k: str) -> None:
         """
         Disallow calling `__delattr__` if the object is guarded.
         """
@@ -7293,7 +7428,7 @@ class _JavaLock:
     >>     do stuff...
     """
 
-    def __init__(self, rmi, name):
+    def __init__(self, rmi: PJRmi, name: str) -> None:
         """
         Instatiate a named lock with a given PJRmi instance.
 
@@ -7321,7 +7456,7 @@ class _JavaLock:
         self._payload = rmi._format_string(self._name)
 
 
-    def __enter__(self):
+    def __enter__(self) -> _JavaLock:
         """
         Acquire the lock.
         """
@@ -7338,7 +7473,7 @@ class _JavaLock:
         return self
 
 
-    def __exit__(self, typ, value, traceback):
+    def __exit__(self, typ: type, value: Any, traceback: Any) -> None:
         """
         Drop the lock.
         """
@@ -7390,7 +7525,7 @@ class _JavaBox:
 
 
     @property
-    def java_object(self):
+    def java_object(self) -> _JavaObject:
         """
         Get back the actual Java object instance associated with this boxed object.
         """
@@ -7398,7 +7533,7 @@ class _JavaBox:
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> Any:
         """
         The native Python representation of this boxed type.
 
@@ -7413,7 +7548,7 @@ class _JavaBox:
             )
 
 
-    def __reduce__(self):
+    def __reduce__(self) -> bytes:
         """
         Java Objects are tighly coupled to the server, none of their data lives in
         the Python process. This means that there's nothing to pickle.
@@ -7427,7 +7562,7 @@ class _JavaBox:
             )
 
 
-    def __accurate_str__(self):
+    def __accurate_str__(self) -> str:
         """
         Method to allow automatic stringification in accurate_cast().
         """
@@ -7436,12 +7571,28 @@ class _JavaBox:
         return str(self.python_object)
 
 
+    def __getattr__(self, k: str) -> Any:
+        """
+        Add a helpful message to AttributeError if the user is attempting to get a
+        member from the internal Java object.
+        """
+        try:
+            return super().__getattribute__(k)
+        except AttributeError as e:
+            if hasattr(self._java_object, k):
+                e = AttributeError(
+                        "%s; access to members of the boxed Java object "
+                        "may be done via the java_object member" % (str(e),)
+                    )
+            raise e
+
+
 class _JavaString(str, _JavaBox):
     """
     A boxed version of a Java String, which looks like a Python str.
     """
 
-    def __new__(cls, arg, raw):
+    def __new__(cls: type, arg: Any, raw: bytes) -> _JavaString:
         if isinstance(arg, cls):
             return arg
         else:
@@ -7454,14 +7605,14 @@ class _JavaString(str, _JavaBox):
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> str:
         """
         Get back the value of this object as a new raw string instance.
         """
         return str(self)
 
 
-    def __accurate_str__(self):
+    def __accurate_str__(self) -> str:
         """
         :see: _JavaBox.__accurate_str__
         """
@@ -7476,7 +7627,7 @@ class _JavaByte(numpy.int8, _JavaBox):
     A boxed version of a Java Byte, which looks like a Python int.
     """
 
-    def __new__(cls, arg, raw):
+    def __new__(cls: type, arg: Any, raw: bytes) -> _JavaByte:
         if isinstance(arg, cls):
             return arg
         else:
@@ -7489,7 +7640,7 @@ class _JavaByte(numpy.int8, _JavaBox):
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> int:
         """
         Get back the value of this object as a new raw int instance.
         """
@@ -7501,7 +7652,7 @@ class _JavaShort(numpy.int16, _JavaBox):
     A boxed version of a Java Short, which looks like a Python int.
     """
 
-    def __new__(cls, arg, raw):
+    def __new__(cls: type, arg: Any, raw: bytes) -> _JavaShort:
         if isinstance(arg, cls):
             return arg
         else:
@@ -7514,7 +7665,7 @@ class _JavaShort(numpy.int16, _JavaBox):
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> int:
         """
         Get back the value of this object as a new raw int instance.
         """
@@ -7526,7 +7677,7 @@ class _JavaInt(numpy.int32, _JavaBox):
     A boxed version of a Java Integer, which looks like a Python int.
     """
 
-    def __new__(cls, arg, raw):
+    def __new__(cls: type, arg: Any, raw: bytes) -> _JavaInt:
         if isinstance(arg, cls):
             return arg
         else:
@@ -7539,7 +7690,7 @@ class _JavaInt(numpy.int32, _JavaBox):
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> int:
         """
         Get back the value of this object as a new raw int instance.
         """
@@ -7551,7 +7702,7 @@ class _JavaLong(numpy.int64, _JavaBox):
     A boxed version of a Java Long, which looks like a Python int.
     """
 
-    def __new__(cls, arg, raw):
+    def __new__(cls: type, arg: Any, raw: bytes) -> _JavaLong:
         if isinstance(arg, cls):
             return arg
         else:
@@ -7564,7 +7715,7 @@ class _JavaLong(numpy.int64, _JavaBox):
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> int:
         """
         Get back the value of this object as a new raw int instance.
         """
@@ -7576,7 +7727,7 @@ class _JavaFloat(numpy.float32, _JavaBox):
     A boxed version of a Java Float, which looks like a Python float.
     """
 
-    def __new__(cls, arg, raw):
+    def __new__(cls: type, arg: Any, raw: bytes) -> _JavaFloat:
         if isinstance(arg, cls):
             return arg
         else:
@@ -7589,7 +7740,7 @@ class _JavaFloat(numpy.float32, _JavaBox):
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> float:
         """
         Get back the value of this object as a new raw float instance.
         """
@@ -7601,7 +7752,7 @@ class _JavaDouble(numpy.float64, _JavaBox):
     A boxed version of a Java Double, which looks like a Python float.
     """
 
-    def __new__(cls, arg, raw):
+    def __new__(cls: type, arg: Any, raw: bytes) -> _JavaDouble:
         if isinstance(arg, cls):
             return arg
         else:
@@ -7614,7 +7765,7 @@ class _JavaDouble(numpy.float64, _JavaBox):
 
 
     @property
-    def python_object(self):
+    def python_object(self) -> float:
         """
         Get back the value of this object as a new raw float instance.
         """

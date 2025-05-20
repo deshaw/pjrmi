@@ -5,13 +5,15 @@ Various helper functions which support PJRmi.
 import numbers
 import numpy
 
+from   typing    import (Any, Callable, Dict, List, Optional, Tuple, Union)
+
 class ImpreciseRepresentationError(ValueError):
     """
     A value could not be represented precisely in the target type.
     """
 
 
-def strict_int(arg):
+def strict_int(arg: Any) -> int:
     """
     Check that ``arg`` is an integer, and return as an ``int``.
 
@@ -58,7 +60,7 @@ def strict_int(arg):
         "Expected an integer, but got %r" % (arg,))
 
 
-def strict_bool(arg):
+def strict_bool(arg: Any) -> bool:
     """
     Check that ``arg`` is a ``bool`` or 0 or 1, and return it as a ``bool``.
 
@@ -107,7 +109,7 @@ def strict_bool(arg):
     return b
 
 
-def strict_number(typ, value):
+def strict_number(typ: type, value: Any) -> Any:
     """
     Cast the value into the given numpy type, with checking for correctness.
 
@@ -154,7 +156,7 @@ def strict_number(typ, value):
     )
 
 
-def strict_array(typ, array):
+def strict_array(typ: type, array: Any) -> Any:
     """
     Cast the values of the given array-like into the given numpy type, with
     checking for correctness. If given a non-array-like it will raise an

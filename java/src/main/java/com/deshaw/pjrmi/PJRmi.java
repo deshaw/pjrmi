@@ -39,8 +39,10 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.MethodType;
 import java.lang.instrument.ClassDefinition;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Array;
@@ -8642,11 +8644,11 @@ public abstract class PJRmi
          * Return a proxy interface, targeting the given interface class, by
          * using the given method.
          */
-        public Object getProxyForMethod(final Class<?> iface,
-                                        final TypeDescription typeDesc,
-                                        final MethodDescription methodDesc,
-                                        final boolean isConstructor,
-                                        final Object instance)
+        private Object getProxyForMethod(final Class<?> iface,
+                                         final TypeDescription typeDesc,
+                                         final MethodDescription methodDesc,
+                                         final boolean isConstructor,
+                                         final Object instance)
         {
             // Make sure everything is in order
             Objects.requireNonNull(iface);
@@ -8662,6 +8664,27 @@ public abstract class PJRmi
                                          final Object[] args)
                         throws Throwable
                     {
+                        // What we are doing
+                        if (LOG.isLoggable(Level.FINEST)) {
+                            LOG.finest("Invoking " + method);
+                        }
+
+                        // If we are calling a default method on the interface
+                        // then we are not trying to invoke its functional
+                        // method. We handle these here and early-out.
+                        if (method.isDefault()) {
+                            // This is only available in JDK 16 onwards
+                            if (ourInvokeDefault == null) {
+                                throw new UnsupportedOperationException(
+                                    "Can only invoke default methods " +
+                                    "on proxy interfaces in Java 16 onwards"
+                                );
+                            }
+                            else {
+                                return ourInvokeDefault.invoke(null, proxy, method, args);
+                            }
+                        }
+
                         // Determine the arguments which we are passing along
                         final Object   callInst;
                         final Object[] callArgs;
@@ -9223,6 +9246,27 @@ public abstract class PJRmi
      */
     private static final ThreadLocal<PythonPickle> ourPythonPickle =
         ThreadLocal.withInitial(PJRmiPythonPickle::new);
+
+    /**
+     * A handle in InvocationHandler.invokeDefault, which is only available in
+     * Java 16 onwards. Since we are Java11 we attempt to find it by reflection.
+     */
+    // JAVA_11_FIXME
+    private static final Method ourInvokeDefault;
+    static {
+        Method invokeDefault;
+        try {
+            invokeDefault = 
+                InvocationHandler.class.getMethod(
+                    "invokeDefault",
+                    Object.class, Method.class, Object[].class
+                );
+        }
+        catch (NoSuchMethodException e) {
+            invokeDefault = null;
+        }
+        ourInvokeDefault = invokeDefault;
+    }
 
     // ---------------------------------------------------------------------- //
 

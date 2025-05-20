@@ -71,9 +71,12 @@ java {
     else {
         // PJRmi is specifically Java11 so as not to force users to later
         // versions, if they have dependencies, so enforce this in the build.
+        //
+        // If we change this then we should change any workarounds accordingly.
+        // Look for JAVA_11_FIXME in the code.
         toolchain {
             languageVersion = JavaLanguageVersion.of(11)
-         }
+        }
     }
 }
 

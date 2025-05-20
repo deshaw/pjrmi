@@ -630,7 +630,8 @@ class PJRmi:
                                 if curr_time - file_time > 5:
                                     try:
                                         os.unlink(filename)
-                                        LOG.debug("Unlinking file %s manually", filename)
+                                        LOG.debug("Unlinking file %s manually",
+                                                  filename)
                                     except OSError:
                                         pass
 
@@ -1845,7 +1846,7 @@ public class TestInjectSource {
         # Read in the array of bytes (as a string)
         (value, idx) = self._read_byte_array(payload, 0)
 
-        # Get the value encding format, and the data. For the format we use a
+        # Get the value encoding format, and the data. For the format we use a
         # slice of length 1, instead of indexing with [0], because direct
         # indexing of bytes returns an int not a bytes object.
         value_format = value[0:1]
@@ -5246,6 +5247,7 @@ public class TestInjectSource {
             # Set all the parts which we expect to have associated with it
             result._pjrmi_inst   = self
             result._pjrmi_handle = handle
+            result._pjrmi_class  = klass
 
             # Need the __len__ method for arrays
             if klass._is_array:
@@ -7024,7 +7026,7 @@ class _ClassGetter:
 class _ContextGuard:
     """
     A way of guarding certain operations in such a way that the guard is removed
-    when it's context is entered. The context is only visible to the current
+    when its context is entered. The context is only visible to the current
     thread.
     """
     def __init__(self):
@@ -7239,7 +7241,9 @@ class _JavaObject:
         the Python process. This means that there's nothing to pickle.
         """
 
-        raise NotImplementedError("PJRmi instances can't be pickled")
+        raise NotImplementedError(
+            "PJRmi %s instances can't be pickled" % self._pjrmi_class._classname
+        )
 
 
     def __setattr__(self, k, v):
@@ -7375,8 +7379,12 @@ class _JavaBox:
         >> m.get(1)
         [Nothing, since 1 is inferred to be a Byte]
         >> m.get(Long.valueOf(1))
-        u'Foo'
+        'Foo'
 
+    Note that we explicitly don't import Java members/methods into the box's
+    instance because clashing versions of methods exist in both the Java and
+    Python versions of objects (e.g. 'format', 'join', 'replace', 'split' and
+    'strip' for strings).
     """
     _java_object = None
 
@@ -7396,7 +7404,13 @@ class _JavaBox:
 
         This must be implemented by subclasses.
         """
-        raise NotImplementedError("PJRmi instances can't be pickled")
+        if self._java_object is None:
+            raise NotImplementedError("PJRmi instances can't be pickled")
+        else:
+            raise NotImplementedError(
+                "PJRmi %s instances can't be pickled" %
+                self._java_object._pjrmi_class._classname
+            )
 
 
     def __reduce__(self):
@@ -7404,7 +7418,13 @@ class _JavaBox:
         Java Objects are tighly coupled to the server, none of their data lives in
         the Python process. This means that there's nothing to pickle.
         """
-        raise NotImplementedError("PJRmi instances can't be pickled")
+        if self._java_object is None:
+            raise NotImplementedError("PJRmi instances can't be pickled")
+        else:
+            raise NotImplementedError(
+                "PJRmi %s instances can't be pickled" %
+                self._java_object._pjrmi_class._classname
+            )
 
 
     def __accurate_str__(self):

@@ -34,6 +34,13 @@ configurations {
             attribute(CppBinary.LINKAGE_ATTRIBUTE, Linkage.SHARED)
         }
     }
+    pomFiles {
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, 'pom-file'))
+        }
+        canBeConsumed = false
+        canBeResolved = true
+    }
 }
 
 // Declare dependencies.
@@ -44,6 +51,8 @@ dependencies {
     libs project(":cpp")
     // Contains pjrmi.jar
     jars project(":java")
+    // Contains pom.xml
+    pomFiles project(":java")
 }
 
 // Copy artifacts to be included in the python package.
@@ -52,6 +61,9 @@ tasks.register('copyArtifacts', Copy) {
     into("lib/") {
         from configurations.libs
         from configurations.jars
+        from (configurations.pomFiles) {
+            rename ".*", "pjrmi.pom"
+        }
     }
 }
 

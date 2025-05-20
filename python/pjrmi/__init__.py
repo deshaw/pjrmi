@@ -1122,10 +1122,13 @@ public class TestInjectSource {
             return klass
 
 
-    def replace_class(self, klass: type, filename: str) -> type:
+    def replace_class(self,
+                      klass: type,
+                      filename: Optional[str]   = None,
+                      bytecode: Optional[bytes] = None) -> type:
         """
-        Read some Java bytecode from a file and use it to replace the implementation
-        of an existing class in the JVM.
+        Use Java class bytecode (from a file or as raw data) and use it to
+        replace the implementation of an existing class in the JVM.
 
         For this to function the ``PJRmiAgent`` must be loaded into the JVM.
 
@@ -1133,16 +1136,20 @@ public class TestInjectSource {
                          replacing.
         :param filename: The path of the Java class file containing the new
                          bytecode.
+        :param bytecode: The bytecode to replace the class with.
 
         :return: The Python class shim of the replaced Java class.
         """
 
-        if filename is None:
-            return ValueError('Given a null filename')
-
-        # Read in and send over the bytecode from the file
-        with open(filename, 'rb') as fh:
-            bytecode = fh.read()
+        # See how we're getting the bytecode
+        if filename is None and bytecode is None:
+            raise ValueError('No filename or bytecode given')
+        elif filename is not None and bytecode is not None:
+            return ValueError('Both filename and bytecode given')
+        elif filename is not None:
+            # Read in the bytecode from the file
+            with open(filename, 'rb') as fh:
+                bytecode = fh.read()
 
         # And send it off
         payload  = self._format_int32(klass._type_id)

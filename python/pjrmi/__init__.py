@@ -785,8 +785,10 @@ class PJRmi:
 
         # We only allow strings
         if not isinstance(lock_name, str):
-            raise ValueError("Given lock_name was a <str> instance: %s <%s>" %
-                             (lock_name, type(lock_name)))
+            raise ValueError(
+                "Given lock_name was not a <str> instance: %s <%s>" %
+                (lock_name, type(lock_name))
+            )
 
         # Now we know it's safe to create
         return _JavaLock(self, lock_name)
@@ -1135,7 +1137,7 @@ public class TestInjectSource {
 
 
     def replace_class(self,
-                      klass: type,
+                      klass   : type,
                       filename: Optional[str]   = None,
                       bytecode: Optional[bytes] = None) -> type:
         """
@@ -1510,7 +1512,8 @@ public class TestInjectSource {
 
             # See what we got back. Unpack this all in one go so as to avoid the
             # overhead of calling _read_foo() multiple times.
-            (msg_type, thread_id, request_id, payload_size) = struct.unpack('!cqii', result)
+            (msg_type, thread_id, request_id, payload_size) = \
+                struct.unpack('!cqii', result)
 
             # Read the payload
             payload = b''
@@ -1521,7 +1524,8 @@ public class TestInjectSource {
             # See if it happened to be a callback
             if request_id == self._CALLBACK_REQUEST_ID:
                 # This was an unsolicited message coming from Java which we just
-                # happened to catch; hand it off and go around again for another try
+                # happened to catch; hand it off and go around the while loop
+                # again for another try
                 self._handle_incoming_request(msg_type, thread_id, payload)
             else:
                 # This was a message which we were expecting, give it back to
@@ -6122,7 +6126,7 @@ def str2obj(str_: str) -> Any:
     # been imported so look for it in the globals. If that fails then fall back
     # to eval as a best effort.
     return (getattr(mod, func_name, None) or
-            globals().get(str_, None)      or
+            globals().get(str_, None)     or
             eval(str_))
 
 
@@ -7628,8 +7632,8 @@ class _JavaBox:
         """
         Method to allow automatic stringification in accurate_cast().
         """
-        # Since we desire to render in a Python context we simply stringify the Python
-        # version of this object
+        # Since we desire to render in a Python context we simply stringify the
+        # Python version of this object
         return str(self.python_object)
 
 

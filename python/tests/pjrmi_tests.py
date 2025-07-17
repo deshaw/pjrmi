@@ -461,6 +461,36 @@ class TestPJRmi(TestCase):
             pass
 
 
+    def test_instanceof(self):
+        """
+        Make sure that the various is_instance type methods work as expected.
+        """
+        Object  = get_pjrmi().class_for_name('java.lang.Object')
+        HashMap = get_pjrmi().class_for_name('java.util.HashMap')
+        Map     = get_pjrmi().class_for_name('java.util.Map')
+        Set     = get_pjrmi().class_for_name('java.util.Set')
+
+        hash_map = HashMap()
+
+        self.assertTrue (get_pjrmi().is_instance_of(hash_map, Object))
+        self.assertTrue (get_pjrmi().is_instance_of(hash_map, Map))
+        self.assertTrue (get_pjrmi().is_instance_of(HashMap,  Map))
+        self.assertTrue (get_pjrmi().is_instance_of(Map,      Object))
+        self.assertTrue (get_pjrmi().is_instance_of(HashMap,  Object))
+        self.assertTrue (get_pjrmi().is_instance_of(hash_map, HashMap))
+        self.assertFalse(get_pjrmi().is_instance_of(hash_map, Set))
+        self.assertFalse(get_pjrmi().is_instance_of(HashMap,  Set))
+        self.assertTrue (isinstance(hash_map, Object))
+        self.assertTrue (isinstance(hash_map, Map))
+        self.assertTrue (isinstance(hash_map, HashMap))
+        self.assertTrue (issubclass(Map,      Object))
+        self.assertTrue (issubclass(HashMap,  Object))
+        self.assertTrue (issubclass(HashMap,  Map))
+        self.assertFalse(issubclass(Map,      HashMap))
+        self.assertFalse(issubclass(hash_map, Map))
+        self.assertFalse(issubclass(hash_map, HashMap))
+
+
     def test_overridden_method_calls(self):
         """
         Ensure that we call the correct overridden method, based on return type.

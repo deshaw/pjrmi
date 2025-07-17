@@ -220,25 +220,33 @@ class PJRmi:
         self._INSTANCES[id(self)] = self
 
         # Create the _JavaObject meta-class for this instance, we use this to
-        # look up class members etc. Each meta-class is specific to a connection.
+        # look up class members etc. Each meta-class is specific to a
+        # connection. Since this is a meta-class definition all the methods
+        # herein are @classmethod ones.
         class _JavaClass(type):
-            def __getattr__(self_, k):
+            def __instancecheck__(cls, inst):
+                return self.is_instance_of(inst, cls)
+
+            def __subclasscheck__(cls, sub):
+                return type(sub) is _JavaClass and self.is_instance_of(sub, cls)
+
+            def __getattr__(cls, k):
                 """
                 Look for a inner classes of a Java class.
                 """
                 try:
                     # Look for it as an inner class, these are separated by '$'
                     # not '.' in Java Land
-                    subclass = self.class_for_name('%s$%s' % (self_._classname, k))
+                    subclass = self.class_for_name('%s$%s' % (cls._classname, k))
 
                     # If we got here then we found it, save is as an attr so we
                     # don't need to perform the lookup next time
-                    setattr(self_, k, subclass)
+                    setattr(cls, k, subclass)
                     return subclass
 
                 except Exception as e:
                     raise AttributeError(
-                        f"Java class '{self_._classname}' has no such attribute '{k}': "
+                        f"Java class '{cls._classname}' has no such attribute '{k}': "
                         f"{e.__class__.__name__}: {e}"
                     ) from e
 

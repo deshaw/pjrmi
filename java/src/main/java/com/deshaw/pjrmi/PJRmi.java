@@ -9010,6 +9010,10 @@ public abstract class PJRmi
      * would allow privilege escalation by a PJRmi client. (I.e. things which
      * let them run binaries, access files, etc.)
      *
+     * <p>Some of these values are duplicated in the isClassPermitted() logic
+     * but since that method may be overridden we also have them here as a bit
+     * of a backstop.
+     *
      * <p><b>THINK VERY CAREFULLY BEFORE ADDING ANY CLASSES TO THIS LIST!</b>
      */
     private static final Collection<String> DEFAULT_CLASS_NAME_ALLOWLIST =
@@ -9713,13 +9717,17 @@ public abstract class PJRmi
         // For shredding the name
         final int len = className.length();
 
-        // We allow all 1D and 2D primitive arrays since they don't allow
-        // access to insecure methods
-        if ((len == 2 && className.charAt(0) == '[') ||
-            (len == 3 && className.charAt(0) == '[' &&
-                         className.charAt(1) == '['))
-        {
-            switch (className.charAt(len - 1)) {
+        // We allow arrays if their contents are safe
+        if (len >= 2 && className.charAt(0) == '[') {
+            switch (className.charAt(1)) {
+            // An array of arrays, of the form:
+            //   "[[[[B"
+            // where the leading '['s are the dimensionality.
+            case '[':
+                // These are fine if the inner array is fine
+                return isClassPermitted(className.subSequence(1, len));
+
+            // Primitive arrays
             case 'B':
             case 'C':
             case 'D':
@@ -9728,13 +9736,26 @@ public abstract class PJRmi
             case 'J':
             case 'S':
             case 'Z':
-                return true;
+                if (len == 2) {
+                    return true;
+                }
+                break;
+
+            // An array of a class, which will be of the form
+            //   "[Ljava.lang.String;"
+            // i.e. the name enclosed between '[L' and ';'.
+            case 'L':
+                // These are fine if the contained class is fine
+                if (len > 3 && className.charAt(len-1) == ';') {
+                    return isClassPermitted(className.subSequence(2, len-1));
+                }
+                break;
             }
         }
 
-        //  Check the map for the actual class. We render to a String at this
-        //  point since that's what the map is keyed with. Chances are that we
-        //  are given a String anyhow so this will be a NOP.
+        // Check the map for the actual class. We render to a String at this
+        // point since that's what the map is keyed with. Chances are that we
+        // are given a String anyhow so this will be a NOP.
         //
         // If the allow list is null, all classes are permitted.
         final String classNameStr = className.toString();
@@ -9756,19 +9777,6 @@ public abstract class PJRmi
             case "long":
             case "short":
                 return true;
-        }
-
-        // See if the className is an array. If it's an object array then we
-        // only allow it if the underlying class is also allowed. We could just
-        // allow arrays of anything, but subclasses can be more lax if they
-        // really want to.
-        if (len > 3 &&
-            className.charAt(0)     == '[' &&
-            className.charAt(1)     == 'L' &&
-            className.charAt(len-1) == ';' &&
-            isClassPermitted(className.subSequence(2, len-1)))
-        {
-            return true;
         }
 
         // Otherwise access to this class isn't allowed

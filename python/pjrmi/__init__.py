@@ -33,11 +33,11 @@ from   psutil           import NoSuchProcess, Process
 from   threading        import (Condition, Lock, RLock, Thread,
                                 current_thread, local as ThreadLocal)
 from   traceback        import format_tb
-from   typing           import (Any, Callable, Dict, List, Mapping, Optional,
-                                Sequence, Tuple, Union)
+from   typing           import (Any, Callable, Mapping, Optional, Sequence,
+                                Union)
 from   types            import (BuiltinMethodType, FunctionType, MethodType)
 
-from   ._config         import (PJRMI_VERSION)
+from   ._config         import PJRMI_VERSION
 from   ._util           import (ImpreciseRepresentationError,
                                 strict_array, strict_bool, strict_number)
 
@@ -1176,7 +1176,7 @@ public class TestInjectSource {
     def get_constructor(
             self,
             klass    : type,
-            arg_types: Optional[List[type]] = None
+            arg_types: Optional[list[type]] = None
     ) -> JavaMethod:
         """
         Get a handle on the Java version of the constructor for the given class,
@@ -1220,7 +1220,7 @@ public class TestInjectSource {
 
     def get_bound_method(self,
                          method   : Union[Callable,_JavaObject],
-                         arg_types: Optional[List[type]] = None) -> JavaMethod:
+                         arg_types: Optional[list[type]] = None) -> JavaMethod:
         """
         Get a handle on the Java version of the given method, potentially using any
         given argument types to disambiguate overloaded instances.
@@ -1364,7 +1364,7 @@ public class TestInjectSource {
             klass      : type,
             candidates : Optional[Sequence[Mapping[str,Any]]],
             arg_types  : Optional[Sequence[Union[str,_JavaObject]]]
-    ) -> Optional[Dict[str,Any]]:
+    ) -> Optional[dict[str,Any]]:
         """
         Attempt to match a method/constructor from a list of candidates, using any
         given argument types as criteria.
@@ -1469,13 +1469,13 @@ public class TestInjectSource {
         return request_id
 
 
-    def _recv(self) -> Tuple[bytes,int,bytes]:
+    def _recv(self) -> tuple[bytes,int,bytes]:
         """
         Pull data in off the wire.
 
         You can receive from any thread but, if you are planning to use threads
         really heavily then you are likely better off enabling callbacks in the
-        server and, thius, using a slightly different threading model internally.
+        server and, thus, using a slightly different threading model internally.
         """
 
         # This either happens locally, if we don't have a Receiver thread, or in
@@ -1642,7 +1642,7 @@ public class TestInjectSource {
 
     def _handle_type_description(self,
                                  msg_type: bytes,
-                                 payload : bytes) -> Dict[str,Any]:
+                                 payload : bytes) -> dict[str,Any]:
         # This is a type description:
         #  int32    : Type ID, or -1 if the type was not found
         #  int16    : Name length
@@ -2937,7 +2937,7 @@ public class TestInjectSource {
             return (self._ARGUMENT_VALUE +
                     self._format_int32(self._java_lang_void._type_id))
 
-        # Handle specially boxed types. We do hasattr() here since its twice as
+        # Handle specially boxed types. We do hasattr() here since it's twice as
         # fast as calling 'isinstance(value, _JavaBox)'. This might be marginal
         # but, since _format_by_class() is so heavily used every little helps.
         if hasattr(value, '_java_object'):
@@ -3690,7 +3690,7 @@ public class TestInjectSource {
                                  (str(value), str(value.__class__), klass._classname))
 
 
-    def _read_ascii(self, bytes_: bytes, index: int) -> Tuple[str,int]:
+    def _read_ascii(self, bytes_: bytes, index: int) -> tuple[str,int]:
         """
         Read a string from some data looking like [int32:size][bytes[]:string]
         from a byte buffer.
@@ -3712,7 +3712,7 @@ public class TestInjectSource {
             return (val.decode('ascii'), index+length)
 
 
-    def _read_utf16(self, bytes_: bytes, index: int) -> Tuple[str,int]:
+    def _read_utf16(self, bytes_: bytes, index: int) -> tuple[str,int]:
         """
         Read a unicode string from some data looking like [int32:size][bytes[]:utf16]
         from a byte buffer.
@@ -3732,7 +3732,7 @@ public class TestInjectSource {
             return (str(bytes_[index:index+length], encoding='utf_16'), index+length)
 
 
-    def _read_float(self, bytes_: bytes, index: int) -> Tuple[float,int]:
+    def _read_float(self, bytes_: bytes, index: int) -> tuple[float,int]:
         """
         Read a float from the wire as 32 raw bits.
 
@@ -3742,7 +3742,7 @@ public class TestInjectSource {
         return (struct.unpack('!f', bytes_[index:index+4])[0], index+4)
 
 
-    def _read_double(self, bytes_: bytes, index: int) -> Tuple[float,int]:
+    def _read_double(self, bytes_: bytes, index: int) -> tuple[float,int]:
         """
         Read a double from the wire as 64 raw bits.
 
@@ -3752,7 +3752,7 @@ public class TestInjectSource {
         return (struct.unpack('!d', bytes_[index:index+8])[0], index+8)
 
 
-    def _read_int64(self, bytes_: bytes, index: int) -> Tuple[int,int]:
+    def _read_int64(self, bytes_: bytes, index: int) -> tuple[int,int]:
         """
         Read a 64 bit int from raw bytes.
 
@@ -3762,7 +3762,7 @@ public class TestInjectSource {
         return (struct.unpack('!q', bytes_[index:index+8])[0], index+8)
 
 
-    def _read_int32(self, bytes_: bytes, index: int) -> Tuple[int,int]:
+    def _read_int32(self, bytes_: bytes, index: int) -> tuple[int,int]:
         """
         Read a 32 bit int from raw bytes.
 
@@ -3772,7 +3772,7 @@ public class TestInjectSource {
         return (struct.unpack('!i', bytes_[index:index+4])[0], index+4)
 
 
-    def _read_int16(self, bytes_: bytes, index: int) -> Tuple[int,int]:
+    def _read_int16(self, bytes_: bytes, index: int) -> tuple[int,int]:
         """
         Read a 16 bit int from raw bytes.
 
@@ -3782,7 +3782,7 @@ public class TestInjectSource {
         return (struct.unpack('!h', bytes_[index:index+2])[0], index+2)
 
 
-    def _read_int8(self, bytes_: bytes, index: int) -> Tuple[int,int]:
+    def _read_int8(self, bytes_: bytes, index: int) -> tuple[int,int]:
         """
         Read an 8 bit int from raw bytes.
 
@@ -3792,7 +3792,7 @@ public class TestInjectSource {
         return (struct.unpack('!b', bytes_[index:index+1])[0], index+1)
 
 
-    def _read_byte(self, bytes_: bytes, index: int) -> Tuple[bytes,int]:
+    def _read_byte(self, bytes_: bytes, index: int) -> tuple[bytes,int]:
         """
          Read a byte from raw bytes.
 
@@ -3802,7 +3802,7 @@ public class TestInjectSource {
         return (bytes_[index:index+1], index+1)
 
 
-    def _read_char(self, bytes_: bytes, index: int) -> Tuple[str,int]:
+    def _read_char(self, bytes_: bytes, index: int) -> tuple[str,int]:
         """
         Read a 16 bit Java char from raw bytes, encoded as UTF-16 (high byte
         first).
@@ -3815,7 +3815,7 @@ public class TestInjectSource {
         return (bytes_[index:index+2].decode("utf_16_be"), index+2)
 
 
-    def _read_boolean(self, bytes_: bytes, index: int) -> Tuple[bool,int]:
+    def _read_boolean(self, bytes_: bytes, index: int) -> tuple[bool,int]:
         """
         Read a boolean from raw bytes.
 
@@ -3825,7 +3825,7 @@ public class TestInjectSource {
         return (bytes_[index] != 0, index+1)
 
 
-    def _read_byte_array(self, bytes_: bytes, index: int) -> Tuple[bytes,int]:
+    def _read_byte_array(self, bytes_: bytes, index: int) -> tuple[bytes,int]:
         """
         Reads a byte array from some data looking like [int32:size][byte[]:data]
         from a byte buffer.
@@ -3848,7 +3848,7 @@ public class TestInjectSource {
 
     def _read_int8_array(self,
                          bytes_: bytes,
-                         index : int) ->  Tuple[numpy.ndarray,int]:
+                         index : int) ->  tuple[numpy.ndarray,int]:
         """
         Reads an array of 8 bit integers array from some data looking like
         [int32:size][byte[]:data] from a byte buffer.
@@ -3865,7 +3865,7 @@ public class TestInjectSource {
         return (int8_array, index)
 
 
-    def _read_argument(self, bytes_: bytes, idx: int) -> Tuple[Any,int]:
+    def _read_argument(self, bytes_: bytes, idx: int) -> tuple[Any,int]:
         """
         Reads a function call argument from the stream. This might be by reference
         or by (compressed) value.
@@ -3936,7 +3936,7 @@ public class TestInjectSource {
         """
 
         # Send the request, this is by ID
-        if type_id_or_name.__class__ == str:
+        if type_id_or_name.__class__ is str:
             payload = (b'\x00' + self._format_string(type_id_or_name))
             req_id = self._send(self._TYPE_REQUEST, payload)
         else:
@@ -3954,7 +3954,7 @@ public class TestInjectSource {
             return self._create_class(type_dict)
 
 
-    def _create_class(self, type_dict: Dict[str,Any]) -> type:
+    def _create_class(self, type_dict: dict[str,Any]) -> type:
         """
         Create the Python shim of a Java Class instance, from the given
         ``type_dict`` instance.
@@ -4028,11 +4028,13 @@ public class TestInjectSource {
         # Create constructors which we make work in the expected Python way
         if klass._is_array:
             klass.__new__ = self._create_array_constructor(klass)
-            get_doc       = lambda: 'Constructor'
+            def get_doc():
+                return 'Constructor'
         else:
             constructors  = type_dict['constructors']
             klass.__new__ = self._create_constructors(klass, constructors)
-            get_doc       = lambda: self._get_doc(klass, True, 'new', constructors)
+            def get_doc():
+                return self._get_doc(klass, True, 'new', constructors)
 
         # And add methods, all the methods with the same name get the same
         # function handler (which will disambiguate them according to their
@@ -4061,7 +4063,7 @@ public class TestInjectSource {
 
     def _add_supertypes(self,
                         klass        : type,
-                        supertype_ids: List[int]) -> None:
+                        supertype_ids: list[int]) -> None:
         """
         Adds the given super-type information to the given klass.
         """
@@ -4093,7 +4095,7 @@ public class TestInjectSource {
         setattr(klass, "_instance_of", _instance_of.__get__(klass, klass.__class__))
 
 
-    def _add_field(self, klass: type, field: Dict[str,Any]) -> None:
+    def _add_field(self, klass: type, field: dict[str,Any]) -> None:
         """
         Adds a field as a property on a the given class.
         """
@@ -4141,7 +4143,7 @@ public class TestInjectSource {
                  klass      : type,
                  is_ctor    : bool,
                  method_name: str,
-                 methods    : List[Dict[str,Any]]) -> str:
+                 methods    : list[dict[str,Any]]) -> str:
         """
         Create a Java method doc string.
         """
@@ -4177,7 +4179,7 @@ public class TestInjectSource {
     def _get_signatures(self,
                         is_ctor    : bool,
                         method_name: str,
-                        methods    : List[Dict[str,Any]]) -> str:
+                        methods    : list[dict[str,Any]]) -> str:
         """
         Create a list of pretty method signatures, in a sensible order.
         """
@@ -4244,7 +4246,7 @@ public class TestInjectSource {
     def _create_method(self,
                        klass      : type,
                        method_name: str,
-                       methods    : List[Dict[str,Any]]) -> Callable:
+                       methods    : list[dict[str,Any]]) -> Callable:
         """
         Creates a method instance for the given class type and method
         definitions. This is all for methods of a single name (i.e. they are
@@ -5222,11 +5224,17 @@ public class TestInjectSource {
                 # Get the class name of the a dtype, if any
                 if isinstance(dtype, numpy.dtype):
                     dtype = dtype.name
-                if   dtype == 'float32': return 'Float'
-                elif dtype == 'float64': return 'Double'
-                elif dtype == 'int32':   return 'Integer'
-                elif dtype == 'int64':   return 'Long'
-                else: raise ValueError("Unhandled dtype: %s" % (dtype,))
+                match dtype:
+                    case 'float32':
+                        return 'Float'
+                    case 'float64':
+                        return 'Double'
+                    case 'int32':
+                        return 'Integer'
+                    case 'int64':
+                        return 'Long'
+                    case _:
+                        raise ValueError("Unhandled dtype: '%s'" % (dtype,))
 
             def __array__(self_, dtype: numpy.dtype = None):
                 # Do this by best-effort assuming that it's one which we can
@@ -5243,7 +5251,7 @@ public class TestInjectSource {
                 try:
                     # Figure out the name of the casting class to use, if any.
                     # Assume it's the same type until we know better.
-                    if dtype is not None:
+                    if dtype:
                         from_type = dtype_to_simplename(self_.getDType().name)
                         to_type   = dtype_to_simplename(dtype)
                         if from_type != to_type:
@@ -5908,9 +5916,9 @@ def connect_to_socket(host    : str,
                 raise
 
 
-def connect_to_inprocess_jvm(classpath       : Tuple[str,...] = (),
-                             java_args       : Tuple[str,...] = (),
-                             application_args: Tuple[str,...] = (),
+def connect_to_inprocess_jvm(classpath       : tuple[str,...] = (),
+                             java_args       : tuple[str,...] = (),
+                             application_args: tuple[str,...] = (),
                              impl            : type       = PJRmi) -> PJRmi:
     """
     Create an in-process JVM instance and connect to it. See
@@ -5939,11 +5947,11 @@ def connect_to_inprocess_jvm(classpath       : Tuple[str,...] = (),
 
 def connect_to_child_jvm(
         main_class         : str                     = 'com.deshaw.pjrmi.UnixFifoProvider',
-        environment        : Optional[Dict[str,str]] = None,
+        environment        : Optional[dict[str,str]] = None,
         java_executable    : Optional[str]           = None,
-        classpath          : Tuple[str,...]          = (),
-        java_args          : Tuple[str,...]          = (),
-        application_args   : Tuple[str,...]          = (),
+        classpath          : tuple[str,...]          = (),
+        java_args          : tuple[str,...]          = (),
+        application_args   : tuple[str,...]          = (),
         timeout            : float                   = 60,
         stdin              : str                     = '/dev/stdin',
         stdout             : str                     = '/dev/stdout',
@@ -6059,7 +6067,7 @@ def become_pjrmi_minion(
     while t.connected():
         time.sleep(1)
 
-def get_config() -> Dict[str,str]:
+def get_config() -> dict[str,str]:
     """
     Return information about the pjrmi installation. This can be used by
     external scripts to determine the installation's classpath and libpath etc.
@@ -6206,7 +6214,7 @@ class JavaMethod:
     def __init__(self,
                  rmi    : PJRmi,
                  is_ctor: bool,
-                 details: Dict[str,Any],
+                 details: dict[str,Any],
                  klass  : type,
                  this   : Optional[_JavaObject]) -> None:
         """
@@ -6503,9 +6511,9 @@ class InprocessTransport:
     """
 
     def __init__(self,
-                 classpath       : Tuple[str,...] = (),
-                 java_args       : Tuple[str,...] = (),
-                 application_args: Tuple[str,...] = ()):
+                 classpath       : tuple[str,...] = (),
+                 java_args       : tuple[str,...] = (),
+                 application_args: tuple[str,...] = ()):
         """
         Create the JVM.
 
@@ -6585,11 +6593,11 @@ class UnixFifoTransport:
     def __init__(
             self,
             main_class      : str,
-            environment     : Optional[Dict[str,str]]       = None,
+            environment     : Optional[dict[str,str]]       = None,
             java_executable : str                           = None,
-            classpath       : Tuple[str,...]                = (),
-            java_args       : Tuple[str,...]                = (),
-            application_args: Tuple[str,...]                = (),
+            classpath       : tuple[str,...]                = (),
+            java_args       : tuple[str,...]                = (),
+            application_args: tuple[str,...]                = (),
             timeout         : float                         = 60,
             stdin           : Union[str,int,io.IOBase,None] = '/dev/stdin',
             stdout          : Union[str,int,io.IOBase,None] = '/dev/stdout',
@@ -7144,7 +7152,7 @@ class _ClassGetter:
     find yourself with a _ClassGetter instance instead of a Java Class.
     """
 
-    def __init__(self, pjrmi_: PJRmi, parts: Tuple[str,...]):
+    def __init__(self, pjrmi_: PJRmi, parts: tuple[str,...]):
         self._pjrmi = pjrmi_
         self._parts = parts
         self._ClassNotFoundError = pjrmi_.class_for_name("java.lang.ClassNotFoundException")
@@ -7278,9 +7286,11 @@ class _JavaMethod:
         """
         klass = self.__klass__
         if self._is_ctor:
-            gettor = lambda x: klass._pjrmi_inst.get_constructor(klass, arg_types=x)
+            def gettor(x):
+                return klass._pjrmi_inst.get_constructor(klass, arg_types=x)
         else:
-            gettor = lambda x: klass._pjrmi_inst.get_bound_method(self, arg_types=x)
+            def gettor(x):
+                return klass._pjrmi_inst.get_bound_method(self, arg_types=x)
 
         if key is None:
             # No arguments, represents an empty sequence
@@ -7290,7 +7300,7 @@ class _JavaMethod:
             return gettor(None)
         else:
             # Given something explicit, tupleize it if needbe
-            if not type(key) in (tuple, list):
+            if type(key) not in (tuple, list):
                 key = (key,)
             return gettor(key)
 

@@ -225,25 +225,6 @@ public abstract class PJRmi
              * {@inheritDoc}
              */
             @Override
-            public boolean tryLock(final boolean isExclusive,
-                                   final long time,
-                                   final TimeUnit unit)
-                throws InterruptedException
-            {
-                if (isExclusive) {
-                    return super.tryLock(time, unit);
-                }
-                else {
-                    throw new UnsupportedOperationException(
-                        "Shared locks not supported"
-                    );
-                }
-            }
-
-            /**
-             * {@inheritDoc}
-             */
-            @Override
             public void unlock(final boolean isExclusive)
             {
                 if (isExclusive) {

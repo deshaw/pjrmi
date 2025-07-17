@@ -888,23 +888,6 @@ public class LockManager
         public boolean tryLock(final boolean isExclusive);
 
         /**
-         * Attempt to acquire this lock in an exclusive or shared manner, within
-         * the specified time limit.
-         *
-         * @param isExclusive  Whether the lock should be acquired exclusively.
-         * @param time         How long to wait before timing out.
-         * @param unit         The units of {@code time}.
-         *
-         * @return whether the lock was acquired.
-         *
-         * @throws InterruptedException if the acquisition was interrupted.
-         */
-        public boolean tryLock(final boolean isExclusive,
-                               final long time,
-                               final TimeUnit unit)
-            throws InterruptedException;
-
-        /**
          * Release a lock.
          *
          * @param isExclusive  Whether to release a lock which was acquired
@@ -1153,28 +1136,6 @@ public class LockManager
             }
             else {
                 if (readLock().tryLock()) {
-                    return true;
-                }
-                else {
-                    return false;
-                }
-            }
-        }
-
-        /**
-         * {@inheritDoc}
-         */
-        @Override
-        public boolean tryLock(final boolean isExclusive,
-                               final long time,
-                               final TimeUnit unit)
-            throws InterruptedException
-        {
-            if (isExclusive) {
-                return writeLock().tryLock(time, unit);
-            }
-            else {
-                if (readLock().tryLock(time, unit)) {
                     return true;
                 }
                 else {
@@ -1846,6 +1807,9 @@ public class LockManager
      * @param unit         The units of {@code time}.
      *
      * @return whether the lock was successfully acquired.
+     *
+     * @throws InterruptedException if the thread was interrupted while waiting
+     *                              to acquire the lock.
      */
     private boolean tryLock(final LockManagerLock lock,
                             final boolean isExclusive,
@@ -1854,90 +1818,68 @@ public class LockManager
     {
         final String how = isExclusive ? "exclusive" : "shared";
         final long start = ourTryLockTUInstr.start();
+
         try {
-            // By whom
-            final Thread me = currentThread();
-
-            // Acquire under the global lock
-            synchronized(this) {
-                // For the developers out there
-                if (getLogger().isLoggable(Level.FINEST)) {
-                    getLogger().log(
-                        Level.FINEST,
-                        "Looking to acquire " + how + " " + lock,
-                        new Throwable("Call tree")
-                    );
-                }
-                else if (getLogger().isLoggable(Level.FINER)) {
-                    getLogger().finer("Looking to acquire " + how + " " + lock);
-                }
-
-                // If we're already holding the lock then it's trivial. It's
-                // _important_ that we make this check since we mustn't add this
-                // lock-and-thread pair to the state more than once.
-                if (lock.isHeldByCurrentThread(isExclusive)) {
-                    // Just lock it again and we're done
-                    if (getLogger().isLoggable(Level.FINER)) {
-                        getLogger().finer("Already holding " + how + " " + lock);
-                    }
-                    lock.lock(isExclusive);
-                    return true;
-                }
-
-                // Attempt to acquire it, this can never result in deadlock if
-                // no-one else is holding it
-                if (!lock.tryLock(isExclusive, time, unit)) {
-                    if (getLogger().isLoggable(Level.FINER)) {
-                        getLogger().finer(
-                            "Failed to acquire " + how + " " + lock + " " +
-                            "after " + time + " " + unit + (time == 1 ? "" : "s")
-                        );
-                    }
-                    return false;
-                }
-                else if (getLogger().isLoggable(Level.FINER)) {
-                    getLogger().finer("Acquired " + lock);
-                }
-
-                // Since we acquired it we need to update our lock state
-                ColouredList<LockManagerLock> locks = myThreadToLocks.get(me);
-                if (locks == null) {
-                    locks = new ColouredList<>(4);
-                    myThreadToLocks.put(me, locks);
-                }
-                locks.add(lock);
-                lock .addLocker(me, true, isExclusive);
-                if (getLogger().isLoggable(Level.FINER)) {
-                    getLogger().finer(
-                        "Thread '" + me.getName() + "' now holds " +
-                        locks.size() + " lock(s):"
-                    );
-                    for (LockManagerLock l : locks) {
-                        getLogger().finer("  " + l);
-                    }
-                }
-
-                // Log information if the lock wants us to
-                if (LOG.isLoggable(lock.getLogLevel())) {
-                    LOG.log(lock.getLogLevel(),
-                            "Thread '" + me.getName() + "' acquired " +
-                            how + " " + lock,
-                            new Throwable());
-                }
-
-                // Log each time we seem to have a "lot" of locks
-                if (getLogger().isLoggable(Level.FINE) && (locks.size() % 25) == 0) {
-                    getLogger().log(
-                        Level.FINE,
-                        "Thread '" + me.getName() + "' now holds " +
-                        locks.size() + " lock(s): ",
-                        new Throwable()
-                    );
-                }
+            // Do a speculative try first, before we fall into the retrying
+            // logic below
+            if (tryLock(lock, isExclusive)) {
+                return true;
             }
 
-            // Got it
-            return true;
+            // If we didn't get it above and our timeout is never going to be
+            // hit then we're done, and we failed
+            final long timeNs = unit.toNanos(time);
+            if (timeNs <= 0) {
+                return false;
+            }
+
+            // We want to sleep between attempts to retry the lock acquision
+            // below, so as not to thrash the lock manager. This is a bit of a
+            // heuristic which we base off the timeout. We'll assume that if
+            // folks are willing to wait for a while then sleeping for longer is
+            // okay. 999999 is the maximum allowed number for the nanos argument
+            // and is almost a millisecond, which seems like a good maximum.
+            //
+            // If this turns out not to be responsive enough for people then we
+            // can add a queue-set of "triers" to the LockManagerLock instance
+            // and push this thread onto it while its waiting. Any threads which
+            // unlock() can wake it up and, if it's successful, it remove itself
+            // from the "triers". We can use LockSupport's park() and unpark()
+            // for the sleeping and waking.
+            final int sleepNs =
+                (int)Math.max(Math.min(timeNs, 100),
+                              Math.min(999999, timeNs / 10));
+
+            // Since we failed to speculatively get the lock above we need to
+            // keep retrying. We do this by going around and around since we
+            // need to hold the lock manager's lock while attempting to acquire
+            // the lock's lock. If we block in this we may deadlock the
+            // application.
+            final long untilNs = System.nanoTime() + timeNs;
+            do {
+                // Wait for a while and then try again. Note that this means we
+                // could, in theory, acquire the lock after going past out
+                // "time" limit. However, we assume that users care more about
+                // actually getting the lock than they do about being strict
+                // about the time limit. (The idea being that the time limit is
+                // mostly saying, "Don't wait forever".)
+                Thread.sleep(0, sleepNs);
+                if (tryLock(lock, isExclusive)) {
+                    return true;
+                }
+            }
+            while (System.nanoTime() < untilNs);
+
+            // If we fell out the bottom of the while loop then we didn't get
+            // the lock
+            if (getLogger().isLoggable(Level.FINER)) {
+                getLogger().finer(
+                    "Failed to acquire " + how + " " +
+                    lock + " after " + time + " " +
+                    unit + (time == 1 ? "" : "s")
+                );
+            }
+            return false;
         }
         finally {
             ourTryLockTUInstr.end(start);

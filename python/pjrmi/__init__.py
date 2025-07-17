@@ -7481,7 +7481,7 @@ class _JavaObject:
 class _JavaLock:
     """
     The way we hold the PJRmi locks. These are (generally) named locks which the
-    various python instances use to coordinate between themselves.
+    various Python instances use to coordinate between themselves.
 
     It is safe (and cheap) to acquire this lock multiple times from the same
     Python instance.
@@ -7492,6 +7492,18 @@ class _JavaLock:
 
     >> with lock:
     >>     do stuff...
+
+    Notes:
+     - All Python Threads in the same Python instance are viewed as a same
+       logical thread from the perspective of these locks. As such, these locks
+       should _not_ be used for coordinating inside a Python instance.
+     - Because the LockManager class has its own internal native Java locking,
+       and because it's used by PJRmi's GlobalLock (which will be held during
+       method calls), trying to invoke locking methods on its Lock instances
+       from Python as method calls could result in deadlocks. From within Python
+       folks should be using these `_JavaLock` instances, since they understand
+       the threading model (and won't attempt to acquire the PJRmi GlobalLock as
+       part of their locking/unlocking invocations).
     """
 
     def __init__(self, rmi: PJRmi, name: str) -> None:

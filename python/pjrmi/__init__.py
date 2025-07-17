@@ -7146,6 +7146,14 @@ class _ClassGetter:
         return result
 
 
+    def __call__(self, *args, **kwargs):
+        """
+        A handler in the event that someone attempts to use an unresolved
+        class name, for example ``javaclass.java.lang.Strong(...)``.
+        """
+        raise TypeError(f"'{'.'.join(self._parts)}' is not a resolved class")
+
+
     def __repr__(self):
         return "<Class lookup namespace '%s'>" % '.'.join(self._parts)
 

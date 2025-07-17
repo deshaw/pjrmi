@@ -1,8 +1,9 @@
 /**
- * @file pjrmi.C Implementations of useful array methods for PJRmi.
+ * @file pjrmi.cpp Implementations of useful array methods for PJRmi.
  */
 
 #include <iostream>
+#include <cstdint>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>

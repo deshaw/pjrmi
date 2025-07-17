@@ -227,7 +227,15 @@ public class PythonMinionProvider
                                  final String  stdoutFilename,
                                  final String  stderrFilename,
                                  final boolean useShmArgPassing)
+        throws IllegalArgumentException
     {
+        if (useShmArgPassing && !JniPJRmi.isAvailable()) {
+            throw new IllegalArgumentException(
+                "SHM arg passing was requested but is not available; " +
+                "is the " + JniPJRmi.LIBRARY_NAME + " shared library loaded?"
+            );
+        }
+
         myStdinFilename  = stdinFilename;
         myStdoutFilename = stdoutFilename;
         myStderrFilename = stderrFilename;

@@ -13,6 +13,11 @@ import java.util.logging.Logger;
 public class JniPJRmi
 {
     /**
+     * The name of the library.
+     */
+    /*package*/ static final String LIBRARY_NAME = "pjrmijni";
+
+    /**
      * Standard logger.
      */
     private static final Logger LOG = Logger.getLogger("com.deshaw.pjrmi.JniPJRmi");
@@ -23,16 +28,15 @@ public class JniPJRmi
     private static final boolean ourLoadedLibrary;
     static {
         // Attempt to load in the JNI code
-        final String library = "pjrmijni";
-        boolean      loaded  = false;
+        boolean loaded = false;
         try {
-            System.loadLibrary(library);
+            System.loadLibrary(LIBRARY_NAME);
             loaded = true;
         }
         catch (SecurityException | UnsatisfiedLinkError e) {
             final String libraryPath =
                 ManagementFactory.getRuntimeMXBean().getLibraryPath();
-            LOG.warning("Unable to load library " + library + " " +
+            LOG.warning("Unable to load library " + LIBRARY_NAME + " " +
                         "using library path " + libraryPath + ": " + e);
         }
 
@@ -41,11 +45,11 @@ public class JniPJRmi
     }
 
     /**
-     * Private constructor to prevent instantiation of a JniPJRmi
-     * object.
+     * Private constructor to prevent instantiation of a JniPJRmi object.
      */
     private JniPJRmi()
     {
+        // Nothing
     }
 
     /**

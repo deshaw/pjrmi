@@ -58,6 +58,8 @@ implementations are:
 -   [jpype](https://pypi.org/project/JPype1/) is another in-process
     implementation. Since it also uses internal C-based handoff it's highly
     performant.
+-   [PyJNIus](https://github.com/kivy/pyjnius) is another implementation which
+    accesses Java classes using JNI.
 
 As well as the feature sets of the above, PJRmi supports complex Java
 constructs, has smooth integration of the two languages' type systems, and can

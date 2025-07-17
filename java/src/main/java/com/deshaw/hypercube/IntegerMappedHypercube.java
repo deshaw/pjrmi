@@ -18,6 +18,7 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.Path;
 
@@ -54,6 +55,18 @@ public class IntegerMappedHypercube
     private static final long MAX_BUFFER_MASK = MAX_BUFFER_SIZE - 1;
 
     /**
+     * Read-only open options.
+     */
+    private static final OpenOption[] READ_ONLY =
+        new OpenOption[] { StandardOpenOption.READ };
+
+    /**
+     * Read-write open options.
+     */
+    private static final OpenOption[] READ_WRITE =
+        new OpenOption[] { StandardOpenOption.READ, StandardOpenOption.WRITE };
+
+    /**
      * The array of buffers which we hold as the underlying
      * {@link MappedByteBuffer}.
      */
@@ -75,8 +88,20 @@ public class IntegerMappedHypercube
                IOException,
                NullPointerException
     {
-        this(FileChannel.open(Path.of(path),
-                              StandardOpenOption.READ, StandardOpenOption.WRITE),
+        this(path, false, dimensions);
+    }
+
+    /**
+     * Constructor.
+     */
+    public IntegerMappedHypercube(final String path,
+                                        final boolean readonly,
+                                        final Dimension<?>[] dimensions)
+        throws IllegalArgumentException,
+               IOException,
+               NullPointerException
+    {
+        this(FileChannel.open(Path.of(path), readonly ? READ_ONLY : READ_WRITE),
              dimensions);
     }
 
@@ -465,4 +490,4 @@ public class IntegerMappedHypercube
     }
 }
 
-// [[[end]]] (checksum: 4aec1ff0006433e815dfade8c049f5b9)
+// [[[end]]] (checksum: 03ac52906b16109618d7583463321878)

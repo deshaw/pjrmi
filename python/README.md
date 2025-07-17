@@ -130,27 +130,6 @@ And you can treat the Java objects much like Python ones:
     >>> 1 in a
     True
 
-The `hypercube` package supports `ndarray`-like Java classes, as well as
-providing a subset of `numpy` math library operations. Hypercubes also duck-type
-as `ndarray`s in Python:
-
-    >>> DoubleArrayHypercube = c.class_for_name('com.deshaw.hypercube.DoubleArrayHypercube')
-    >>> Dimension            = c.class_for_name('com.deshaw.hypercube.Dimension')
-    >>> CubeMath             = c.class_for_name('com.deshaw.hypercube.CubeMath')
-    >>> dac = DoubleArrayHypercube(Dimension.of((3,3,3)))
-    >>> dac.reshape((27,))[:] = tuple(range(27))
-    >>> dac[0]
-    DoubleSlicedHypercube([ [0.0, 1.0, 2.0] ,
-                            [3.0, 4.0, 5.0] ,
-                            [6.0, 7.0, 8.0] ])
-    >>> numpy.sum(dac)
-    351.0
-    >>> CubeMath.sum(dac)
-    351.0
-
-These are covered in more detail in the Jupyter
-[notebook](python/tests/hypercube.ipynb).
-
 
 ## Accessing Existing Object Instances
 
@@ -572,6 +551,69 @@ In Java, set the `useShmArgPassing` flag to `true` when spawning the
    5                                                                       myStderrFilename,
    6                                                                       true)
 ```
+
+
+## NumPy Support
+
+PJRmi provides a NumPy library for Java, supporting most of the main operators
+found in the Python `numpy` module. The `Hypercube` and `CubeMath` classes are
+the Java equivalents of Python's `ndarray` and `numpy`. In addition to the brief
+overview below, a much deeper dive can be found in the Jupyter
+[notebook](python/tests/hypercube.ipynb).
+
+`Hypercube`s and the `CubeMath` library are designed to be interchangeable with
+their Python equivalents when used from the Python interpreter. As with the
+general PJRmi philosophy, moving code between the two languages should be
+relatively simple to do. From the Python side, all the syntactic sugar works
+much as one would expect:
+
+    >>> DoubleArrayHypercube = c.class_for_name('com.deshaw.hypercube.DoubleArrayHypercube')
+    >>> Dimension            = c.class_for_name('com.deshaw.hypercube.Dimension')
+    >>> CubeMath             = c.class_for_name('com.deshaw.hypercube.CubeMath')
+    >>> dac = DoubleArrayHypercube(Dimension.of((3,3,3)))
+    >>> dac.reshape((27,))[:] = tuple(range(27))
+    >>> dac[0]
+    DoubleSlicedHypercube([ [0.0, 1.0, 2.0] ,
+                            [3.0, 4.0, 5.0] ,
+                            [6.0, 7.0, 8.0] ])
+    >>> numpy.sum(dac)
+    351.0
+    >>> CubeMath.sum(dac)
+    351.0
+
+Both `numpy` and `hypercube` support using a shared memory file as backing
+store, typically via a `tmpfs` filesystem. This allows for no-copy access
+between the Java and Python sides, with operations on one instance being
+reflected in the other.
+
+     >>> marray = numpy.memmap('/dev/shm/example.dat',
+     ...                       dtype = numpy.float64, mode = 'w+',
+     ...                       shape = (3,3), order = 'C')
+     >>> mcube  = DoubleMappedHypercube('/dev/shm/example.dat',
+     ...                                Dimension.of((3,3)))
+     >>> marray
+     memmap([[0., 0., 0.],
+             [0., 0., 0.],
+             [0., 0., 0.]])
+     >>> mcube
+     DoubleMappedHypercube([ [0.0, 0.0, 0.0] ,
+                             [0.0, 0.0, 0.0] ,
+                             [0.0, 0.0, 0.0] ])
+     >>> marray += 1
+     >>> mcube
+     DoubleMappedHypercube([ [1.0, 1.0, 1.0] ,
+                             [1.0, 1.0, 1.0] ,
+                             [1.0, 1.0, 1.0] ])
+     >>> mcube -= 2
+     >>> marray
+     memmap([[-1., -1., -1.],
+             [-1., -1., -1.],
+             [-1., -1., -1.]])
+
+The `CubeMath` library provides reasonably comparable performance to many of the
+equivalent operations in `numpy`. In some cases it's slower, in some it's
+faster; the `hypercube` code is designed to allow users to move between the two
+languages without any surprises.
 
 
 ## Dynamic Java Source Injection

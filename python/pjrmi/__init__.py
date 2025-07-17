@@ -482,28 +482,32 @@ class PJRmi:
 
         # Other utility classes. Defined after we have set up the boxes since
         # their deserialisation might depend on those boxes.
-        self._java_lang_AutoCloseable               = self.class_for_name('java.lang.AutoCloseable')
-        self._java_lang_NoSuchFieldException        = self.class_for_name('java.lang.NoSuchFieldException')
-        self._java_lang_NoSuchMethodException       = self.class_for_name('java.lang.NoSuchMethodException')
-        self._java_util_NoSuchElementException      = self.class_for_name('java.util.NoSuchElementException')
-        self._java_util_function_Function           = self.class_for_name('java.util.function.Function')
-        self._java_util_function_BiFunction         = self.class_for_name('java.util.function.BiFunction')
-        self._com_deshaw_hypercube_Hypercube        = self.class_for_name('com.deshaw.hypercube.Hypercube')
-        self._com_deshaw_pjrmi_JavaProxyBase        = self.class_for_name('com.deshaw.pjrmi.JavaProxyBase')
-        self._com_deshaw_pjrmi_PythonObject         = self.class_for_name('com.deshaw.pjrmi.PythonObject')
-        self._com_deshaw_pjrmi_PythonFunction       = self.class_for_name('com.deshaw.pjrmi.PythonFunction')
-        self._com_deshaw_pjrmi_PythonKwargsFunction = self.class_for_name('com.deshaw.pjrmi.PythonKwargsFunction')
-        self._com_deshaw_pjrmi_PythonSlice          = self.class_for_name('com.deshaw.pjrmi.PythonSlice')
-        self._L_java_lang_boolean                   = self.class_for_name('[Z')
-        self._L_java_lang_char                      = self.class_for_name('[C')
-        self._L_java_lang_byte                      = self.class_for_name('[B')
-        self._L_java_lang_short                     = self.class_for_name('[S')
-        self._L_java_lang_int                       = self.class_for_name('[I')
-        self._L_java_lang_long                      = self.class_for_name('[J')
-        self._L_java_lang_float                     = self.class_for_name('[F')
-        self._L_java_lang_double                    = self.class_for_name('[D')
-        self._L_java_lang_Object                    = self.class_for_name('[Ljava.lang.Object;')
-        self._L_java_lang_String                    = self.class_for_name('[Ljava.lang.String;')
+        self._java_lang_AutoCloseable                     = self.class_for_name('java.lang.AutoCloseable')
+        self._java_lang_NoSuchFieldException              = self.class_for_name('java.lang.NoSuchFieldException')
+        self._java_lang_NoSuchMethodException             = self.class_for_name('java.lang.NoSuchMethodException')
+        self._java_util_NoSuchElementException            = self.class_for_name('java.util.NoSuchElementException')
+        self._java_util_function_Function                 = self.class_for_name('java.util.function.Function')
+        self._java_util_function_BiFunction               = self.class_for_name('java.util.function.BiFunction')
+        self._com_deshaw_hypercube_DoubleMappedHypercube  = self.class_for_name('com.deshaw.hypercube.DoubleMappedHypercube')
+        self._com_deshaw_hypercube_FloatMappedHypercube   = self.class_for_name('com.deshaw.hypercube.FloatMappedHypercube')
+        self._com_deshaw_hypercube_Hypercube              = self.class_for_name('com.deshaw.hypercube.Hypercube')
+        self._com_deshaw_hypercube_IntegerMappedHypercube = self.class_for_name('com.deshaw.hypercube.IntegerMappedHypercube')
+        self._com_deshaw_hypercube_LongMappedHypercube    = self.class_for_name('com.deshaw.hypercube.LongMappedHypercube')
+        self._com_deshaw_pjrmi_JavaProxyBase              = self.class_for_name('com.deshaw.pjrmi.JavaProxyBase')
+        self._com_deshaw_pjrmi_PythonObject               = self.class_for_name('com.deshaw.pjrmi.PythonObject')
+        self._com_deshaw_pjrmi_PythonFunction             = self.class_for_name('com.deshaw.pjrmi.PythonFunction')
+        self._com_deshaw_pjrmi_PythonKwargsFunction       = self.class_for_name('com.deshaw.pjrmi.PythonKwargsFunction')
+        self._com_deshaw_pjrmi_PythonSlice                = self.class_for_name('com.deshaw.pjrmi.PythonSlice')
+        self._L_java_lang_boolean                         = self.class_for_name('[Z')
+        self._L_java_lang_char                            = self.class_for_name('[C')
+        self._L_java_lang_byte                            = self.class_for_name('[B')
+        self._L_java_lang_short                           = self.class_for_name('[S')
+        self._L_java_lang_int                             = self.class_for_name('[I')
+        self._L_java_lang_long                            = self.class_for_name('[J')
+        self._L_java_lang_float                           = self.class_for_name('[F')
+        self._L_java_lang_double                          = self.class_for_name('[D')
+        self._L_java_lang_Object                          = self.class_for_name('[Ljava.lang.Object;')
+        self._L_java_lang_String                          = self.class_for_name('[Ljava.lang.String;')
 
         # Spawn a receiver thread, if any
         if (self._flags & self._FLAG_USE_WORKERS != 0):
@@ -3611,6 +3615,37 @@ public class TestInjectSource {
                 return (self._ARGUMENT_VALUE +
                         self._format_int32(klass._type_id) +
                         self._format_int32(self._get_object_id(value)))
+
+            elif (klass._type_id == self._com_deshaw_hypercube_Hypercube._type_id and
+                  type(value) is numpy.memmap and
+                  value.dtype in (numpy.float32, numpy.float64,
+                                  numpy.int32,   numpy.int64) and
+                  value.flags.c_contiguous and
+                  self._transport.is_localhost() and os.path.exists(value.filename)):
+                # This is a memory-mapped array which we can most probably
+                # memory map on the Java side:
+                #  - It's memmap instance
+                #  - It's of a mappable type
+                #  - It's C-ordered in memory
+                #  - We're on localhost and can see the file
+                # Note that this isn't perfect since we can't guarantee that the
+                # Java process can actually read the file. However, we expect
+                # that it should be okay in 99% of all cases, and fixable in
+                # cases where it's not. This is a very corner case optimization
+                # anyhow.
+                if value.dtype   == numpy.int32:
+                    type_id = self._com_deshaw_hypercube_IntegerMappedHypercube._type_id
+                elif value.dtype == numpy.int64:
+                    type_id = self._com_deshaw_hypercube_LongMappedHypercube._type_id
+                elif value.dtype == numpy.float32:
+                    type_id = self._com_deshaw_hypercube_FloatMappedHypercube._type_id
+                elif value.dtype == numpy.float64:
+                    type_id = self._com_deshaw_hypercube_DoubleMappedHypercube._type_id
+                return (self._ARGUMENT_VALUE +
+                        self._format_int32(type_id) +
+                        self._format_by_class(self._L_java_lang_long, value.shape) +
+                        self._format_boolean(value.mode.startswith('r')) +
+                        self._format_utf16(value.filename))
 
             elif (klass._type_id == self._com_deshaw_hypercube_Hypercube._type_id and
                   (type(value) is numpy.ndarray or hasattr(value, '__iter__'))):

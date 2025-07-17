@@ -1,11 +1,16 @@
 package com.deshaw.pjrmi;
 
 import com.deshaw.hypercube.BooleanHypercube;
+import com.deshaw.hypercube.Dimension;
 import com.deshaw.hypercube.DoubleHypercube;
+import com.deshaw.hypercube.DoubleMappedHypercube;
 import com.deshaw.hypercube.FloatHypercube;
+import com.deshaw.hypercube.FloatMappedHypercube;
 import com.deshaw.hypercube.Hypercube;
 import com.deshaw.hypercube.IntegerHypercube;
+import com.deshaw.hypercube.IntegerMappedHypercube;
 import com.deshaw.hypercube.LongHypercube;
+import com.deshaw.hypercube.LongMappedHypercube;
 import com.deshaw.io.BlockingPipe;
 import com.deshaw.python.DType;
 import com.deshaw.python.Operations;
@@ -6749,6 +6754,48 @@ public abstract class PJRmi
                         (sliceStep  != null) ? ((Number)sliceStep ).longValue() : null
                     );
                 }
+                else if (typeDesc.getName().equals("com.deshaw.hypercube.IntegerMappedHypercube") ||
+                         typeDesc.getName().equals("com.deshaw.hypercube.LongMappedHypercube"   ) ||
+                         typeDesc.getName().equals("com.deshaw.hypercube.FloatMappedHypercube"  ) ||
+                         typeDesc.getName().equals("com.deshaw.hypercube.DoubleMappedHypercube" ))
+                {
+                    // We can create these on the fly. We just need the shape
+                    // and the filename.
+                    final ReadObjectResult ror = readObject(bytes, offset);
+                    offset = ror.offset;
+                    final Object shape = ror.object;
+                    final boolean readonly = bytes.getBoolean(offset++);
+                    final int count = bytes.getInt(offset);
+                    offset += Integer.BYTES;
+                    final byte[] buffer = getByteArray(count);
+                    for (int i=0; i < count; i++) {
+                        buffer[i] = bytes.get(offset++);
+                    }
+                    final String filename = new String(buffer, 0, count, "UTF-16");
+                    final Dimension<?>[] dimensions = Dimension.of((long[])shape);
+
+                    // Now we can create the appropriate cube
+                    final Hypercube<?> cube;
+                    if (typeDesc.getName().equals("com.deshaw.hypercube.IntegerMappedHypercube")) {
+                        result = new IntegerMappedHypercube(filename, readonly, dimensions);
+                    }
+                    else if (typeDesc.getName().equals("com.deshaw.hypercube.LongMappedHypercube")) {
+                        result = new LongMappedHypercube(filename, readonly, dimensions);
+                    }
+                    else if (typeDesc.getName().equals("com.deshaw.hypercube.FloatMappedHypercube")) {
+                        result = new FloatMappedHypercube(filename, readonly, dimensions);
+                    }
+                    else if (typeDesc.getName().equals("com.deshaw.hypercube.DoubleMappedHypercube")) {
+                        result = new DoubleMappedHypercube(filename, readonly, dimensions);
+                    }
+                    else {
+                        // Catch if the if clauses above get out of sync with
+                        // the outer one
+                        throw new IllegalStateException(
+                            "Unhandled type: " + typeDesc.getName()
+                        );
+                    }
+                }
                 else if (typeDesc.getName().equals("com.deshaw.hypercube.Hypercube")) {
                     // We have a basic understanding for certain types of
                     // hypercube. In the future we will add code to allow the
@@ -9010,7 +9057,6 @@ public abstract class PJRmi
                 "com.deshaw.hypercube.BooleanBitSetHypercube",
                 "com.deshaw.hypercube.BooleanFlatRolledHypercube",
                 "com.deshaw.hypercube.BooleanHypercube",
-                "com.deshaw.hypercube.BooleanMappedHypercube",
                 "com.deshaw.hypercube.BooleanMaskedHypercube",
                 "com.deshaw.hypercube.BooleanSlicedHypercube",
                 "com.deshaw.hypercube.BooleanWrappingHypercube",

@@ -115,6 +115,68 @@ public interface IntegerHypercube
     }
 
     /**
+     * Give back a dense {@code int} hypercube of the given shape.
+     */
+    public static IntegerHypercube of(final long... shape)
+    {
+        return new IntegerArrayHypercube(Dimension.of(shape));
+    }
+
+    /**
+     * Create a {@code int} hypercube of the given shape wrapped
+     * around the given array.
+     */
+    public static IntegerHypercube wrap(final int[] array,
+                                              final long... shape)
+    {
+        return IntegerArrayHypercube.wrap(array, shape);
+    }
+
+    /**
+     * Wrap a {@code int} hypercube around the given 1D array.
+     */
+    public static IntegerHypercube wrap(final int[] array)
+    {
+        return new Integer1dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code int} hypercube around the given homogenous
+     * 2D array.
+     */
+    public static IntegerHypercube wrap(final int[][] array)
+    {
+        return new Integer2dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code int} hypercube around the given homogenous
+     * 3D array.
+     */
+    public static IntegerHypercube wrap(final int[][][] array)
+    {
+        return new Integer3dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code int} hypercube around the given homogenous
+     * 4D array.
+     */
+    public static IntegerHypercube wrap(final int[][][][] array)
+    {
+        return new Integer4dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code int} hypercube around the given homogenous
+     * 5D array.
+     */
+    public static IntegerHypercube wrap(final int[][][][][] array)
+    {
+        return new Integer5dWrappingHypercube(array);
+    }
+
+    /**
      * Returns a new reference to self.
      *
      * <p>This mimics the {@code ndarray.__array__} semantics, but in the Java
@@ -124,6 +186,41 @@ public interface IntegerHypercube
     {
         return this;
     }
+
+    /**
+     * Write out a int as little endian.
+     */
+    private static void writeLittleEndian(final DataOutputStream os,
+                                          final int v)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        buf.putInt(0, v);
+        os.write(buf.array(), 0, Integer.BYTES);
+    }
+
+    /**
+     * Read out a int as little endian.
+     */
+    private static int readLittleEndian(final DataInputStream is)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        is.read(buf.array(), 0, Integer.BYTES);
+        return buf.getInt(0);
+    }
+
+    /**
+     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
+     * Declared {@code public} because Java...
+     */
+    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
+        ThreadLocal.withInitial(
+            () -> ByteBuffer.allocate(Integer.BYTES)
+                            .order(ByteOrder.LITTLE_ENDIAN)
+        );
+
+    // -------------------------------------------------------------------------
 
     /**
      * Returns either a new reference to self if dtype is the same as the class of
@@ -229,79 +326,6 @@ public interface IntegerHypercube
             );
         }
     }
-
-    /**
-     * Wrap a {@code int} hypercube around the given 1D array.
-     */
-    public static IntegerHypercube wrap(final int[] array)
-    {
-        return new Integer1dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code int} hypercube around the given 2D array.
-     */
-    public static IntegerHypercube wrap(final int[][] array)
-    {
-        return new Integer2dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code int} hypercube around the given 3D array.
-     */
-    public static IntegerHypercube wrap(final int[][][] array)
-    {
-        return new Integer3dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code int} hypercube around the given 4D array.
-     */
-    public static IntegerHypercube wrap(final int[][][][] array)
-    {
-        return new Integer4dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code int} hypercube around the given 5D array.
-     */
-    public static IntegerHypercube wrap(final int[][][][][] array)
-    {
-        return new Integer5dWrappingHypercube(array);
-    }
-
-    /**
-     * Write out a int as little endian.
-     */
-    private static void writeLittleEndian(final DataOutputStream os,
-                                          final int v)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        buf.putInt(0, v);
-        os.write(buf.array(), 0, Integer.BYTES);
-    }
-
-    /**
-     * Read out a int as little endian.
-     */
-    private static int readLittleEndian(final DataInputStream is)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        is.read(buf.array(), 0, Integer.BYTES);
-        return buf.getInt(0);
-    }
-
-    /**
-     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
-     * Declared {@code public} because Java...
-     */
-    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
-        ThreadLocal.withInitial(
-            () -> ByteBuffer.allocate(Integer.BYTES)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-        );
 
     // -------------------------------------------------------------------------
 
@@ -2018,4 +2042,4 @@ public interface IntegerHypercube
     }
 }
 
-// [[[end]]] (checksum: a7237194ca50dc7a65a6549b8d1cb169)
+// [[[end]]] (checksum: 3dcdac2f59a82fc7e65efba68e0e407a)

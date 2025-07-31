@@ -37,6 +37,15 @@ public class LongSparseHypercube
 
     // ----------------------------------------------------------------------
 
+    /**
+     * Give back a sparse {@code long} hypercube of the given.
+     * shape.
+     */
+    public static LongHypercube of(final long... shape)
+    {
+        return new LongSparseHypercube(Dimension.of(shape));
+    }
+
     // Some simple mapping functions; named like this for ease of cogging.
     // They should be trivially inlined by the JVM.
 
@@ -376,4 +385,4 @@ public class LongSparseHypercube
     }
 }
 
-// [[[end]]] (checksum: 7a350fa0843e68d345288b73f991909a)
+// [[[end]]] (checksum: e2b3cc93514dd60e9fca519e63069130)

@@ -37,6 +37,15 @@ public class DoubleSparseHypercube
 
     // ----------------------------------------------------------------------
 
+    /**
+     * Give back a sparse {@code double} hypercube of the given.
+     * shape.
+     */
+    public static DoubleHypercube of(final long... shape)
+    {
+        return new DoubleSparseHypercube(Dimension.of(shape));
+    }
+
     // Some simple mapping functions; named like this for ease of cogging.
     // They should be trivially inlined by the JVM.
 
@@ -376,4 +385,4 @@ public class DoubleSparseHypercube
     }
 }
 
-// [[[end]]] (checksum: 6964036f7c30bb688a264bdaee78e935)
+// [[[end]]] (checksum: a9b600661ba0cb096230fe856eb3913c)

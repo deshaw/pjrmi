@@ -37,6 +37,15 @@ public class IntegerSparseHypercube
 
     // ----------------------------------------------------------------------
 
+    /**
+     * Give back a sparse {@code int} hypercube of the given.
+     * shape.
+     */
+    public static IntegerHypercube of(final long... shape)
+    {
+        return new IntegerSparseHypercube(Dimension.of(shape));
+    }
+
     // Some simple mapping functions; named like this for ease of cogging.
     // They should be trivially inlined by the JVM.
 
@@ -376,4 +385,4 @@ public class IntegerSparseHypercube
     }
 }
 
-// [[[end]]] (checksum: 3d8873b2296eb051953ae2204af134ed)
+// [[[end]]] (checksum: 7bbe73ac37a49c64b1fc82413871e8bb)

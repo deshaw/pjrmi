@@ -55,6 +55,55 @@ public class IntegerArrayHypercube
     private final int[] myElements0;
 
     /**
+     * Give back a dense 1D {@code int} hypercube of the which
+     * directly wraps the given array. No copying is done.
+     *
+     * @throws IllegalArgumentException if the array is too big to be wrapped.
+     */
+    public static IntegerHypercube wrap(final int[] elements)
+        throws IllegalArgumentException
+    {
+        return wrap(elements, Dimension.of(elements.length));
+    }
+
+    /**
+     * Give back a dense {@code int} hypercube of the given shape
+     * which directly wraps the given array. No copying is done.
+     *
+     * @throws IllegalArgumentException if the array is too big to be wrapped or
+     *                                  the dimensions are inconsistent.
+     */
+    public static IntegerHypercube wrap(final int[] elements,
+                                              final Dimension<?>[] dimensions)
+        throws IllegalArgumentException
+    {
+        return new IntegerArrayHypercube(dimensions, elements, false);
+    }
+
+    /**
+     * Give back a dense {@code int} hypercube of the given shape
+     * which directly wraps the given array. No copying is done.
+     *
+     * @throws IllegalArgumentException if the array is too big to be wrapped or
+     *                                  the dimensions are inconsistent.
+     */
+    public static IntegerHypercube wrap(final int[] elements,
+                                              final long... shape)
+        throws IllegalArgumentException
+    {
+        return new IntegerArrayHypercube(Dimension.of(shape), elements, false);
+    }
+
+    /**
+     * Give back a dense {@code int} hypercube of the given
+     * shape.
+     */
+    public static IntegerHypercube of(final long... shape)
+    {
+        return new IntegerArrayHypercube(Dimension.of(shape));
+    }
+
+    /**
      * Constructor.
      */
     public IntegerArrayHypercube(final Dimension<?>[] dimensions)
@@ -78,7 +127,9 @@ public class IntegerArrayHypercube
     }
 
     /**
-     * Constructor.
+     * Constructor copying from the given elements in flattened form.
+     *
+     * @throws IllegalArgumentException if the dimensions are inconsistent.
      */
     @SuppressWarnings("unchecked")
     public IntegerArrayHypercube(final Dimension<?>[] dimensions,
@@ -112,6 +163,75 @@ public class IntegerArrayHypercube
             myElements[(int)(i >>> MAX_ARRAY_SHIFT)][(int)(i & MAX_ARRAY_MASK)] =
                 (value == null) ? 0
                                 : value.intValue();
+        }
+    }
+
+    /**
+     * Constructor copying from the given elements in flattened form.
+     *
+     * @throws IllegalArgumentException if the dimensions are inconsistent.
+     */
+    @SuppressWarnings("unchecked")
+    public IntegerArrayHypercube(final Dimension<?>[] dimensions,
+                                       final int[] elements)
+        throws IllegalArgumentException,
+               NullPointerException
+    {
+        this(dimensions, elements, true);
+    }
+
+    /**
+     * Constructor from the given elements in flattened form.
+     *
+     * @param dimensions The shape of the cube.
+     * @param elements   The source elements to populate the cube with.
+     * @param copy       Whether to copy out the elements or to directly wrap
+     *                   the instance.
+     *
+     * @throws IllegalArgumentException if the dimensions are inconsistent.
+     */
+    private IntegerArrayHypercube(final Dimension<?>[] dimensions,
+                                        final int[] elements,
+                                        final boolean copy)
+        throws IllegalArgumentException,
+               NullPointerException
+    {
+        super(dimensions);
+
+        if (elements.length != size) {
+            throw new IllegalArgumentException(
+                "Number of elements, " + elements.length + ", " +
+                "does not match expected size, " + size + " " +
+                "for dimensions " + Arrays.toString(dimensions)
+            );
+        }
+
+        int numArrays = (int)(size >>> MAX_ARRAY_SHIFT);
+        if (numArrays * MAX_ARRAY_SIZE < size) {
+            numArrays++;
+        }
+        myElements = new int[numArrays][];
+
+        if (copy) {
+            for (int i=0; i < numArrays; i++) {
+                myElements[i] = allocForIndex(i);
+            }
+            myElements0 = (myElements.length == 0) ? EMPTY : myElements[0];
+
+            // Populate
+            for (int i=0; i < elements.length; i++) {
+                myElements[(int)(i >>> MAX_ARRAY_SHIFT)][(int)(i & MAX_ARRAY_MASK)] =
+                    elements[i];
+            }
+        }
+        else {
+            if (elements.length > MAX_ARRAY_SIZE) {
+                throw new IllegalArgumentException(
+                    "Can't wrap an array of size " + elements.length + " " +
+                    "which is greater than max size of " + MAX_ARRAY_SIZE
+                );
+            }
+            myElements[0] = myElements0 = elements;
         }
     }
 
@@ -484,4 +604,4 @@ public class IntegerArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 917492f3065677cecdb97bec3d95d724)
+// [[[end]]] (checksum: cf3dc56e9d080148289680b63dd45ec2)

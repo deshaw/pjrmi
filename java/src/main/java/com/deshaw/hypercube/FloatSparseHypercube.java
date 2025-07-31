@@ -37,6 +37,15 @@ public class FloatSparseHypercube
 
     // ----------------------------------------------------------------------
 
+    /**
+     * Give back a sparse {@code float} hypercube of the given.
+     * shape.
+     */
+    public static FloatHypercube of(final long... shape)
+    {
+        return new FloatSparseHypercube(Dimension.of(shape));
+    }
+
     // Some simple mapping functions; named like this for ease of cogging.
     // They should be trivially inlined by the JVM.
 
@@ -376,4 +385,4 @@ public class FloatSparseHypercube
     }
 }
 
-// [[[end]]] (checksum: dc88344e8a97605969c6f5982dc162b0)
+// [[[end]]] (checksum: 0693f090df6f63a2e94d7d032f00251e)

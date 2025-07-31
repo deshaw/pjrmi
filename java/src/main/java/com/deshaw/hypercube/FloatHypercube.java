@@ -115,6 +115,68 @@ public interface FloatHypercube
     }
 
     /**
+     * Give back a dense {@code float} hypercube of the given shape.
+     */
+    public static FloatHypercube of(final long... shape)
+    {
+        return new FloatArrayHypercube(Dimension.of(shape));
+    }
+
+    /**
+     * Create a {@code float} hypercube of the given shape wrapped
+     * around the given array.
+     */
+    public static FloatHypercube wrap(final float[] array,
+                                              final long... shape)
+    {
+        return FloatArrayHypercube.wrap(array, shape);
+    }
+
+    /**
+     * Wrap a {@code float} hypercube around the given 1D array.
+     */
+    public static FloatHypercube wrap(final float[] array)
+    {
+        return new Float1dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code float} hypercube around the given homogenous
+     * 2D array.
+     */
+    public static FloatHypercube wrap(final float[][] array)
+    {
+        return new Float2dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code float} hypercube around the given homogenous
+     * 3D array.
+     */
+    public static FloatHypercube wrap(final float[][][] array)
+    {
+        return new Float3dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code float} hypercube around the given homogenous
+     * 4D array.
+     */
+    public static FloatHypercube wrap(final float[][][][] array)
+    {
+        return new Float4dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code float} hypercube around the given homogenous
+     * 5D array.
+     */
+    public static FloatHypercube wrap(final float[][][][][] array)
+    {
+        return new Float5dWrappingHypercube(array);
+    }
+
+    /**
      * Returns a new reference to self.
      *
      * <p>This mimics the {@code ndarray.__array__} semantics, but in the Java
@@ -124,6 +186,41 @@ public interface FloatHypercube
     {
         return this;
     }
+
+    /**
+     * Write out a float as little endian.
+     */
+    private static void writeLittleEndian(final DataOutputStream os,
+                                          final float v)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        buf.putFloat(0, v);
+        os.write(buf.array(), 0, Float.BYTES);
+    }
+
+    /**
+     * Read out a float as little endian.
+     */
+    private static float readLittleEndian(final DataInputStream is)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        is.read(buf.array(), 0, Float.BYTES);
+        return buf.getFloat(0);
+    }
+
+    /**
+     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
+     * Declared {@code public} because Java...
+     */
+    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
+        ThreadLocal.withInitial(
+            () -> ByteBuffer.allocate(Float.BYTES)
+                            .order(ByteOrder.LITTLE_ENDIAN)
+        );
+
+    // -------------------------------------------------------------------------
 
     /**
      * Returns either a new reference to self if dtype is the same as the class of
@@ -229,79 +326,6 @@ public interface FloatHypercube
             );
         }
     }
-
-    /**
-     * Wrap a {@code float} hypercube around the given 1D array.
-     */
-    public static FloatHypercube wrap(final float[] array)
-    {
-        return new Float1dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code float} hypercube around the given 2D array.
-     */
-    public static FloatHypercube wrap(final float[][] array)
-    {
-        return new Float2dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code float} hypercube around the given 3D array.
-     */
-    public static FloatHypercube wrap(final float[][][] array)
-    {
-        return new Float3dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code float} hypercube around the given 4D array.
-     */
-    public static FloatHypercube wrap(final float[][][][] array)
-    {
-        return new Float4dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code float} hypercube around the given 5D array.
-     */
-    public static FloatHypercube wrap(final float[][][][][] array)
-    {
-        return new Float5dWrappingHypercube(array);
-    }
-
-    /**
-     * Write out a float as little endian.
-     */
-    private static void writeLittleEndian(final DataOutputStream os,
-                                          final float v)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        buf.putFloat(0, v);
-        os.write(buf.array(), 0, Float.BYTES);
-    }
-
-    /**
-     * Read out a float as little endian.
-     */
-    private static float readLittleEndian(final DataInputStream is)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        is.read(buf.array(), 0, Float.BYTES);
-        return buf.getFloat(0);
-    }
-
-    /**
-     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
-     * Declared {@code public} because Java...
-     */
-    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
-        ThreadLocal.withInitial(
-            () -> ByteBuffer.allocate(Float.BYTES)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-        );
 
     // -------------------------------------------------------------------------
 
@@ -1952,4 +1976,4 @@ public interface FloatHypercube
     }
 }
 
-// [[[end]]] (checksum: 0344600eec6d4c925412056b2302d004)
+// [[[end]]] (checksum: 11ce0019579e78b98cb611594dc2920c)

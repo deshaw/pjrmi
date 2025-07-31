@@ -115,6 +115,68 @@ public interface LongHypercube
     }
 
     /**
+     * Give back a dense {@code long} hypercube of the given shape.
+     */
+    public static LongHypercube of(final long... shape)
+    {
+        return new LongArrayHypercube(Dimension.of(shape));
+    }
+
+    /**
+     * Create a {@code long} hypercube of the given shape wrapped
+     * around the given array.
+     */
+    public static LongHypercube wrap(final long[] array,
+                                              final long... shape)
+    {
+        return LongArrayHypercube.wrap(array, shape);
+    }
+
+    /**
+     * Wrap a {@code long} hypercube around the given 1D array.
+     */
+    public static LongHypercube wrap(final long[] array)
+    {
+        return new Long1dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code long} hypercube around the given homogenous
+     * 2D array.
+     */
+    public static LongHypercube wrap(final long[][] array)
+    {
+        return new Long2dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code long} hypercube around the given homogenous
+     * 3D array.
+     */
+    public static LongHypercube wrap(final long[][][] array)
+    {
+        return new Long3dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code long} hypercube around the given homogenous
+     * 4D array.
+     */
+    public static LongHypercube wrap(final long[][][][] array)
+    {
+        return new Long4dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code long} hypercube around the given homogenous
+     * 5D array.
+     */
+    public static LongHypercube wrap(final long[][][][][] array)
+    {
+        return new Long5dWrappingHypercube(array);
+    }
+
+    /**
      * Returns a new reference to self.
      *
      * <p>This mimics the {@code ndarray.__array__} semantics, but in the Java
@@ -124,6 +186,41 @@ public interface LongHypercube
     {
         return this;
     }
+
+    /**
+     * Write out a long as little endian.
+     */
+    private static void writeLittleEndian(final DataOutputStream os,
+                                          final long v)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        buf.putLong(0, v);
+        os.write(buf.array(), 0, Long.BYTES);
+    }
+
+    /**
+     * Read out a long as little endian.
+     */
+    private static long readLittleEndian(final DataInputStream is)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        is.read(buf.array(), 0, Long.BYTES);
+        return buf.getLong(0);
+    }
+
+    /**
+     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
+     * Declared {@code public} because Java...
+     */
+    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
+        ThreadLocal.withInitial(
+            () -> ByteBuffer.allocate(Long.BYTES)
+                            .order(ByteOrder.LITTLE_ENDIAN)
+        );
+
+    // -------------------------------------------------------------------------
 
     /**
      * Returns either a new reference to self if dtype is the same as the class of
@@ -229,79 +326,6 @@ public interface LongHypercube
             );
         }
     }
-
-    /**
-     * Wrap a {@code long} hypercube around the given 1D array.
-     */
-    public static LongHypercube wrap(final long[] array)
-    {
-        return new Long1dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code long} hypercube around the given 2D array.
-     */
-    public static LongHypercube wrap(final long[][] array)
-    {
-        return new Long2dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code long} hypercube around the given 3D array.
-     */
-    public static LongHypercube wrap(final long[][][] array)
-    {
-        return new Long3dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code long} hypercube around the given 4D array.
-     */
-    public static LongHypercube wrap(final long[][][][] array)
-    {
-        return new Long4dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code long} hypercube around the given 5D array.
-     */
-    public static LongHypercube wrap(final long[][][][][] array)
-    {
-        return new Long5dWrappingHypercube(array);
-    }
-
-    /**
-     * Write out a long as little endian.
-     */
-    private static void writeLittleEndian(final DataOutputStream os,
-                                          final long v)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        buf.putLong(0, v);
-        os.write(buf.array(), 0, Long.BYTES);
-    }
-
-    /**
-     * Read out a long as little endian.
-     */
-    private static long readLittleEndian(final DataInputStream is)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        is.read(buf.array(), 0, Long.BYTES);
-        return buf.getLong(0);
-    }
-
-    /**
-     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
-     * Declared {@code public} because Java...
-     */
-    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
-        ThreadLocal.withInitial(
-            () -> ByteBuffer.allocate(Long.BYTES)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-        );
 
     // -------------------------------------------------------------------------
 
@@ -2018,4 +2042,4 @@ public interface LongHypercube
     }
 }
 
-// [[[end]]] (checksum: 072a86599f940ceeb23e944ca8e9b8d0)
+// [[[end]]] (checksum: 68436da82d412740f42d241f0d1f7915)

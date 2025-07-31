@@ -100,6 +100,68 @@ public interface {object_type}Hypercube
     }}
 
     /**
+     * Give back a dense {{@code {primitive_type}}} hypercube of the given shape.
+     */
+    public static {object_type}Hypercube of(final long... shape)
+    {{
+        return new {object_type}{default_impl}Hypercube(Dimension.of(shape));
+    }}
+
+    /**
+     * Create a {{@code {primitive_type}}} hypercube of the given shape wrapped
+     * around the given array.
+     */
+    public static {object_type}Hypercube wrap(final {primitive_type}[] array,
+                                              final long... shape)
+    {{
+        return {object_type}ArrayHypercube.wrap(array, shape);
+    }}
+
+    /**
+     * Wrap a {{@code {primitive_type}}} hypercube around the given 1D array.
+     */
+    public static {object_type}Hypercube wrap(final {primitive_type}[] array)
+    {{
+        return new {object_type}1dWrappingHypercube(array);
+    }}
+
+    /**
+     * Wrap a {{@code {primitive_type}}} hypercube around the given homogenous
+     * 2D array.
+     */
+    public static {object_type}Hypercube wrap(final {primitive_type}[][] array)
+    {{
+        return new {object_type}2dWrappingHypercube(array);
+    }}
+
+    /**
+     * Wrap a {{@code {primitive_type}}} hypercube around the given homogenous
+     * 3D array.
+     */
+    public static {object_type}Hypercube wrap(final {primitive_type}[][][] array)
+    {{
+        return new {object_type}3dWrappingHypercube(array);
+    }}
+
+    /**
+     * Wrap a {{@code {primitive_type}}} hypercube around the given homogenous
+     * 4D array.
+     */
+    public static {object_type}Hypercube wrap(final {primitive_type}[][][][] array)
+    {{
+        return new {object_type}4dWrappingHypercube(array);
+    }}
+
+    /**
+     * Wrap a {{@code {primitive_type}}} hypercube around the given homogenous
+     * 5D array.
+     */
+    public static {object_type}Hypercube wrap(final {primitive_type}[][][][][] array)
+    {{
+        return new {object_type}5dWrappingHypercube(array);
+    }}
+
+    /**
      * Returns a new reference to self.
      *
      * <p>This mimics the {{@code ndarray.__array__}} semantics, but in the Java
@@ -109,6 +171,41 @@ public interface {object_type}Hypercube
     {{
         return this;
     }}
+
+    /**
+     * Write out a {primitive_type} as little endian.
+     */
+    private static void writeLittleEndian(final DataOutputStream os,
+                                          final {primitive_type} v)
+        throws IOException
+    {{
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        buf.put{bytebuffer_type}(0, v{num_from_primitive});
+        os.write(buf.array(), 0, {size});
+    }}
+
+    /**
+     * Read out a {primitive_type} as little endian.
+     */
+    private static {primitive_type} readLittleEndian(final DataInputStream is)
+        throws IOException
+    {{
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        is.read(buf.array(), 0, {size});
+        return buf.get{bytebuffer_type}(0){num_to_primitive};
+    }}
+
+    /**
+     * For use by {{@code writeLittleEndian}} and {{@code readLittleEndian}} only!
+     * Declared {{@code public}} because Java...
+     */
+    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
+        ThreadLocal.withInitial(
+            () -> ByteBuffer.allocate({size})
+                            .order(ByteOrder.LITTLE_ENDIAN)
+        );
+
+    // -------------------------------------------------------------------------
 
     /**
      * Returns either a new reference to self if dtype is the same as the class of
@@ -214,79 +311,6 @@ public interface {object_type}Hypercube
             );
         }}
     }}
-
-    /**
-     * Wrap a {{@code {primitive_type}}} hypercube around the given 1D array.
-     */
-    public static {object_type}Hypercube wrap(final {primitive_type}[] array)
-    {{
-        return new {object_type}1dWrappingHypercube(array);
-    }}
-
-    /**
-     * Wrap a {{@code {primitive_type}}} hypercube around the given 2D array.
-     */
-    public static {object_type}Hypercube wrap(final {primitive_type}[][] array)
-    {{
-        return new {object_type}2dWrappingHypercube(array);
-    }}
-
-    /**
-     * Wrap a {{@code {primitive_type}}} hypercube around the given 3D array.
-     */
-    public static {object_type}Hypercube wrap(final {primitive_type}[][][] array)
-    {{
-        return new {object_type}3dWrappingHypercube(array);
-    }}
-
-    /**
-     * Wrap a {{@code {primitive_type}}} hypercube around the given 4D array.
-     */
-    public static {object_type}Hypercube wrap(final {primitive_type}[][][][] array)
-    {{
-        return new {object_type}4dWrappingHypercube(array);
-    }}
-
-    /**
-     * Wrap a {{@code {primitive_type}}} hypercube around the given 5D array.
-     */
-    public static {object_type}Hypercube wrap(final {primitive_type}[][][][][] array)
-    {{
-        return new {object_type}5dWrappingHypercube(array);
-    }}
-
-    /**
-     * Write out a {primitive_type} as little endian.
-     */
-    private static void writeLittleEndian(final DataOutputStream os,
-                                          final {primitive_type} v)
-        throws IOException
-    {{
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        buf.put{bytebuffer_type}(0, v{num_from_primitive});
-        os.write(buf.array(), 0, {size});
-    }}
-
-    /**
-     * Read out a {primitive_type} as little endian.
-     */
-    private static {primitive_type} readLittleEndian(final DataInputStream is)
-        throws IOException
-    {{
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        is.read(buf.array(), 0, {size});
-        return buf.get{bytebuffer_type}(0){num_to_primitive};
-    }}
-
-    /**
-     * For use by {{@code writeLittleEndian}} and {{@code readLittleEndian}} only!
-     * Declared {{@code public}} because Java...
-     */
-    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
-        ThreadLocal.withInitial(
-            () -> ByteBuffer.allocate({size})
-                            .order(ByteOrder.LITTLE_ENDIAN)
-        );
 
     // -------------------------------------------------------------------------
 

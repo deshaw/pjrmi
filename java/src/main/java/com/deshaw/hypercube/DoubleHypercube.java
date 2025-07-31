@@ -115,6 +115,68 @@ public interface DoubleHypercube
     }
 
     /**
+     * Give back a dense {@code double} hypercube of the given shape.
+     */
+    public static DoubleHypercube of(final long... shape)
+    {
+        return new DoubleArrayHypercube(Dimension.of(shape));
+    }
+
+    /**
+     * Create a {@code double} hypercube of the given shape wrapped
+     * around the given array.
+     */
+    public static DoubleHypercube wrap(final double[] array,
+                                              final long... shape)
+    {
+        return DoubleArrayHypercube.wrap(array, shape);
+    }
+
+    /**
+     * Wrap a {@code double} hypercube around the given 1D array.
+     */
+    public static DoubleHypercube wrap(final double[] array)
+    {
+        return new Double1dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code double} hypercube around the given homogenous
+     * 2D array.
+     */
+    public static DoubleHypercube wrap(final double[][] array)
+    {
+        return new Double2dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code double} hypercube around the given homogenous
+     * 3D array.
+     */
+    public static DoubleHypercube wrap(final double[][][] array)
+    {
+        return new Double3dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code double} hypercube around the given homogenous
+     * 4D array.
+     */
+    public static DoubleHypercube wrap(final double[][][][] array)
+    {
+        return new Double4dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code double} hypercube around the given homogenous
+     * 5D array.
+     */
+    public static DoubleHypercube wrap(final double[][][][][] array)
+    {
+        return new Double5dWrappingHypercube(array);
+    }
+
+    /**
      * Returns a new reference to self.
      *
      * <p>This mimics the {@code ndarray.__array__} semantics, but in the Java
@@ -124,6 +186,41 @@ public interface DoubleHypercube
     {
         return this;
     }
+
+    /**
+     * Write out a double as little endian.
+     */
+    private static void writeLittleEndian(final DataOutputStream os,
+                                          final double v)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        buf.putDouble(0, v);
+        os.write(buf.array(), 0, Double.BYTES);
+    }
+
+    /**
+     * Read out a double as little endian.
+     */
+    private static double readLittleEndian(final DataInputStream is)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        is.read(buf.array(), 0, Double.BYTES);
+        return buf.getDouble(0);
+    }
+
+    /**
+     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
+     * Declared {@code public} because Java...
+     */
+    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
+        ThreadLocal.withInitial(
+            () -> ByteBuffer.allocate(Double.BYTES)
+                            .order(ByteOrder.LITTLE_ENDIAN)
+        );
+
+    // -------------------------------------------------------------------------
 
     /**
      * Returns either a new reference to self if dtype is the same as the class of
@@ -229,79 +326,6 @@ public interface DoubleHypercube
             );
         }
     }
-
-    /**
-     * Wrap a {@code double} hypercube around the given 1D array.
-     */
-    public static DoubleHypercube wrap(final double[] array)
-    {
-        return new Double1dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code double} hypercube around the given 2D array.
-     */
-    public static DoubleHypercube wrap(final double[][] array)
-    {
-        return new Double2dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code double} hypercube around the given 3D array.
-     */
-    public static DoubleHypercube wrap(final double[][][] array)
-    {
-        return new Double3dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code double} hypercube around the given 4D array.
-     */
-    public static DoubleHypercube wrap(final double[][][][] array)
-    {
-        return new Double4dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code double} hypercube around the given 5D array.
-     */
-    public static DoubleHypercube wrap(final double[][][][][] array)
-    {
-        return new Double5dWrappingHypercube(array);
-    }
-
-    /**
-     * Write out a double as little endian.
-     */
-    private static void writeLittleEndian(final DataOutputStream os,
-                                          final double v)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        buf.putDouble(0, v);
-        os.write(buf.array(), 0, Double.BYTES);
-    }
-
-    /**
-     * Read out a double as little endian.
-     */
-    private static double readLittleEndian(final DataInputStream is)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        is.read(buf.array(), 0, Double.BYTES);
-        return buf.getDouble(0);
-    }
-
-    /**
-     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
-     * Declared {@code public} because Java...
-     */
-    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
-        ThreadLocal.withInitial(
-            () -> ByteBuffer.allocate(Double.BYTES)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-        );
 
     // -------------------------------------------------------------------------
 
@@ -1952,4 +1976,4 @@ public interface DoubleHypercube
     }
 }
 
-// [[[end]]] (checksum: d58ba82e731defcee7913c37d5714156)
+// [[[end]]] (checksum: a8fd5d85fddb7a862aa7e3703fa4483c)

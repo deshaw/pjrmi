@@ -269,7 +269,7 @@ public class Dimension<T>
 
     /**
      * Create a {@link Dimension} array of natural indices from the given
-     * long array.
+     * {@code long} array.
      */
     public static Dimension<?>[] of(final long... shape)
     {

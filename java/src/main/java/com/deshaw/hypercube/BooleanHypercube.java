@@ -118,6 +118,68 @@ public interface BooleanHypercube
     }
 
     /**
+     * Give back a dense {@code boolean} hypercube of the given shape.
+     */
+    public static BooleanHypercube of(final long... shape)
+    {
+        return new BooleanBitSetHypercube(Dimension.of(shape));
+    }
+
+    /**
+     * Create a {@code boolean} hypercube of the given shape wrapped
+     * around the given array.
+     */
+    public static BooleanHypercube wrap(final boolean[] array,
+                                              final long... shape)
+    {
+        return BooleanArrayHypercube.wrap(array, shape);
+    }
+
+    /**
+     * Wrap a {@code boolean} hypercube around the given 1D array.
+     */
+    public static BooleanHypercube wrap(final boolean[] array)
+    {
+        return new Boolean1dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code boolean} hypercube around the given homogenous
+     * 2D array.
+     */
+    public static BooleanHypercube wrap(final boolean[][] array)
+    {
+        return new Boolean2dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code boolean} hypercube around the given homogenous
+     * 3D array.
+     */
+    public static BooleanHypercube wrap(final boolean[][][] array)
+    {
+        return new Boolean3dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code boolean} hypercube around the given homogenous
+     * 4D array.
+     */
+    public static BooleanHypercube wrap(final boolean[][][][] array)
+    {
+        return new Boolean4dWrappingHypercube(array);
+    }
+
+    /**
+     * Wrap a {@code boolean} hypercube around the given homogenous
+     * 5D array.
+     */
+    public static BooleanHypercube wrap(final boolean[][][][][] array)
+    {
+        return new Boolean5dWrappingHypercube(array);
+    }
+
+    /**
      * Returns a new reference to self.
      *
      * <p>This mimics the {@code ndarray.__array__} semantics, but in the Java
@@ -127,6 +189,41 @@ public interface BooleanHypercube
     {
         return this;
     }
+
+    /**
+     * Write out a boolean as little endian.
+     */
+    private static void writeLittleEndian(final DataOutputStream os,
+                                          final boolean v)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        buf.put(0, v ? (byte)1 : (byte)0);
+        os.write(buf.array(), 0, Byte.BYTES);
+    }
+
+    /**
+     * Read out a boolean as little endian.
+     */
+    private static boolean readLittleEndian(final DataInputStream is)
+        throws IOException
+    {
+        final ByteBuffer buf = __littleEndianBuffer__.get();
+        is.read(buf.array(), 0, Byte.BYTES);
+        return buf.get(0) != 0;
+    }
+
+    /**
+     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
+     * Declared {@code public} because Java...
+     */
+    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
+        ThreadLocal.withInitial(
+            () -> ByteBuffer.allocate(Byte.BYTES)
+                            .order(ByteOrder.LITTLE_ENDIAN)
+        );
+
+    // -------------------------------------------------------------------------
 
     /**
      * Returns either a new reference to self if dtype is the same as the class of
@@ -232,79 +329,6 @@ public interface BooleanHypercube
             );
         }
     }
-
-    /**
-     * Wrap a {@code boolean} hypercube around the given 1D array.
-     */
-    public static BooleanHypercube wrap(final boolean[] array)
-    {
-        return new Boolean1dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code boolean} hypercube around the given 2D array.
-     */
-    public static BooleanHypercube wrap(final boolean[][] array)
-    {
-        return new Boolean2dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code boolean} hypercube around the given 3D array.
-     */
-    public static BooleanHypercube wrap(final boolean[][][] array)
-    {
-        return new Boolean3dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code boolean} hypercube around the given 4D array.
-     */
-    public static BooleanHypercube wrap(final boolean[][][][] array)
-    {
-        return new Boolean4dWrappingHypercube(array);
-    }
-
-    /**
-     * Wrap a {@code boolean} hypercube around the given 5D array.
-     */
-    public static BooleanHypercube wrap(final boolean[][][][][] array)
-    {
-        return new Boolean5dWrappingHypercube(array);
-    }
-
-    /**
-     * Write out a boolean as little endian.
-     */
-    private static void writeLittleEndian(final DataOutputStream os,
-                                          final boolean v)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        buf.put(0, v ? (byte)1 : (byte)0);
-        os.write(buf.array(), 0, Byte.BYTES);
-    }
-
-    /**
-     * Read out a boolean as little endian.
-     */
-    private static boolean readLittleEndian(final DataInputStream is)
-        throws IOException
-    {
-        final ByteBuffer buf = __littleEndianBuffer__.get();
-        is.read(buf.array(), 0, Byte.BYTES);
-        return buf.get(0) != 0;
-    }
-
-    /**
-     * For use by {@code writeLittleEndian} and {@code readLittleEndian} only!
-     * Declared {@code public} because Java...
-     */
-    public static ThreadLocal<ByteBuffer> __littleEndianBuffer__ =
-        ThreadLocal.withInitial(
-            () -> ByteBuffer.allocate(Byte.BYTES)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-        );
 
     // -------------------------------------------------------------------------
 
@@ -1569,4 +1593,4 @@ public interface BooleanHypercube
     }
 }
 
-// [[[end]]] (checksum: 683e2526cccfceb5dbfe763b0d304f17)
+// [[[end]]] (checksum: 990b5f66da32aeef9ed41cd8c803494f)

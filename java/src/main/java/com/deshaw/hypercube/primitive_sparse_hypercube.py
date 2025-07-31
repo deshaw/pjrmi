@@ -30,6 +30,15 @@ public class {object_type}SparseHypercube
 
     // ----------------------------------------------------------------------
 
+    /**
+     * Give back a sparse {{@code {primitive_type}}} hypercube of the given.
+     * shape.
+     */
+    public static {object_type}Hypercube of(final long... shape)
+    {{
+        return new {object_type}SparseHypercube(Dimension.of(shape));
+    }}
+
     // Some simple mapping functions; named like this for ease of cogging.
     // They should be trivially inlined by the JVM.
 

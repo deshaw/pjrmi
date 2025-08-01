@@ -6090,6 +6090,7 @@ def get_config() -> dict[str,str]:
     return {
         "version"   : PJRMI_VERSION,
         "classpath" : _PJRMI_FATJAR,
+        "agentpath" : _PJRMI_FATJAR,
         "libpath"   : _PJRMI_SHAREDLIBS_PATH
     }
 

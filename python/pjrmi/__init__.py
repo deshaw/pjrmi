@@ -232,8 +232,17 @@ class PJRmi:
 
             def __getattr__(cls, k):
                 """
-                Look for a inner classes of a Java class.
+                Special getattr handling for classes.
                 """
+                # Handle keyword mangling
+                if keyword.iskeyword(k):
+                    # These will have an underscore appended to them
+                    try:
+                        return getattr(cls, k + '_')
+
+                    except Exception as e:
+                        ee = e
+
                 try:
                     # Look for it as an inner class, these are separated by '$'
                     # not '.' in Java Land
@@ -245,10 +254,13 @@ class PJRmi:
                     return subclass
 
                 except Exception as e:
-                    raise AttributeError(
-                        f"Java class '{cls._classname}' has no such attribute '{k}': "
-                        f"{e.__class__.__name__}: {e}"
-                    ) from e
+                    ee = e
+
+                # If we got here then we failed
+                raise AttributeError(
+                    f"Java class '{cls._classname}' has no such attribute '{k}': "
+                    f"{ee.__class__.__name__}: {ee}"
+                ) from ee
 
         # Init members
         self._ready              = False  # set at connect

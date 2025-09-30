@@ -853,6 +853,50 @@ public class TestInjectSource {
         self.assertEqual(instance2.foo(1), 2)
 
 
+    def test_getattr_name_mangling(self):
+        """
+        Make sure that we handle mangling of Python keywords as expected.
+        """
+        class_name = "TestNameMangling"
+        source     = """
+public class TestNameMangling {
+    public static int from(int i) {
+        return i+1;
+    }
+}
+"""
+        # Inject it and get back the instance
+        klass = get_pjrmi().inject_source(class_name, source)
+
+        # Get handles on the method, as we might expect to
+        fn  = getattr(klass, 'from')
+        fn_ = getattr(klass, 'from_')
+
+        # And check that we can get all the known methods
+        for name in ('equals',
+                     'getClass',
+                     'hashCode',
+                     'notify',
+                     'notifyAll',
+                     'toString',
+                     'wait'):
+            getattr(klass, name)
+
+        # And one which we don't
+        try:
+            getattr(klass, 'in')
+            assert False, (
+                "Attempting to get 'in' member should have failed"
+            )
+        except AttributeError:
+            pass
+
+        # And make sure that they all work as expected
+        self.assertEqual(fn         (1), 2)
+        self.assertEqual(fn_        (1), 2)
+        self.assertEqual(klass.from_(1), 2)
+
+
     def test_parameter_names(self):
         """
         Make sure that we are receiving parameter names of java methods in

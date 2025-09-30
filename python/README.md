@@ -640,6 +640,39 @@ the `JavaCompiler` and can be used as follows:
     2
 
 
+## Hot-patching
+
+If the PJRmi agent is loaded then we can also hot-patch the code in a running
+JVM. First we compile two very simple versions of the same class.
+
+    >>> # Let's drop into shell to create two different implementations of a simple class
+    >>> !mkdir -p old new
+    >>> !echo 'public class Foo { public String foo() { return "old"; } }' > old/Foo.java
+    >>> !echo 'public class Foo { public String foo() { return "new"; } }' > new/Foo.java
+    >>> !javac old/Foo.java
+    >>> !javac new/Foo.java
+
+Conservatively, the agent isn't enabled by default so we'll make a temporary JVM
+instance to demonstrate hot-patching here.
+
+    >>> with pjrmi.connect_to_child_jvm(stdout=None, stderr=None,
+    ...                                 classpath=('old',),
+    ...                                 use_pjrmi_agent=True) as jvm:
+    ...     Foo = jvm.class_for_name('Foo')
+    ...     foo = Foo()
+    ...     print("Invoking foo.foo()")
+    ...     print(f"  {foo.foo()}")
+    ...     print("Hotpatching Foo")
+    ...     jvm.replace_class(Foo, 'new/Foo.class')
+    ...     print("Invoking foo.foo()")
+    ...     print(f"  {foo.foo()}")
+    Invoking foo.foo()
+      old
+    Hotpatching Foo
+    Invoking foo.foo()
+      new
+
+
 ## Java Method Capture
 
 PJRmi supports Java method capture, allowing them to be passed in as

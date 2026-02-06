@@ -730,10 +730,10 @@ so, instead of many.
 
     # Get a list of Integers, accounting for the fact that they are a boxed type
     # on the Python side
-    >>> l = list(Integer.valueOf(i).java_object for i in range(100000))
+    >>> lst = list(Integer.valueOf(i).java_object for i in range(100000))
 
     # Apply the instance method toString() on each of them, from the Python side
-    >>> %time _ = list(map(Integer.toString[None], l))
+    >>> %time _ = list(map(Integer.toString[None], lst))
     CPU times: user 2.74 s, sys: 383 ms, total: 3.13 s
     Wall time: 3.03 s
 
@@ -742,7 +742,7 @@ so, instead of many.
     #     public static <T,U> List<U> map(final Collection<T> c,
     #                                     final Function<T,U> f)
     # which we will use.
-    >>> %time _ = CollectionUtilities.map(l, Integer.toString[None])
+    >>> %time _ = CollectionUtilities.map(lst, Integer.toString[None])
     CPU times: user 130 ms, sys: 2.94 ms, total: 133 ms
     Wall time: 153 ms
 
@@ -763,15 +763,15 @@ arguments.
 
 Captured methods can also be used to handle overloading ambiguities:
 
-    >>> l = list(range(10))
-    >>> Arrays.binarySearch(l, 5)
+    >>> lst = list(range(10))
+    >>> Arrays.binarySearch(lst, 5)
     ---------------------------------------------------------------------------
     TypeError                                 Traceback (most recent call last)
     Input In [14], in <cell line: 1>()
     ----> 1 Arrays.binarySearch(l, 5)
     [...]
     TypeError: Call to binarySearch(<class 'list'>, <class 'int'>) is ambiguous; multiple matches: binarySearch([B, byte), binarySearch([J, long), binarySearch([I, int), binarySearch([S, short), binarySearch([Ljava.lang.Object;, java.lang.Object), binarySearch([D, double), binarySearch([F, float)
-    >>> Arrays.binarySearch['[I', 'int'](l, 5)
+    >>> Arrays.binarySearch['[I', 'int'](lst, 5)
     5
 
 

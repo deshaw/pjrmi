@@ -1483,6 +1483,15 @@ public class TestInjectSource {
             # Pack everything by hand to avoid the overhead of multiple function
             # calls
             request_id = self._send_request_id()
+            LOG.debug(
+                "Sending "
+                "msg_type = %s "
+                "thread_id = %d "
+                "request_id = %d "
+                "payload_size = %d "
+                "payload = %s",
+                msg_type, thread_id, request_id, payload_size, payload
+            )
             self._transport.send(b"%c%s%s" % (msg_type,
                                               struct.pack('!qii',
                                                           thread_id,

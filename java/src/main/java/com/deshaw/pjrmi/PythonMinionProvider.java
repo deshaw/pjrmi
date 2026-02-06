@@ -10,6 +10,15 @@ import java.net.InetAddress;
 
 /**
  * A transport provider which spawns a child Python process to talk to.
+ *
+ * <p>Note that the current implementation of the Python Minion uses STDIN and
+ * STDOUT to provide the bidirectional communication stream, between the Java
+ * parent and Python child processes. The Python STDERR will be picked up by the
+ * Java process, and logged using the usual channels. The Python layer will
+ * redirect the stdio file handles accordingly. However, this only happens at
+ * the Python layer; if there is any code at the C layer which reads from STDIN
+ * or writes to or STDOUT then it will potentially corrupt the communication
+ * channel.
  */
 public class PythonMinionProvider
     implements Transport.Provider
@@ -65,6 +74,8 @@ public class PythonMinionProvider
      * This allows users to specify if they want to use native array
      * handling.
      *
+     * <p>See the classdoc about use of stdio in the Python child process.
+     *
      * @param useShmArgPassing Whether to use native array handling.
      *
      * @return the minion instance.
@@ -85,6 +96,8 @@ public class PythonMinionProvider
 
     /**
      * Spawn a Python minion with SHM value passing disabled by default.
+     *
+     * <p>See the classdoc about use of stdio in the Python child process.
      *
      * @param stdinFilename  The filename the child process should use for
      *                       stdin, or {@code null} if none.
@@ -117,6 +130,8 @@ public class PythonMinionProvider
      * talk to the parent these must not be any of the "/dev/std???" files.
      * This method also allows users to specify whether to enable passing
      * of some values by SHM copying.
+     *
+     * <p>See the classdoc about use of stdio in the Python child process.
      *
      * @param stdinFilename    The filename the child process should use for
      *                         stdin, or {@code null} if none.

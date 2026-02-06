@@ -5720,6 +5720,9 @@ public abstract class PJRmi
                                       ((( (int)header[15]) & 0xff) <<  8) |
                                       ((( (int)header[16]) & 0xff)      ));
 
+                    // Log the header, both the details and the raw form. The
+                    // latter is handy if something manages to corrupt the I/O
+                    // stream.
                     if (LOG.isLoggable(Level.FINEST)) {
                         LOG.finest(
                             "Read " +
@@ -5727,7 +5730,8 @@ public abstract class PJRmi
                             "('"          + (char)typeId + "'), " +
                             "threadId = " + threadId     + " " +
                             "reqId = "    + reqId        + " " +
-                            "size = "     + size
+                            "size = "     + size         + " " +
+                            "header = "   + PJRmi.toString(payload)
                         );
                     }
 
@@ -5750,6 +5754,14 @@ public abstract class PJRmi
                             break;
                         }
                         else {
+                            // Log as we go along, again since it's handy if
+                            // there is corruption on the stream
+                            if (LOG.isLoggable(Level.FINEST)) {
+                                LOG.finest(
+                                    "Read " + read +" bytes of payload data: " +
+                                    PJRmi.toString(Arrays.copyOf(buffer, read))
+                                );
+                            }
                             payload.append(buffer, 0, read);
                             totalRead += read;
                         }

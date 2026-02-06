@@ -1456,7 +1456,7 @@ public class TestInjectSource {
             # to capture the local variables up the stack via a __repr__; it
             # will get unhappy since we have a bunch of multi-gigabyte arrays.
             raise IOError(
-                "Can't send a message of size %d (which excceds %d) bytes" % (
+                "Can't send a message of size %d (which exceeds %d) bytes" % (
                     payload_size, self._MAX_JAVA_ARRAY_SIZE
                 )
             )

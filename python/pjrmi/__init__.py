@@ -7002,30 +7002,118 @@ class StdioTransport:
         # Whether we have "connected"
         self._connected = False
 
-        # Capture the stdio file handles for ourselves. The Java parent will use
-        # stdin and stdout for the transport and redirect stderr to its own
-        # logs. Retrieve the underlying binary buffers. We need to be able to
-        # read and write binary data.
-        self._to   = sys.stdout.buffer
-        self._from = sys.stdin .buffer
-        self._err  = sys.stderr.buffer
-
-        # Now, handle what to do with the original stdio file handles. By
-        # default we junk stdin and redirect stdout to stderr; stderr will be
-        # picked up by the parent Java process.
+        # Duplicate the original stdin/stdout/stderr file descriptors _before_
+        # we redirect them. These duplicated file descriptors will be used for
+        # the transport communication with the Java parent process. By
+        # duplicating at the OS level, we ensure that both Python and C
+        # extensions will use the redirected streams.
+        #
+        # We change the file descriptor layout so that the original STDIO (FDs 0
+        # stdin, 1 stdout, and 2 stderr) are duplicated to new FD for transport.
+        # Then FD 0, 1, 2 are redirected to the requested files.
         try:
-            if stdin is None:
-                sys.stdin = open(os.devnull, 'r')
-            else:
-                sys.stdin = open(stdin, 'r')
+            # For C extensions, we must always use file descriptors 0, 1, 2
+            # since they are hardcoded in the C layer. For Python code, we
+            # should also handle sys.{stdin,stdout,stderr}.fileno() in case
+            # they point to different file descriptors. We need to handle the
+            # union of both sets.
 
+            # Get the Python-level file descriptors (may differ from 0,1,2)
+            try:
+                python_stdin_fd = sys.stdin.fileno()
+            except (AttributeError, io.UnsupportedOperation):
+                python_stdin_fd = 0
+
+            try:
+                python_stdout_fd = sys.stdout.fileno()
+            except (AttributeError, io.UnsupportedOperation):
+                python_stdout_fd = 1
+
+            try:
+                python_stderr_fd = sys.stderr.fileno()
+            except (AttributeError, io.UnsupportedOperation):
+                python_stderr_fd = 2
+
+            # Collect all file descriptors we need to redirect (union of C-level
+            # 0,1,2 and Python-level fds)
+            stdin_fds  = {0, python_stdin_fd}
+            stdout_fds = {1, python_stdout_fd}
+            stderr_fds = {2, python_stderr_fd}
+
+            # Duplicate the C-level file descriptors (0, 1, 2) for transport use.
+            # C extensions will always use these hardcoded values.
+            transport_stdin_fd  = os.dup(0)
+            transport_stdout_fd = os.dup(1)
+            transport_stderr_fd = os.dup(2)
+
+            # Create binary file objects from the duplicated file descriptors.
+            # These will be used for the bidirectional pipe communication.
+            self._from = os.fdopen(transport_stdin_fd,  'rb', buffering=0)
+            self._to   = os.fdopen(transport_stdout_fd, 'wb', buffering=0)
+            self._err  = os.fdopen(transport_stderr_fd, 'wb', buffering=0)
+
+            # Now redirect all file descriptors in the union sets at the OS level
+            # so that both the Python VM and C extensions use new streams for
+            # STDIO.
+
+            # Handle stdin redirection - redirect all fds in stdin_fds
+            if stdin is None:
+                # Redirect stdin to /dev/null since we haven't been given
+                # anything for the Python child to read from
+                devnull_fd = os.open(os.devnull, os.O_RDONLY)
+                for fd in stdin_fds:
+                    os.dup2(devnull_fd, fd)
+                os.close(devnull_fd)
+            else:
+                # Redirect stdin to the specified file
+                new_stdin_fd = os.open(stdin, os.O_RDONLY)
+                for fd in stdin_fds:
+                    os.dup2(new_stdin_fd, fd)
+                os.close(new_stdin_fd)
+
+            # Handle stdout redirection - redirect all fds in stdout_fds
             if stdout is None:
+                # Redirect stdout to stderr. We need to duplicate stderr first
+                # (using fd 2 which is the C-level stderr) since we might
+                # redirect it later.
+                temp_stderr_fd = os.dup(2)
+                for fd in stdout_fds:
+                    os.dup2(temp_stderr_fd, fd)
+                os.close(temp_stderr_fd)
+            else:
+                # Redirect stdout to the specified file
+                new_stdout_fd = os.open(stdout,
+                                        os.O_WRONLY | os.O_CREAT | os.O_APPEND,
+                                        0o644)
+                for fd in stdout_fds:
+                    os.dup2(new_stdout_fd, fd)
+                os.close(new_stdout_fd)
+
+            # Handle stderr redirection - redirect all fds in stderr_fds
+            if stderr is not None:
+                new_stderr_fd = os.open(stderr,
+                                        os.O_WRONLY | os.O_CREAT | os.O_APPEND,
+                                        0o644)
+                for fd in stderr_fds:
+                    os.dup2(new_stderr_fd, fd)
+                os.close(new_stderr_fd)
+
+            # Now update sys.stdin, sys.stdout, sys.stderr to match the
+            # redirected file descriptors. This ensures Python code also uses
+            # the redirected streams. We use fd 0 here since all stdin_fds have
+            # been redirected to the same place.
+            sys.stdin = os.fdopen(0, 'r')
+
+            # Now ensure that stderr and stdout (at the Python layer) are going
+            # to the right places, which may vary depending on what the user has
+            # told us to do. We use fds 1 and 2 since all fds in the union sets
+            # have been redirected to the same destinations.
+            if stdout is None and stderr is None:
+                sys.stderr = os.fdopen(2, 'w')
                 sys.stdout = sys.stderr
             else:
-                sys.stdout = open(stdout, 'a')
-
-            if stderr is not None:
-                sys.stderr = open(stderr, 'a')
+                sys.stderr = os.fdopen(2, 'w')
+                sys.stdout = os.fdopen(1, 'w')
 
         except Exception as e:
             # Gripe back to the process and exit

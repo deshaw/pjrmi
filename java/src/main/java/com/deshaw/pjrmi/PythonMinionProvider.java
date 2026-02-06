@@ -15,10 +15,10 @@ import java.net.InetAddress;
  * STDOUT to provide the bidirectional communication stream, between the Java
  * parent and Python child processes. The Python STDERR will be picked up by the
  * Java process, and logged using the usual channels. The Python layer will
- * redirect the stdio file handles accordingly. However, this only happens at
- * the Python layer; if there is any code at the C layer which reads from STDIN
- * or writes to or STDOUT then it will potentially corrupt the communication
- * channel.
+ * redirect the stdio file handles at both the Python and C levels. It does this
+ * by duplicating the original file descriptors for transport use, then
+ * redirecting the standard file descriptors (0, 1, 2) at the OS level so that
+ * both Python code and C extensions use the redirected streams.
  */
 public class PythonMinionProvider
     implements Transport.Provider

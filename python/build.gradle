@@ -99,9 +99,12 @@ abstract class GenerateFileExec extends DefaultTask {
     @Input
     abstract ListProperty<String> getCommand()
 
+    @Inject
+    abstract ExecOperations getExecOperations()
+
     @TaskAction
     def build() {
-        project.exec {
+        execOperations.exec {
             environment(getEnvironmentVariables().get())
             commandLine(getCommand().get())
         }
@@ -129,7 +132,7 @@ tasks.register('buildExt', GenerateFileExec) {
 tasks.register('develop') {
     dependsOn buildExt
     doLast {
-        exec {
+        providers.exec {
             environment "PJRMI_VERSION", pjrmiVersion
             environment "JAVA_HOME", System.properties['java.home']
             commandLine "pip3", "install", "--user", "-e", projectDir
@@ -182,7 +185,7 @@ tasks.register('test') {
         ])
 
         testFiles.each { testFile ->
-            exec {
+            providers.exec {
                 workingDir projectDir
                 environment "PYTHONPATH", projectDir
                 environment "PYDEVD_DISABLE_FILE_VALIDATION", "1"

@@ -4367,6 +4367,9 @@ public class TestInjectSource {
             exceptions = list()
             matches    = list() # list(tuple(<method>, <args>))
             for method in methods:
+                if log_debug:
+                    LOG.debug("Looking to invoke %s", method)
+
                 # Always ignore methods which require explicit binding
                 if method['is_explicit']:
                     if log_debug:
@@ -4717,6 +4720,9 @@ public class TestInjectSource {
             exceptions = list()
             matches    = list() # list(tuple(ctor, args))
             for ctor in ctors:
+                if log_debug:
+                    LOG.debug("Looking to invoke %s", ctor)
+
                 # Always ignore methods which require explicit binding
                 if ctor['is_explicit']:
                     if log_debug:

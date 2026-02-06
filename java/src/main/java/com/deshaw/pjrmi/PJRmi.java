@@ -4019,7 +4019,7 @@ public abstract class PJRmi
                             bados.bytes);
 
                 // Now wait for the result
-                return awaitCallbackReponse(result);
+                return awaitCallbackResponse(result);
             }
         }
 
@@ -4549,7 +4549,7 @@ public abstract class PJRmi
                                 bados.bytes);
 
                     // Now wait for the result
-                    return awaitCallbackReponse(result);
+                    return awaitCallbackResponse(result);
                 }
                 else {
                     // We don't know how to handle this. This isn't really
@@ -4712,7 +4712,7 @@ public abstract class PJRmi
 
                 try {
                     // Now wait for the result
-                    return awaitCallbackReponse(result);
+                    return awaitCallbackResponse(result);
                 }
                 catch (PythonCallbackException e) {
                     // Fall back to any default implementation if we failed to
@@ -4910,7 +4910,7 @@ public abstract class PJRmi
                             bados.bytes);
 
                 // Now wait for the result
-                return awaitCallbackReponse(result);
+                return awaitCallbackResponse(result);
             }
 
             /**
@@ -4967,7 +4967,7 @@ public abstract class PJRmi
 
                 // Now wait for the result
                 try {
-                    return awaitCallbackReponse(result);
+                    return awaitCallbackResponse(result);
                 }
                 catch (PythonCallbackException e) {
                     throw e.getCause();
@@ -5324,7 +5324,7 @@ public abstract class PJRmi
                         bados.bytes);
 
             // Now wait for the result, might be null or an exception
-            awaitCallbackReponse(result);
+            awaitCallbackResponse(result);
         }
 
         /**
@@ -5378,7 +5378,7 @@ public abstract class PJRmi
                         bados.bytes);
 
             // Now wait for the result
-            return awaitCallbackReponse(result);
+            return awaitCallbackResponse(result);
         }
 
         /**
@@ -5419,7 +5419,7 @@ public abstract class PJRmi
 
             // Get back the Python object ID and use it to construct the
             // wrapper. A negative ID means null.
-            final Integer objectId = awaitCallbackReponse(result);
+            final Integer objectId = awaitCallbackResponse(result);
             return (objectId < 0)
                 ? null
                 : new PythonObjectImpl(name == null ? string : name, objectId, myOut);
@@ -5472,7 +5472,7 @@ public abstract class PJRmi
 
             // Get back the Python object ID and use it to construct the
             // wrapper. A negative ID means null.
-            final Integer objectId = awaitCallbackReponse(result);
+            final Integer objectId = awaitCallbackResponse(result);
             return (objectId < 0)
                 ? null
                 : new PythonObjectImpl(functionName, objectId, myOut);
@@ -5551,7 +5551,7 @@ public abstract class PJRmi
                         bados.bytes);
 
             // Now wait for the result
-            return awaitCallbackReponse(result);
+            return awaitCallbackResponse(result);
         }
 
         /**
@@ -8624,7 +8624,7 @@ public abstract class PJRmi
         /**
          * Await the response from a Python callback.
          */
-        private <T> T awaitCallbackReponse(final PythonCallbackResult result)
+        private <T> T awaitCallbackResponse(final PythonCallbackResult result)
             throws PythonCallbackException
         {
             // Loop until we get it back

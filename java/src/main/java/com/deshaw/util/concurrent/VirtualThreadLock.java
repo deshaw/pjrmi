@@ -310,9 +310,15 @@ public class VirtualThreadLock
                 }
                 else {
                     // This lock is being held by another virtual thread; wait
-                    // for it to be released
+                    // for it to be released. If an InterruptedException was
+                    // caught and we loop around then this value could go
+                    // negative so we check for that.
+                    final long awaitNs = timeoutNs - (System.nanoTime() - startNs);
+                    if (awaitNs < 0) {
+                        return false;
+                    }
                     try {
-                        myCondition.awaitNanos(timeoutNs - (System.nanoTime() - startNs));
+                        myCondition.awaitNanos(awaitNs);
                     }
                     catch (InterruptedException e) {
                         // Nothing, just go around and try again, provided that

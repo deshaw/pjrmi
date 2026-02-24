@@ -71,7 +71,8 @@ def unflatten(src, dst, chunk_size=4096):
     # more complex listener on the Java side and sending a shared secret (e.g. a
     # random 64bit value) as the handshake. That would prevent a bad actor from
     # using the Java socket in the window between its creation and the
-    # connection from the Python client.
+    # connection from the Python client. For the purposes of our example we want
+    # to keep it all simple though.
 
     # This method relies on the source and destination matching in shape
     if tuple(src.shape) != tuple(dst.shape):
@@ -115,9 +116,16 @@ def unflatten(src, dst, chunk_size=4096):
             e = end
         sock.sendall(flat[idx:e].tobytes('C'))
 
-    # Now close the connection on each side, since we're done
+    # Now close the connection on each side, since we're done. In the unlikely
+    # event that these fail for some reason we don't care, since this is just
+    # exampe code and there's nothing we can do about it. So here we silently
+    # swallow exceptions. In a real world use-case this could make for a
+    # resource leak, so it would be better to log and investigate.
     try:
         ss.close()
+    except Exception:
+        pass
+    try:
         sock.close()
     except Exception:
         pass

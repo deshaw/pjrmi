@@ -772,7 +772,7 @@ class TestPJRmi(TestCase):
 
         command = os.path.join(os.path.dirname(__file__),
                                'forked_process_cleanup.py')
-        tmp_file = tempfile.mktemp()
+        tmp_file = tempfile.mkstemp()
         test_process = subprocess.Popen([command, tmp_file],
                                         stdout=subprocess.PIPE)
 

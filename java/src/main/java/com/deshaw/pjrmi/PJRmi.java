@@ -9275,7 +9275,7 @@ public abstract class PJRmi
     /**
      * Our specialisation of the MethodUtil class.
      */
-    private static MethodUtil ourMethodUtil = new PythonicMethodUtil();
+    private static final MethodUtil ourMethodUtil = new PythonicMethodUtil();
 
     /**
      * The byte buffers used to build up the output messages. Always returned

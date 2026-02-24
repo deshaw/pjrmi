@@ -130,7 +130,7 @@ class TestStrict(TestCase):
                          (numpy.int64,   float32s),
                          (numpy.float32, int64s)):
             try:
-                _util.strict_array(type, a)
+                _util.strict_array(typ, a)
                 self.fail(f"strict_array({typ}, {a}) should have failed")
             except (TypeError, ValueError):
                 pass

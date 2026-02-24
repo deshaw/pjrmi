@@ -80,7 +80,8 @@ import java.net.UnknownHostException;
             myPipe.close();
         }
         catch (Throwable t) {
-            // Nothing
+            // Nothing. We purposely swallow _all_ throwables here since we
+            // don't want close() fail in any way.
         }
     }
 

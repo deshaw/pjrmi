@@ -78,7 +78,9 @@ import static com.deshaw.pjrmi.PJRmi.LOG;
         {
             // Nothing that we can do except to just fall out of to the end and
             // return null
-            LOG.severe("Failed to extract username from connection: " + e);
+            LOG.severe(
+                "Failed to extract username from connection " + mySocket + ": " + e
+            );
         }
 
         // If we got here then we could not find it

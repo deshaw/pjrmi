@@ -127,6 +127,7 @@ public class BlockingPipe
 
         myHead   = 0;
         myTail   = 0;
+        myReader = null;
         myInput  = new Input();
         myOutput = new Output();
         myData   = new byte[size];
@@ -170,7 +171,8 @@ public class BlockingPipe
                 return -1;
             }
 
-            // Otherwise we wait for data
+            // Otherwise we wait for data. We optimistically remember this
+            // thread so that we can unpark() it in write(), as an optimization.
             myReader = Thread.currentThread();
             LockSupport.parkNanos(10000);
         }

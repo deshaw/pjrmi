@@ -72,6 +72,8 @@ public interface Transport
                 // And parse
                 if (args != null && args.length > 0) {
                     for (String arg : args) {
+                        // The magic numbers in the substring() methods are the
+                        // lengths of the strings in the startsWith() methods
                         if (arg.startsWith("additional_allowlisted_classes=")) {
                             additionalAllowlistedClasses.addAll(
                                 Arrays.asList(arg.substring(31).split(","))

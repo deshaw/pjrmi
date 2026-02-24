@@ -62,6 +62,17 @@ _PJRMI_FATJAR = "{}/lib/pjrmi.jar".format(os.path.dirname(__file__))
 # Required shared libraries from the module dir.
 _PJRMI_SHAREDLIBS_PATH = os.path.dirname(__file__) + '/lib'
 
+# Pre-compiled struct formats provide better performance
+_STRUCT_INT8        = struct.Struct('!b')
+_STRUCT_INT16       = struct.Struct('!h')
+_STRUCT_INT32       = struct.Struct('!i')
+_STRUCT_INT64       = struct.Struct('!q')
+_STRUCT_FLOAT       = struct.Struct('!f')
+_STRUCT_DOUBLE      = struct.Struct('!d')
+_STRUCT_CHAR        = struct.Struct('!H')    # Java char is unsigned 16-bit
+_STRUCT_HEADER      = struct.Struct('!cqii') # msg_type, thread_id, request_id, payload_size
+_STRUCT_SEND_HEADER = struct.Struct('!qii')  # thread_id, request_id, payload_size
+
 class PJRmi:
     """
     Client code for connecting to the Python-Java-RMI infrastructure.
@@ -528,6 +539,46 @@ class PJRmi:
         self._L_java_lang_double                          = self.class_for_name('[D')
         self._L_java_lang_Object                          = self.class_for_name('[Ljava.lang.Object;')
         self._L_java_lang_String                          = self.class_for_name('[Ljava.lang.String;')
+
+        # Cache type IDs for faster lookups in _format_by_class()
+        self._type_id_void         = self._java_lang_void._type_id
+        self._type_id_boolean      = self._java_lang_boolean._type_id
+        self._type_id_Boolean      = self._java_lang_Boolean._type_id
+        self._type_id_byte         = self._java_lang_byte._type_id
+        self._type_id_Byte         = self._java_lang_Byte._type_id
+        self._type_id_short        = self._java_lang_short._type_id
+        self._type_id_Short        = self._java_lang_Short._type_id
+        self._type_id_int          = self._java_lang_int._type_id
+        self._type_id_Integer      = self._java_lang_Integer._type_id
+        self._type_id_long         = self._java_lang_long._type_id
+        self._type_id_Long         = self._java_lang_Long._type_id
+        self._type_id_float        = self._java_lang_float._type_id
+        self._type_id_Float        = self._java_lang_Float._type_id
+        self._type_id_double       = self._java_lang_double._type_id
+        self._type_id_Double       = self._java_lang_Double._type_id
+        self._type_id_char         = self._java_lang_char._type_id
+        self._type_id_Character    = self._java_lang_Character._type_id
+        self._type_id_String       = self._java_lang_String._type_id
+        self._type_id_Object       = self._java_lang_Object._type_id
+        self._type_id_Number       = self._java_lang_Number._type_id
+        self._type_id_Iterable     = self._java_lang_Iterable._type_id
+        self._type_id_Collection   = self._java_util_Collection._type_id
+        self._type_id_List         = self._java_util_List._type_id
+        self._type_id_Set          = self._java_util_Set._type_id
+        self._type_id_Map          = self._java_util_Map._type_id
+        self._type_id_L_boolean    = self._L_java_lang_boolean._type_id
+        self._type_id_L_byte       = self._L_java_lang_byte._type_id
+        self._type_id_L_short      = self._L_java_lang_short._type_id
+        self._type_id_L_int        = self._L_java_lang_int._type_id
+        self._type_id_L_long       = self._L_java_lang_long._type_id
+        self._type_id_L_float      = self._L_java_lang_float._type_id
+        self._type_id_L_double     = self._L_java_lang_double._type_id
+        self._type_id_L_char       = self._L_java_lang_char._type_id
+        self._type_id_L_Object     = self._L_java_lang_Object._type_id
+        self._type_id_L_String     = self._L_java_lang_String._type_id
+        self._type_id_Hypercube    = self._com_deshaw_hypercube_Hypercube._type_id
+        self._type_id_PythonSlice  = self._com_deshaw_pjrmi_PythonSlice._type_id
+        self._type_id_PythonObject = self._com_deshaw_pjrmi_PythonObject._type_id
 
         # Spawn a receiver thread, if any
         if (self._flags & self._FLAG_USE_WORKERS != 0):
@@ -1492,12 +1543,13 @@ public class TestInjectSource {
                 "payload = %s",
                 msg_type, thread_id, request_id, payload_size, payload
             )
-            self._transport.send(b"%c%s%s" % (msg_type,
-                                              struct.pack('!qii',
-                                                          thread_id,
-                                                          request_id,
-                                                          payload_size),
-                                              payload))
+            # Use direct concatenation instead of % formatting for better
+            # performance, and use pre-compiled struct format
+            self._transport.send(
+                msg_type +
+                _STRUCT_SEND_HEADER.pack(thread_id, request_id, payload_size) +
+                payload
+            )
 
         return request_id
 
@@ -1534,9 +1586,10 @@ public class TestInjectSource {
                 result += chunk
 
             # See what we got back. Unpack this all in one go so as to avoid the
-            # overhead of calling _read_foo() multiple times.
+            # overhead of calling _read_foo() multiple times. Use pre-compiled
+            # struct format for better performance.
             (msg_type, thread_id, request_id, payload_size) = \
-                struct.unpack('!cqii', result)
+                _STRUCT_HEADER.unpack(result)
 
             # Read the payload
             payload = b''
@@ -2251,7 +2304,7 @@ public class TestInjectSource {
 
                                 # If the other side expects a string back then we
                                 # can stringify here
-                                if (type_id == self._java_lang_String._type_id and
+                                if (type_id == self._type_id_String and
                                     result is not None):
                                     result = str(result)
                             else:
@@ -2656,7 +2709,7 @@ public class TestInjectSource {
         Format a float as 4 raw bytes.
         """
 
-        return struct.pack('!f', value)
+        return _STRUCT_FLOAT.pack(value)
 
 
     def _format_double(self, value: float) -> bytes:
@@ -2664,7 +2717,7 @@ public class TestInjectSource {
         Format a double as 8 raw bytes.
         """
 
-        return struct.pack('!d', value)
+        return _STRUCT_DOUBLE.pack(value)
 
 
     def _format_int64(self, value: int) -> bytes:
@@ -2672,7 +2725,7 @@ public class TestInjectSource {
         Format a 64-bit int as raw bytes.
         """
 
-        return struct.pack('!q', value)
+        return _STRUCT_INT64.pack(value)
 
 
     def _format_int32(self, value: int) -> bytes:
@@ -2680,7 +2733,7 @@ public class TestInjectSource {
         Format a 32-bit int as raw bytes.
         """
 
-        return struct.pack('!i', value)
+        return _STRUCT_INT32.pack(value)
 
 
     def _format_int16(self, value: int) -> bytes:
@@ -2688,7 +2741,7 @@ public class TestInjectSource {
         Format a 16-bit int as raw bytes.
         """
 
-        return struct.pack('!h', value)
+        return _STRUCT_INT16.pack(value)
 
 
     def _format_int8(self, value: int) -> bytes:
@@ -2861,31 +2914,31 @@ public class TestInjectSource {
 
         # Check what the Java type is since we must match. For Objects we'll use
         # the Python type to guide us.
-        if klass._type_id in (self._L_java_lang_Object._type_id,
+        if klass._type_id in (self._type_id_L_Object,
                               self._java_lang_Object  ._type_id):
             if value.dtype.name not in ('bool',
                                         'int8', 'int16', 'int32', 'int64',
                                         'float32', 'float64'):
                 return False
-        elif klass._type_id == self._L_java_lang_boolean._type_id:
+        elif klass._type_id == self._type_id_L_boolean:
             if value.dtype.name != 'bool':
                 return False
-        elif klass._type_id == self._L_java_lang_byte._type_id:
+        elif klass._type_id == self._type_id_L_byte:
             if value.dtype.name != 'int8':
                 return False
-        elif klass._type_id == self._L_java_lang_short._type_id:
+        elif klass._type_id == self._type_id_L_short:
             if value.dtype.name != 'int16':
                 return False
-        elif klass._type_id == self._L_java_lang_int._type_id:
+        elif klass._type_id == self._type_id_L_int:
             if value.dtype.name != 'int32':
                 return False
-        elif klass._type_id == self._L_java_lang_long._type_id:
+        elif klass._type_id == self._type_id_L_long:
             if value.dtype.name != 'int64':
                 return False
-        elif klass._type_id == self._L_java_lang_float._type_id:
+        elif klass._type_id == self._type_id_L_float:
             if value.dtype.name != 'float32':
                 return False
-        elif klass._type_id == self._L_java_lang_double._type_id:
+        elif klass._type_id == self._type_id_L_double:
             if value.dtype.name != 'float64':
                 return False
         else:
@@ -2964,7 +3017,7 @@ public class TestInjectSource {
         # simply ones which return None. As such we expect 'value' to be None
         # here. This code will still be called if we happen to, for example, be
         # trying to marshall the results of a callback from Java to Python.
-        if type_id == self._java_lang_void._type_id:
+        if type_id == self._type_id_void:
             # We should not be rendering a non-None value here, if we do then
             # the caller has done something wrong
             if value is not None:
@@ -2973,7 +3026,7 @@ public class TestInjectSource {
             # We simply return a VALUE here, which happens to have no "value"
             # associated with it
             return (self._ARGUMENT_VALUE +
-                    self._format_int32(self._java_lang_void._type_id))
+                    self._format_int32(self._type_id_void))
 
         # Handle specially boxed types. We do hasattr() here since it's twice as
         # fast as calling 'isinstance(value, _JavaBox)'. This might be marginal
@@ -2981,39 +3034,39 @@ public class TestInjectSource {
         if hasattr(value, '_java_object'):
             # Handle regular Java unboxing (Integer to int etc.)
             if (isinstance(value, _JavaByte) and
-                type_id == self._java_lang_byte._type_id):
+                type_id == self._type_id_byte):
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._java_lang_Byte._type_id) +
+                        self._format_int32(self._type_id_Byte) +
                         self._format_int8(strict_number(numpy.int8, value.python_object)))
 
             elif (isinstance(value, _JavaShort) and
-                  type_id == self._java_lang_short._type_id):
+                  type_id == self._type_id_short):
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._java_lang_Short._type_id) +
+                        self._format_int32(self._type_id_Short) +
                         self._format_int16(strict_number(numpy.int16, value.python_object)))
 
             elif (isinstance(value, _JavaInt) and
-                  type_id == self._java_lang_int._type_id):
+                  type_id == self._type_id_int):
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._java_lang_Integer._type_id) +
+                        self._format_int32(self._type_id_Integer) +
                         self._format_int32(strict_number(numpy.int32, value.python_object)))
 
             elif (isinstance(value, _JavaLong) and
-                  type_id == self._java_lang_long._type_id):
+                  type_id == self._type_id_long):
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._java_lang_Long._type_id) +
+                        self._format_int32(self._type_id_Long) +
                         self._format_int64(strict_number(numpy.int64, value.python_object)))
 
             elif (isinstance(value, _JavaFloat) and
-                  type_id == self._java_lang_float._type_id):
+                  type_id == self._type_id_float):
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._java_lang_Float._type_id) +
+                        self._format_int32(self._type_id_Float) +
                         self._format_float(strict_number(numpy.float32, value.python_object)))
 
             elif (isinstance(value, _JavaDouble) and
-                  type_id == self._java_lang_double._type_id):
+                  type_id == self._type_id_double):
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._java_lang_Double._type_id) +
+                        self._format_int32(self._type_id_Double) +
                         self._format_double(strict_number(numpy.float64, value.python_object)))
 
             else:
@@ -3052,7 +3105,7 @@ public class TestInjectSource {
                 # to an equals() method, which takes an Object.
                 if klass._is_interface:
                     wire_type = klass
-                elif type_id == self._java_lang_Object._type_id:
+                elif type_id == self._type_id_Object:
                     wire_type = self._com_deshaw_pjrmi_JavaProxyBase
                 else:
                     wire_type = None
@@ -3072,7 +3125,7 @@ public class TestInjectSource {
 
             # We've been given a native value to marshall. Format it as a raw
             # bag of bytes.
-            if type_id == self._java_lang_Object._type_id:
+            if type_id == self._type_id_Object:
                 # This is basically a typeless object. We infer what sort of
                 # thing we want to send by looking at the Python type.
                 #
@@ -3095,37 +3148,37 @@ public class TestInjectSource {
 
                 elif isinstance(value, (bool, numpy.bool_)):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Boolean._type_id) +
+                            self._format_int32(self._type_id_Boolean) +
                             self._format_boolean(True if value else False))
 
                 elif isinstance(value, numpy.int8):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Byte._type_id) +
+                            self._format_int32(self._type_id_Byte) +
                             self._format_int8(strict_number(numpy.int8, value)))
 
                 elif isinstance(value, numpy.int16):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Short._type_id) +
+                            self._format_int32(self._type_id_Short) +
                             self._format_int16(strict_number(numpy.int16, value)))
 
                 elif isinstance(value, numpy.int32):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Integer._type_id) +
+                            self._format_int32(self._type_id_Integer) +
                             self._format_int32(strict_number(numpy.int32, value)))
 
                 elif isinstance(value, numpy.int64):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Long._type_id) +
+                            self._format_int32(self._type_id_Long) +
                             self._format_int64(strict_number(numpy.int64, value)))
 
                 elif isinstance(value, numpy.float32):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Float._type_id) +
+                            self._format_int32(self._type_id_Float) +
                             self._format_float(strict_number(numpy.float32, value)))
 
                 elif isinstance(value, numpy.float64):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Double._type_id) +
+                            self._format_int32(self._type_id_Double) +
                             self._format_double(strict_number(numpy.float64, value)))
 
                 elif allow_format_shmdata and self._can_format_shmdata(value, klass):
@@ -3134,56 +3187,56 @@ public class TestInjectSource {
 
                 elif isinstance(value, bytes):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_byte._type_id) +
+                            self._format_int32(self._type_id_L_byte) +
                             self._format_int32(len(value)) +
                             value)
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'int8':
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_byte._type_id) +
+                            self._format_int32(self._type_id_L_byte) +
                             self._format_int32(len(value)) +
                             memoryview(strict_array(numpy.int8, numpy.ascontiguousarray(value)).astype(">i1")).tobytes())
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'int16':
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_short._type_id) +
+                            self._format_int32(self._type_id_L_short) +
                             self._format_int32(len(value)) +
                             memoryview(strict_array(numpy.int16, numpy.ascontiguousarray(value)).astype(">i2")).tobytes())
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'int32':
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_int._type_id) +
+                            self._format_int32(self._type_id_L_int) +
                             self._format_int32(len(value)) +
                             memoryview(strict_array(numpy.int32, numpy.ascontiguousarray(value)).astype(">i4")).tobytes())
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'int64':
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_long._type_id) +
+                            self._format_int32(self._type_id_L_long) +
                             self._format_int32(len(value)) +
                             memoryview(strict_array(numpy.int64, numpy.ascontiguousarray(value)).astype(">i8")).tobytes())
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'float32':
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_float._type_id) +
+                            self._format_int32(self._type_id_L_float) +
                             self._format_int32(len(value)) +
                             memoryview(strict_array(numpy.float32, numpy.ascontiguousarray(value)).astype(">f4")).tobytes())
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'float64':
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_double._type_id) +
+                            self._format_int32(self._type_id_L_double) +
                             self._format_int32(len(value)) +
                             memoryview(strict_array(numpy.float64, numpy.ascontiguousarray(value)).astype(">f8")).tobytes())
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name == 'bool':
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_boolean._type_id) +
+                            self._format_int32(self._type_id_L_boolean) +
                             self._format_int32(len(value)) +
                             b''.join(self._format_boolean(True if el else False)
                                          for el in value))
 
                 elif isinstance(value, numpy.ndarray) and len(value.shape) == 1 and value.dtype.name.startswith('str'):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_String._type_id) +
+                            self._format_int32(self._type_id_L_String) +
                             self._format_int32(len(value)) +
                             b''.join(self._format_by_class(self._java_lang_String,
                                                            el,
@@ -3193,37 +3246,37 @@ public class TestInjectSource {
                 elif isinstance(value, int):
                     if  -128 <= value < 128:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Byte._type_id) +
+                                self._format_int32(self._type_id_Byte) +
                                 self._format_int8(strict_number(numpy.int8, value)))
 
                     elif -16384 <= value < 16384:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Short._type_id) +
+                                self._format_int32(self._type_id_Short) +
                                 self._format_int16(strict_number(numpy.int16, value)))
 
                     elif -2147483648 <= value < 2147483648:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Integer._type_id) +
+                                self._format_int32(self._type_id_Integer) +
                                 self._format_int32(strict_number(numpy.int32, value)))
 
                     else:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Long._type_id) +
+                                self._format_int32(self._type_id_Long) +
                                 self._format_int64(strict_number(numpy.int64, value)))
 
                 elif isinstance(value, float):
                     if numpy.float32(value) == value:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Float._type_id) +
+                                self._format_int32(self._type_id_Float) +
                                 self._format_float(strict_number(numpy.float32, value)))
                     else:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Double._type_id) +
+                                self._format_int32(self._type_id_Double) +
                                 self._format_double(strict_number(numpy.float64, value)))
 
                 elif isinstance(value, char):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_lang_Character._type_id) +
+                            self._format_int32(self._type_id_Character) +
                             self._format_utf16(str(value)))
 
                 elif isinstance(value, str):
@@ -3234,13 +3287,13 @@ public class TestInjectSource {
                                 self._format_int64(value._java_string._pjrmi_handle))
                     else:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_String._type_id) +
+                                self._format_int32(self._type_id_String) +
                                 self._format_utf16(str(value)))
 
                 elif hasattr(value, 'items'):
                     it = value.iteritems() if hasattr(value, 'iteritems') else value.items()
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_util_Map._type_id) +
+                            self._format_int32(self._type_id_Map) +
                             self._format_int32(len(value)) +
                             b''.join((self._format_by_class(self._java_lang_Object,
                                                             k,
@@ -3252,7 +3305,7 @@ public class TestInjectSource {
 
                 elif isinstance(value, collections.abc.Set):
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._java_util_Set._type_id) +
+                            self._format_int32(self._type_id_Set) +
                             self._format_int32(len(value)) +
                             b''.join(self._format_by_class(self._java_lang_Object,
                                                            el,
@@ -3265,7 +3318,7 @@ public class TestInjectSource {
                     # ints since we might not be slicing arrays; some container
                     # objects might have more than 2^32 elements.
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._com_deshaw_pjrmi_PythonSlice._type_id) +
+                            self._format_int32(self._type_id_PythonSlice) +
                             b''.join(self._format_by_class(
                                          self._java_lang_Object,
                                          strict_number(numpy.int32, el) if el is not None else None,
@@ -3276,7 +3329,7 @@ public class TestInjectSource {
                       not isinstance(value, str)):
                     # Iterable, turned into an array of Objects
                     return (self._ARGUMENT_VALUE +
-                            self._format_int32(self._L_java_lang_Object._type_id) +
+                            self._format_int32(self._type_id_L_Object) +
                             self._format_int32(len(value)) +
                             b''.join(self._format_by_class(self._java_lang_Object,
                                                            el,
@@ -3303,36 +3356,36 @@ public class TestInjectSource {
                 return self._ARGUMENT_REFERENCE + self._format_int64(self._NULL_HANDLE)
 
             # Marshalling to a Number type?
-            elif type_id == self._java_lang_Number._type_id:
+            elif type_id == self._type_id_Number:
                 if isinstance(value, int):
                     if numpy.int8(value) == value:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Byte._type_id) +
+                                self._format_int32(self._type_id_Byte) +
                                 self._format_int8(strict_number(numpy.int8, value)))
 
                     elif numpy.int16(value) == value:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Short._type_id) +
+                                self._format_int32(self._type_id_Short) +
                                 self._format_int16(strict_number(numpy.int16, value)))
 
                     elif numpy.int32(value) == value:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Integer._type_id) +
+                                self._format_int32(self._type_id_Integer) +
                                 self._format_int32(strict_number(numpy.int32, value)))
 
                     else:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Long._type_id) +
+                                self._format_int32(self._type_id_Long) +
                                 self._format_int64(strict_number(numpy.int64, value)))
 
                 elif isinstance(value, float):
                     if numpy.float32(value) == value:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Float._type_id) +
+                                self._format_int32(self._type_id_Float) +
                                 self._format_float(strict_number(numpy.float32, value)))
                     else:
                         return (self._ARGUMENT_VALUE +
-                                self._format_int32(self._java_lang_Double._type_id) +
+                                self._format_int32(self._type_id_Double) +
                                 self._format_double(strict_number(numpy.float64, value)))
 
                 else:
@@ -3342,14 +3395,14 @@ public class TestInjectSource {
                         (str(value), str(value.__class__), klass._classname)
                     )
 
-            elif type_id in (self._java_lang_boolean._type_id,
-                             self._java_lang_Boolean._type_id):
+            elif type_id in (self._type_id_boolean,
+                             self._type_id_Boolean):
                 return (self._ARGUMENT_VALUE +
                         self._format_int32(type_id) +
                         self._format_boolean(strict_bool(value)))
 
             elif type_id in (self._java_lang_char.     _type_id,
-                             self._java_lang_Character._type_id):
+                             self._type_id_Character):
                 if not isinstance(value, str):
                     raise TypeError("Expected a string but had %s: %s" %
                                     (str(value.__class__), ascii(value)))
@@ -3361,8 +3414,8 @@ public class TestInjectSource {
                             self._format_int32(type_id) +
                             self._format_utf16(str(value)))
 
-            elif type_id in (self._java_lang_float._type_id,
-                             self._java_lang_Float._type_id) and \
+            elif type_id in (self._type_id_float,
+                             self._type_id_Float) and \
                 not hasattr(value, '__iter__'): # <-- "Not collections.abc.Iterable"
                 # If the user has given us a numpy type then we assume that they
                 # know what they are doing when it comes to types, and we
@@ -3379,15 +3432,15 @@ public class TestInjectSource {
                             self._format_int32(type_id) +
                             self._format_float(strict_number(numpy.float64, value)))
 
-            elif type_id in (self._java_lang_double._type_id,
-                             self._java_lang_Double._type_id) and \
+            elif type_id in (self._type_id_double,
+                             self._type_id_Double) and \
                 not hasattr(value, '__iter__'):
                 return (self._ARGUMENT_VALUE +
                         self._format_int32(type_id) +
                         self._format_double(strict_number(numpy.float64, value)))
 
-            elif type_id in (self._java_lang_byte._type_id,
-                             self._java_lang_Byte._type_id) and \
+            elif type_id in (self._type_id_byte,
+                             self._type_id_Byte) and \
                 not hasattr(value, '__iter__'):
                 if strict_types and \
                    type(value) in (numpy.int16, numpy.int32, numpy.int64,
@@ -3400,8 +3453,8 @@ public class TestInjectSource {
                             self._format_int32(type_id) +
                             self._format_int8(strict_number(numpy.int8, value)))
 
-            elif type_id in (self._java_lang_short._type_id,
-                             self._java_lang_Short._type_id) and \
+            elif type_id in (self._type_id_short,
+                             self._type_id_Short) and \
                 not hasattr(value, '__iter__'):
                 if strict_types and \
                    type(value) in (numpy.int32, numpy.int64,
@@ -3415,7 +3468,7 @@ public class TestInjectSource {
                             self._format_int16(strict_number(numpy.int16, value)))
 
             elif type_id in (self._java_lang_int.    _type_id,
-                             self._java_lang_Integer._type_id) and \
+                             self._type_id_Integer) and \
                 not hasattr(value, '__iter__'):
                 if strict_types and \
                    type(value) in (numpy.int64,
@@ -3428,8 +3481,8 @@ public class TestInjectSource {
                             self._format_int32(type_id) +
                             self._format_int32(strict_number(numpy.int32, value)))
 
-            elif type_id in (self._java_lang_long._type_id,
-                             self._java_lang_Long._type_id) and \
+            elif type_id in (self._type_id_long,
+                             self._type_id_Long) and \
                 not hasattr(value, '__iter__'):
                 if strict_types and \
                    type(value) in (numpy.uint64,
@@ -3441,7 +3494,7 @@ public class TestInjectSource {
                             self._format_int32(type_id) +
                             self._format_int64(strict_number(numpy.int64, value)))
 
-            elif type_id == self._L_java_lang_char._type_id:
+            elif type_id == self._type_id_L_char:
                 self._validate_format_array(value)
                 if not isinstance(value, str):
                     raise TypeError("Expected a string but had %s: %s" %
@@ -3453,7 +3506,7 @@ public class TestInjectSource {
                             self._format_int32(type_id) +
                             self._format_utf16(str(value)))
 
-            elif type_id == self._L_java_lang_boolean._type_id:
+            elif type_id == self._type_id_L_boolean:
                 self._validate_format_array(value)
                 if allow_format_shmdata and self._can_format_shmdata(value, klass):
                     return self._format_shmdata(klass, value, strict_types)
@@ -3464,7 +3517,7 @@ public class TestInjectSource {
                             b''.join(self._format_boolean(strict_bool(el))
                                         for el in value))
 
-            elif type_id == self._L_java_lang_float._type_id:
+            elif type_id == self._type_id_L_float:
                 self._validate_format_array(value)
                 if allow_format_shmdata and self._can_format_shmdata(value, klass):
                     return self._format_shmdata(klass, value, strict_types)
@@ -3482,7 +3535,7 @@ public class TestInjectSource {
                                 ).astype(">f4")
                             ).tobytes())
 
-            elif type_id == self._L_java_lang_byte._type_id:
+            elif type_id == self._type_id_L_byte:
                 self._validate_format_array(value)
                 if isinstance(value, bytes):
                     # A bytes object we can just send raw
@@ -3510,7 +3563,7 @@ public class TestInjectSource {
                                 self._format_int32(len(value)) +
                                 self._format_array(value, 'int8'))
 
-            elif type_id == self._L_java_lang_short._type_id:
+            elif type_id == self._type_id_L_short:
                 self._validate_format_array(value)
                 if allow_format_shmdata and self._can_format_shmdata(value, klass):
                     return self._format_shmdata(klass, value, strict_types)
@@ -3520,7 +3573,7 @@ public class TestInjectSource {
                             self._format_int32(len(value)) +
                             self._format_array(value, '>i2'))
 
-            elif type_id == self._L_java_lang_int._type_id:
+            elif type_id == self._type_id_L_int:
                 self._validate_format_array(value)
                 if allow_format_shmdata and self._can_format_shmdata(value, klass):
                     return self._format_shmdata(klass, value, strict_types)
@@ -3530,7 +3583,7 @@ public class TestInjectSource {
                             self._format_int32(len(value)) +
                             self._format_array(value, '>i4'))
 
-            elif type_id == self._L_java_lang_long._type_id:
+            elif type_id == self._type_id_L_long:
                 self._validate_format_array(value)
                 if allow_format_shmdata and self._can_format_shmdata(value, klass):
                     return self._format_shmdata(klass, value, strict_types)
@@ -3540,7 +3593,7 @@ public class TestInjectSource {
                             self._format_int32(len(value)) +
                             self._format_array(value, '>i8'))
 
-            elif type_id == self._L_java_lang_double._type_id:
+            elif type_id == self._type_id_L_double:
                 self._validate_format_array(value)
                 if allow_format_shmdata and self._can_format_shmdata(value, klass):
                     return self._format_shmdata(klass, value, strict_types)
@@ -3582,11 +3635,11 @@ public class TestInjectSource {
             elif (isinstance(value, str) and
                   self._java_lang_String._instance_of(klass)):
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._java_lang_String._type_id) +
+                        self._format_int32(self._type_id_String) +
                         self._format_utf16(str(value)))
 
             elif (hasattr(value, 'items') and
-                  type_id == self._java_util_Map._type_id):
+                  type_id == self._type_id_Map):
                 ok = self._java_lang_Object
                 it = value.iteritems() if hasattr(value, 'iteritems') else value.items()
                 return (self._ARGUMENT_VALUE +
@@ -3601,7 +3654,7 @@ public class TestInjectSource {
                                       for (k, v) in it))
 
             elif (isinstance(value, collections.abc.Set) and
-                  type_id == self._java_util_Set._type_id):
+                  type_id == self._type_id_Set):
                 ok = self._java_lang_Object
                 return (self._ARGUMENT_VALUE +
                         self._format_int32(type_id) +
@@ -3614,7 +3667,7 @@ public class TestInjectSource {
             elif (hasattr(value, '__iter__') and
                   not isinstance(value, str) and
                   type_id in (self._java_lang_Iterable.  _type_id,
-                              self._java_util_Collection._type_id,
+                              self._type_id_Collection,
                               self._java_util_List.      _type_id)):
                 ok = self._java_lang_Object
                 return (self._ARGUMENT_VALUE +
@@ -3625,7 +3678,7 @@ public class TestInjectSource {
                                                        strict_types=strict_types)
                                      for el in value))
 
-            elif (type_id == self._com_deshaw_pjrmi_PythonSlice._type_id and
+            elif (type_id == self._type_id_PythonSlice and
                   (isinstance(value, slice) or
                    hasattr(value, '__len__') and (len(value) == 2 or len(value) == 3))):
                 # We want to handle this as a slice; convert it as such
@@ -3636,7 +3689,7 @@ public class TestInjectSource {
                 elif len(value) == 3:
                     parts = value
                 return (self._ARGUMENT_VALUE +
-                        self._format_int32(self._com_deshaw_pjrmi_PythonSlice._type_id) +
+                        self._format_int32(self._type_id_PythonSlice) +
                         b''.join(self._format_by_class(
                                      self._java_lang_Object,
                                      strict_number(numpy.int32, el) if el is not None else None,
@@ -3649,12 +3702,12 @@ public class TestInjectSource {
                                              self._get_callback_wrapper(value, klass),
                                              strict_types=strict_types)
 
-            elif type_id == self._com_deshaw_pjrmi_PythonObject._type_id:
+            elif type_id == self._type_id_PythonObject:
                 return (self._ARGUMENT_VALUE +
                         self._format_int32(type_id) +
                         self._format_int32(self._get_object_id(value)))
 
-            elif (type_id == self._com_deshaw_hypercube_Hypercube._type_id and
+            elif (type_id == self._type_id_Hypercube and
                   type(value) is numpy.memmap and
                   value.dtype in (numpy.float32, numpy.float64,
                                   numpy.int32,   numpy.int64) and
@@ -3685,7 +3738,7 @@ public class TestInjectSource {
                         self._format_boolean(value.mode.startswith('r')) +
                         self._format_utf16(value.filename))
 
-            elif (type_id == self._com_deshaw_hypercube_Hypercube._type_id and
+            elif (type_id == self._type_id_Hypercube and
                   (type(value) is numpy.ndarray or hasattr(value, '__iter__'))):
                 # Using asarray() will ensure that we share the same semantics
                 # as how numpy would convert a value to an ndarray. However,
@@ -3777,7 +3830,7 @@ public class TestInjectSource {
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!f', bytes_[index:index+4])[0], index+4)
+        return (_STRUCT_FLOAT.unpack_from(bytes_, index)[0], index+4)
 
 
     def _read_double(self, bytes_: bytes, index: int) -> tuple[float,int]:
@@ -3787,7 +3840,7 @@ public class TestInjectSource {
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!d', bytes_[index:index+8])[0], index+8)
+        return (_STRUCT_DOUBLE.unpack_from(bytes_, index)[0], index+8)
 
 
     def _read_int64(self, bytes_: bytes, index: int) -> tuple[int,int]:
@@ -3797,7 +3850,7 @@ public class TestInjectSource {
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!q', bytes_[index:index+8])[0], index+8)
+        return (_STRUCT_INT64.unpack_from(bytes_, index)[0], index+8)
 
 
     def _read_int32(self, bytes_: bytes, index: int) -> tuple[int,int]:
@@ -3807,7 +3860,7 @@ public class TestInjectSource {
         :return: The value, the new offset into the byte buffer
         """
 
-        return (struct.unpack('!i', bytes_[index:index+4])[0], index+4)
+        return (_STRUCT_INT32.unpack_from(bytes_, index)[0], index+4)
 
 
     def _read_int16(self, bytes_: bytes, index: int) -> tuple[int,int]:
@@ -3817,7 +3870,7 @@ public class TestInjectSource {
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!h', bytes_[index:index+2])[0], index+2)
+        return (_STRUCT_INT16.unpack_from(bytes_, index)[0], index+2)
 
 
     def _read_int8(self, bytes_: bytes, index: int) -> tuple[int,int]:
@@ -3827,7 +3880,7 @@ public class TestInjectSource {
         :return: The value, the new offset into the byte buffer.
         """
 
-        return (struct.unpack('!b', bytes_[index:index+1])[0], index+1)
+        return (_STRUCT_INT8.unpack_from(bytes_, index)[0], index+1)
 
 
     def _read_byte(self, bytes_: bytes, index: int) -> tuple[bytes,int]:
@@ -5443,7 +5496,7 @@ used as in a `with` conntext.
                     box = boxer(result, raw)
                     box._java_object = result
                     result = box
-                elif type_id == self._java_lang_Boolean._type_id:
+                elif type_id == self._type_id_Boolean:
                     # Given back real Python booleans. We can't box them
                     # since bool isn't a type you can subclass from. This
                     # probably doesn't matter here though since inferring

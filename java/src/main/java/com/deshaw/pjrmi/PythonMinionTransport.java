@@ -22,9 +22,9 @@ import java.util.concurrent.atomic.AtomicInteger;
     implements Transport
 {
     /**
-     * How we uniquely identify threads.
+     * How we uniquely identify the Python Minion child processes.
      */
-    private static final AtomicInteger ourThreadId = new AtomicInteger(0);
+    private static final AtomicInteger ourMinionId = new AtomicInteger(0);
 
     /**
      * The process we spawn.
@@ -67,7 +67,14 @@ import java.util.concurrent.atomic.AtomicInteger;
         }
         command.append(");");
 
+        // The child details
+        final int childId = ourMinionId.incrementAndGet();
+        final String name = "Minion#" + childId;
+
         // How we spawn the child
+        PJRmi.LOG.info(
+            "Spawning " + name + " with: python3 -c '" + command + "'"
+        );
         final ProcessBuilder pb =
             new ProcessBuilder("python3", "-c", command.toString());
         try {
@@ -79,6 +86,7 @@ import java.util.concurrent.atomic.AtomicInteger;
             // won't be a lot.
             final Thread stderr = new Thread(
                 () -> {
+                    final String logPrefix = "[" + name + "] ";
                     final BufferedReader err =
                         new BufferedReader(
                             new InputStreamReader(
@@ -90,17 +98,17 @@ import java.util.concurrent.atomic.AtomicInteger;
                             final String line = err.readLine();
                             if (line == null) {
                                 // EOF encountered
-                                PJRmi.LOG.info("[Python child] <EOF>");
+                                PJRmi.LOG.info(logPrefix + "<EOF>");
                                 return;
                             }
-                            PJRmi.LOG.info("[Python child] " + line);
+                            PJRmi.LOG.info(logPrefix + line);
                         }
                     }
                     catch (IOException e) {
                         // Done, one way or another
                     }
                 },
-                "PythonMinionStderr-" + ourThreadId.incrementAndGet()
+                "PythonMinionOutput-" + childId
             );
             stderr.setDaemon(true);
             stderr.start();

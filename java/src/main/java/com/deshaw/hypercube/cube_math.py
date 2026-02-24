@@ -198,17 +198,15 @@ public class {class_name}
         // Only initialize an executor service if NUM_THREADS > 1.
         if (NUM_THREADS > 1) {{
             // Initialize ourExecutorService according to the NUM_THREADS variable
-            // and add a hook to shutdown all threads when the main thread terminates.
-            ourExecutorService = Executors.newFixedThreadPool(NUM_THREADS);
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {{
-                ourExecutorService.shutdown();
-                try {{
-                    ourExecutorService.awaitTermination(5, TimeUnit.SECONDS);
+            // using daemon threads so the JVM can exit cleanly.
+            ourExecutorService = Executors.newFixedThreadPool(
+                NUM_THREADS,
+                runnable -> {{
+                    Thread thread = new Thread(runnable);
+                    thread.setDaemon(true);
+                    return thread;
                 }}
-                catch (InterruptedException e) {{
-                    // No need to do anything since we are shutting down.
-                }}
-            }}));
+            );
         }}
         else {{
             ourExecutorService = null;

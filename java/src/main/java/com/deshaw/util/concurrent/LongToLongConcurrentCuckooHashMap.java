@@ -2,6 +2,7 @@ package com.deshaw.util.concurrent;
 
 import java.util.Arrays;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongConsumer;
@@ -664,7 +665,9 @@ public class LongToLongConcurrentCuckooHashMap
                             break;
                         }
                         else {
-                            // Restore the value and retry
+                            // Restore the value and retry. Increment revision
+                            // to maintain proper memory barriers (Rule 5).
+                            buckets.getAndIncrement(r1idx);
                             buckets.set(v1idx, v1);
                             continue;
                         }
@@ -689,7 +692,9 @@ public class LongToLongConcurrentCuckooHashMap
                             break;
                         }
                         else {
-                            // Restore the value and retry
+                            // Restore the value and retry. Increment revision
+                            // to maintain proper memory barriers (Rule 5).
+                            buckets.getAndIncrement(r2idx);
                             buckets.set(v2idx, v2);
                             continue;
                         }
@@ -1266,7 +1271,9 @@ public class LongToLongConcurrentCuckooHashMap
         if (key1 == NULL && buckets.compareAndSet(k1idx, NULL, key)) {
             // Ensure that bucket2 wasn't claimed at the same time
             if (buckets.get(k2idx) == key) {
-                // Race to claim; drop ours and back off
+                // Race to claim; drop ours and back off. No revision increment
+                // needed since VALUE stays NULL (Rule 5 applies only to VALUE
+                // transitions). The volatile write to keys provides memory barrier.
                 buckets.set(k1idx, NULL);
                 return Result.RETRY;
             }
@@ -1334,7 +1341,10 @@ public class LongToLongConcurrentCuckooHashMap
             }
             else {
                 // Someone took the bucket with a different key; put back
-                // the value and denote failure (below)
+                // the value and denote a retry can be had (below). We must
+                // increment the revision to signal the value transition per
+                // Rule 5 (VALUE transitioned NULL->curValue).
+                buckets.getAndIncrement(r1idx);
                 buckets.set(v1idx, curValue);
             }
         }
@@ -1480,7 +1490,8 @@ public class LongToLongConcurrentCuckooHashMap
         // If the source value is NULL then someone else is messing with this
         // bucket.
         if (vs == NULL) {
-            // Release the destination and denote failure
+            // Release the destination and denote failure. No revision increment
+            // needed since destination VALUE stays NULL (Rule 5).
             buckets.set(kdidx, NULL);
             return false;
         }
@@ -1488,14 +1499,17 @@ public class LongToLongConcurrentCuckooHashMap
         // Attempt to remove the value from the old bucket so as to lock it
         if (!buckets.compareAndSet(vsidx, vs, NULL)) {
             // Failed to claim the source bucket, release the destination and
-            // denote failure
+            // denote failure. No revision increment needed (Rule 5).
             buckets.set(kdidx, NULL);
             return false;
         }
 
         // Check the revision number, if that changed then the read was invalid
         if (buckets.get(rsidx) != rs) {
-            // The read was invalid, give back the buckets and return failure
+            // The read was invalid, give back the buckets and return failure.
+            // Increment source revision for VALUE transition NULL->vs (Rule 5).
+            // Destination needs no increment (VALUE stays NULL).
+            buckets.getAndIncrement(rsidx);
             buckets.set(vsidx, vs);
             buckets.set(kdidx, NULL);
             return false;
@@ -1504,7 +1518,10 @@ public class LongToLongConcurrentCuckooHashMap
         // Make sure that the source still has the right key (i.e. that we are
         // moving the right thing)
         if (ks != key) {
-            // It no longer holds our key, give the buckets and return failure
+            // It no longer holds our key, give the buckets and return failure.
+            // Increment source revision for VALUE transition NULL->vs (Rule 5).
+            // Destination needs no increment (VALUE stays NULL).
+            buckets.getAndIncrement(rsidx);
             buckets.set(vsidx, vs);
             buckets.set(kdidx, NULL);
             return false;
@@ -1515,7 +1532,10 @@ public class LongToLongConcurrentCuckooHashMap
         // rehashing. We don't want to move a value since this could cause it to
         // be dropped or duplicated in the rehashed buckets.
         if (!isRehash && myBuckets.get() != buckets) {
-            // We need to step away and restore things to their original state
+            // We need to step away and restore things to their original state.
+            // Increment source revision for VALUE transition NULL->vs (Rule 5).
+            // Destination needs no increment (VALUE stays NULL).
+            buckets.getAndIncrement(rsidx);
             buckets.set(vsidx, vs);
             buckets.set(kdidx, NULL);
             return false;
@@ -1734,10 +1754,15 @@ public class LongToLongConcurrentCuckooHashMap
      * Testing method.
      *
      *   java -classpath java/build/classes/java/main \
-     *       com.deshaw.util.concurrent.LongToLongConcurrentCuckooHashMap
+     *       com.deshaw.util.concurrent.LongToLongConcurrentCuckooHashMap [quick|full|stress]
      */
     public static void main(String args[])
     {
+        // Parse test mode
+        final String mode = (args.length > 0) ? args[0] : "quick";
+        System.out.println("Running in mode: " + mode);
+        System.out.println();
+
         final LongToLongConcurrentCuckooHashMap map =
             new LongToLongConcurrentCuckooHashMap(2);
 
@@ -1844,5 +1869,114 @@ public class LongToLongConcurrentCuckooHashMap
         }
         System.out.println();
 
+        // Pound on the map with a number of different threads so as to try to
+        // force errors. If this fails then it points to a bug. Start with the
+        // smallest map that we can so as to force a number of rehashes.
+
+        // Configure stress test based on mode
+        final int numThreads;
+        final int numRounds;
+        final long iterationsPerRound;
+
+        if (mode.equals("quick")) {
+            numThreads         = 4;
+            numRounds          = 2;
+            iterationsPerRound = 10_000;
+            System.out.println(
+                "Quick stress test (4 threads, 2 rounds, 10K iterations)..."
+            );
+        }
+        else if (mode.equals("full")) {
+            numThreads         = 8;
+            numRounds          = 5;
+            iterationsPerRound = 100_000;
+            System.out.println(
+                "Full stress test (8 threads, 5 rounds, 100K iterations)..."
+            );
+        }
+        else if (mode.equals("stress")) {
+            numThreads         = 17;
+            numRounds          = 25;
+            iterationsPerRound = 1_000_000;
+            System.out.println(
+                "Heavy stress test (17 threads, 25 rounds, 1M iterations)..."
+            );
+        }
+        else {
+            System.out.println("Unknown mode: " + mode);
+            System.out.println("Use: quick, full, or stress");
+            return;
+        }
+
+        final LongToLongConcurrentCuckooHashMap map2 =
+            new LongToLongConcurrentCuckooHashMap(-1);
+
+        final AtomicBoolean failure = new AtomicBoolean(false);
+        final Thread[] threads = new Thread[numThreads];
+
+        for (int i=0; i < numThreads; i++) {
+            final long id = i;
+
+            // Our hammering thread, we'll make a bunch of these
+            threads[i] = new Thread(() -> {
+                for (int round = 0; round < numRounds; round++) {
+                    if (id == 0) {
+                        System.out.println(
+                            "  Round " + round + "/" + numRounds +
+                            " - rehashes: " + map2.getRehashCount() +
+                            " - size: " + map2.capacity()
+                        );
+                    }
+                    for (long index = 0; index < iterationsPerRound; index++) {
+                        for (long which = 0; which < numThreads; which++) {
+                            // Mutate?
+                            final Long value = index * numThreads + which;
+                            if (value % 17 == 13) {
+                                // Remove instead
+                                map2.remove(which);
+                            }
+                            else {
+                                map2.put(which, value);
+                            }
+
+                            // Get
+                            final long result = map2.get(which, NULL);
+
+                            // Is it sane?
+                            if (result != NULL && result % numThreads != which) {
+                                System.err.println(
+                                    "ERROR: Bad value " + result + " " +
+                                    "for key " + which + " " +
+                                    "(should be " + which + " mod " + numThreads + ")"
+                                );
+                                failure.set(true);
+                            }
+                        }
+                    }
+                }
+            });
+
+            threads[i].start();
+        }
+
+        // Wait for all threads to complete
+        try {
+            for (int i = 0; i < numThreads; i++) {
+                threads[i].join();
+            }
+        }
+        catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Check for failures
+        if (failure.get()) {
+            throw new AssertionError("FAILURE in stress testing!");
+        }
+
+        System.out.println();
+        System.out.println("SUCCESS! All tests passed.");
+        System.out.println("  Final capacity: " + map2.capacity());
+        System.out.println("  Total rehashes: " + map2.getRehashCount());
     }
 }

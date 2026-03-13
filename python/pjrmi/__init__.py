@@ -415,7 +415,11 @@ class PJRmi:
         # We are about to get a short string back. Read in its size, if it's
         # negative then it means we encountered an error and the connection will
         # be closed, else it's actually the service name from the other side.
-        sz = struct.unpack('!b', self._transport.recv(1))[0]
+        sz_byte = self._transport.recv(1)
+        if len(sz_byte) == 0:
+            self._eof = True
+            raise IOError('EOF while reading size byte')
+        sz = struct.unpack('!b', sz_byte)[0]
         string = b''
         while len(string) < abs(sz):
             chunk = self._transport.recv(abs(sz) - len(string))
@@ -431,7 +435,11 @@ class PJRmi:
             self._service_name = string
 
         # Now, the flags
-        self._flags = struct.unpack('!b', self._transport.recv(1))[0]
+        flags_byte = self._transport.recv(1)
+        if len(flags_byte) == 0:
+            self._eof = True
+            raise IOError('EOF while reading flags byte')
+        self._flags = struct.unpack('!b', flags_byte)[0]
 
         # We're now connected so it's correct to mark ourselves as so
         self._connected = True
@@ -1141,7 +1149,7 @@ class PJRmi:
         """
 
         if filename is None:
-            return ValueError('Given a null filename')
+            raise ValueError('Given a null filename')
 
         # Read in and send over the bytecode from the file
         with open(filename, 'rb') as fh:
@@ -1178,9 +1186,9 @@ public class TestInjectSource {
         :return: The Python class shim of the injected Java class.
         """
         if class_name is None:
-            return ValueError('class_name was None')
+            raise ValueError('class_name was None')
         if source     is None:
-            return ValueError('source was None')
+            raise ValueError('source was None')
 
         # Send the request by concatenating the class_name and source
         payload  = self._format_string(class_name)
@@ -1222,7 +1230,7 @@ public class TestInjectSource {
         if filename is None and bytecode is None:
             raise ValueError('No filename or bytecode given')
         elif filename is not None and bytecode is not None:
-            return ValueError('Both filename and bytecode given')
+            raise ValueError('Both filename and bytecode given')
         elif filename is not None:
             # Read in the bytecode from the file
             with open(filename, 'rb') as fh:
@@ -1591,11 +1599,19 @@ public class TestInjectSource {
             (msg_type, thread_id, request_id, payload_size) = \
                 _STRUCT_HEADER.unpack(result)
 
-            # Read the payload
+            # Read the payload. Guard against an EOF from the transport
+            # returning b'' for the chunk, just in case.
             payload = b''
             while len(payload) < payload_size:
-                payload += self._transport.recv(payload_size - len(payload))
-            assert len(payload) == payload_size
+                chunk = self._transport.recv(payload_size - len(payload))
+                if chunk:
+                    payload += chunk
+                else:
+                    break
+            if len(payload) != payload_size:
+                raise EOFError(
+                    f"Truncated payload got {len(payload)}, expected {payload_size}"
+                )
 
             # See if it happened to be a callback
             if request_id == self._CALLBACK_REQUEST_ID:
@@ -2011,10 +2027,11 @@ public class TestInjectSource {
         #  int32   : Number of elements in the array
         #  int16   : Type of the array
 
-        # Read in the return format
+        # Read in the return format. The Java side should be sending us the
+        # right thing so we `assert` that this is the case.
         (value_format, idx) = self._read_byte(payload, 0)
-        assert (value_format == self._VALUE_FORMAT_SHMDATA), \
-               ('unrecognized value format: %s' % value_format)
+        assert value_format == self._VALUE_FORMAT_SHMDATA, \
+               'Got the wrong value format: %s' % value_format
 
         # Read each component of the JniPJRmi$ArrayHandle
         (filename,   idx) = self._read_utf16(payload, idx)
@@ -4783,10 +4800,9 @@ public class TestInjectSource {
                     continue
 
                 # First thing to do is to reset back to the call arguments,
-                # since we might have touched these in a previous loop. Don't
-                # bother to create a new kwargs dict if it was empty anyhow.
+                # since we might have touched these in a previous loop
                 args   = call_args
-                kwargs = dict(call_kwargs) if call_kwargs else call_kwargs
+                kwargs = dict(call_kwargs) if call_kwargs is not None else None
 
                 # See if the method accepts keyword arguments. If so then we
                 # need to be a little clever about how we handle the PJRmi
@@ -6563,8 +6579,7 @@ class SSLSocketTransport(SocketTransport):
 
         # Write out the certs to transient files in a secured directory, so that
         # we may load in the certificate chain from them.
-        tmpdir = tempfile.mktemp()
-        os.mkdir(tmpdir, mode=0o700)
+        tmpdir = tempfile.mkdtemp(mode=0o700)
         try:
             # Create two files to write the cerficates into so that we can load
             # them into the context. (Use Python3.6-compatible `with` syntax.)

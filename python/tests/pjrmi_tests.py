@@ -113,7 +113,10 @@ def get_pjrmi():
         'com.deshaw.python.NumpyArray',
         'com.deshaw.python.PythonUnpickle',
         'java.lang.Class',
+        'java.lang.Enum',
         'java.lang.ProcessHandle',
+        'java.lang.Runnable',
+        'java.lang.Thread',
         'java.lang.invoke.TypeDescriptor',
         'java.lang.invoke.TypeDescriptor$OfField',
         'java.lang.reflect.AccessibleObject',
@@ -128,7 +131,10 @@ def get_pjrmi():
         'java.util.AbstractList',
         'java.util.ArrayList',
         'java.util.Arrays',
-        'java.util.Objects'
+        'java.util.Objects',
+        'java.util.concurrent.Future',
+        'java.util.concurrent.TimeUnit',
+        'java.util.concurrent.TimeoutException',
     ])
 
     # Connect to PJRmi
@@ -1267,6 +1273,68 @@ public class TestNameMangling {
         hm2 = HashMap()
         hm3 = Objects.requireNonNullElseGet(None, ctor)
         self.assertEqual(hm2, hm3)
+
+
+    def test_futures(self):
+        """
+        Test async method calls using Futures with CountDownLatch.
+
+        This ensures that Future.get() uses CountDownLatch for efficient
+        blocking instead of busy-waiting.
+        """
+        Integer          = get_pjrmi().class_for_name('java.lang.Integer')
+        Thread           = get_pjrmi().class_for_name('java.lang.Thread')
+        Future           = get_pjrmi().class_for_name('java.util.concurrent.Future')
+        TimeUnit         = get_pjrmi().class_for_name('java.util.concurrent.TimeUnit')
+        TimeoutException = get_pjrmi().class_for_name('java.util.concurrent.TimeoutException')
+
+        # Local handle
+        sync_mode = get_pjrmi().SYNC_MODE_JAVA_THREAD
+
+        # Basic async call with immediate result
+        future = Integer.valueOf(42, __pjrmi_sync_mode__=sync_mode)
+        self.assertTrue(get_pjrmi().is_instance_of(future, Future))
+
+        # Get the result - should complete quickly
+        result = future.get()
+        self.assertEqual(result, 42)
+
+        # Timeout behavior. Call a long sleep.
+        long_sleep_future = Thread.sleep(2000, __pjrmi_sync_mode__=sync_mode)
+
+        # Try to get with a short timeout - should raise TimeoutException
+        try:
+            long_sleep_future.get(100, TimeUnit.MILLISECONDS)
+            self.fail("get(100ms) should have raised TimeoutException")
+        except TimeoutException:
+            pass
+
+        # Multiple futures in parallel
+        futures = []
+        for i in range(5):
+            f = Integer.valueOf(i * 10, __pjrmi_sync_mode__=sync_mode)
+            futures.append(f)
+
+        # Collect results
+        results = [f.get() for f in futures]
+        expected = [0, 10, 20, 30, 40]
+        self.assertEqual(results, expected)
+
+        # Use something which should happen right away to check the isDone()
+        # method
+        quick_future = Integer.valueOf(123, __pjrmi_sync_mode__=sync_mode)
+
+        # Block briefly while it completes; we expect this to be almost instant
+        # since it's a quick call.
+        until = time.time() + 1
+        while not quick_future.isDone() and time.time() < until:
+            time.sleep(1e-6)
+
+        # Should be done now
+        self.assertTrue(quick_future.isDone())
+
+        # Getting result should work
+        self.assertEqual(quick_future.get(), 123)
 
 
     def test_can_format_shmdata(self):

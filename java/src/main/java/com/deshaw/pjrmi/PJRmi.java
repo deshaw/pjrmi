@@ -86,6 +86,7 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -2548,24 +2549,24 @@ public abstract class PJRmi
         private volatile Object myResult;
 
         /**
-         * Whether the call is done.
-         */
-        private volatile boolean myIsDone;
-
-        /**
          * Whether the call resulted in an exception, which should be thrown.
          */
         private volatile boolean myIsException;
+
+        /**
+         * Latch to signal completion; counts down from 1 to 0 when done.
+         */
+        private final CountDownLatch myCompletionLatch;
 
         /**
          * CTOR.
          */
         public MethodCallFuture(final String desc)
         {
-            myDescription = desc;
-            myResult      = null;
-            myIsDone      = false;
-            myIsException = false;
+            myDescription     = desc;
+            myResult          = null;
+            myIsException     = false;
+            myCompletionLatch = new CountDownLatch(1);
         }
 
         /**
@@ -2576,7 +2577,7 @@ public abstract class PJRmi
         {
             myResult      = result;
             myIsException = isException;
-            myIsDone      = true; // <-- Must be last
+            myCompletionLatch.countDown(); // Signal completion
         }
 
         /**
@@ -2605,7 +2606,7 @@ public abstract class PJRmi
         @Override
         public boolean isDone()
         {
-            return myIsDone;
+            return myCompletionLatch.getCount() == 0;
         }
 
         /**
@@ -2642,53 +2643,33 @@ public abstract class PJRmi
                    InterruptedException,
                    TimeoutException
         {
-            // See how long to wait until
-            final long untilMs;
-            if (timeout < 0) {
-                untilMs = System.currentTimeMillis();
-            }
-            else {
-                // Need to handle overflow here
-                final long end =
-                    System.currentTimeMillis() + unit.toMillis(timeout);
-                untilMs = (end < 0) ? Long.MAX_VALUE : end;
+            // Wait for completion with timeout
+            if (!myCompletionLatch.await(timeout, unit)) {
+                throw new TimeoutException();
             }
 
-            // Now do the get
-            while (true) {
-                // See if we got a result
-                if (myIsDone) {
-                    // Give back whatever it was
-                    if (myIsException) {
-                        if (myResult != null) {
-                            throw new ExecutionException((Throwable)myResult);
-                        }
-                        else {
-                            throw new ExecutionException(
-                                "An unknown error occurred",
-                                new Throwable()
-                            );
-                        }
-                    }
-                    else {
-                        // Get the result and give it back. This may only be
-                        // called once since we release the handle on the result
-                        // so that it may be GC'd.
-                        final Object result = myResult;
-                        myResult =
-                            new IllegalStateException("Result already collected");
-                        myIsException = true;
-                        myDescription += " [COLLECTED]";
-                        return result;
-                    }
-                }
-                else if (System.currentTimeMillis() >= untilMs) {
-                    throw new TimeoutException();
+            // Now we know the result is ready
+            if (myIsException) {
+                if (myResult != null) {
+                    throw new ExecutionException((Throwable)myResult);
                 }
                 else {
-                    // Wait a microsecond
-                    Thread.sleep(0, 1000);
+                    throw new ExecutionException(
+                        "An unknown error occurred",
+                        new Throwable()
+                    );
                 }
+            }
+            else {
+                // Get the result and give it back. This may only be
+                // called once since we release the handle on the result
+                // so that it may be GC'd.
+                final Object result = myResult;
+                myResult =
+                    new IllegalStateException("Result already collected");
+                myIsException = true;
+                myDescription += " [COLLECTED]";
+                return result;
             }
         }
 

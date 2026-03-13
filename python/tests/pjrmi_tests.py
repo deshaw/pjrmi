@@ -467,6 +467,46 @@ class TestPJRmi(TestCase):
             pass
 
 
+    def test_int_marshalling_ranges(self):
+        """
+        Ensure that Python ints are marshalled to the most restrictive Java
+        type that can represent them without loss of precision.
+
+        The type boundaries are:
+            Byte    [-128,               127] -> java.lang.Byte
+            Short   [-32768,           32767] -> java.lang.Short
+            Integer [-2147483648, 2147483647] -> java.lang.Integer
+            Long    everything else           -> java.lang.Long
+        """
+        import struct
+
+        c      = get_pjrmi()
+        Object = c.class_for_name('java.lang.Object')
+
+        def encoded_type_id(value):
+            """
+            Return the Java type ID encoded in the marshalled bytes for value.
+            """
+            result = c._format_by_class(Object, value)
+            return struct.unpack('!i', result[1:5])[0]
+
+        # Byte range edges
+        self.assertEqual(c._type_id_Byte,    encoded_type_id( 127))
+        self.assertEqual(c._type_id_Byte,    encoded_type_id(-128))
+
+        # Just outside the Byte range -> Short
+        self.assertEqual(c._type_id_Short,   encoded_type_id( 128))
+        self.assertEqual(c._type_id_Short,   encoded_type_id(-129))
+
+        # Values only covered by the corrected short range
+        self.assertEqual(c._type_id_Short,   encoded_type_id( 32767))
+        self.assertEqual(c._type_id_Short,   encoded_type_id(-32768))
+
+        # Just outside the Short range -> Integer
+        self.assertEqual(c._type_id_Integer, encoded_type_id( 32768))
+        self.assertEqual(c._type_id_Integer, encoded_type_id(-32769))
+
+
     def test_instanceof(self):
         """
         Make sure that the various is_instance type methods work as expected.

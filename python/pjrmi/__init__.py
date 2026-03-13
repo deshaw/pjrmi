@@ -47,7 +47,8 @@ try:
 except ImportError:
     pass
 
-# MethodWrapperType is not present in earlier Python3 versions
+# MethodWrapperType is not present in earlier Python3 versions. We create a
+# dummy one simply so that later code does not fail in instanceof checks.
 try:
     from types import MethodWrapperType
 except ImportError:
@@ -55,12 +56,15 @@ except ImportError:
         pass
 
 LOG = logging.getLogger(__name__)
+
+# Designed to match the FINEST level in Java. There is no true Python equivalent
+# so we use this as our best approximation.
 _DEEP_DEBUG = 5
 
 # A jar containing all the runtime dependencies is stored in the module dir.
-_PJRMI_FATJAR = "{}/lib/pjrmi.jar".format(os.path.dirname(__file__))
+_PJRMI_FATJAR = os.path.join(os.path.dirname(__file__), 'lib', 'pjrmi.jar')
 # Required shared libraries from the module dir.
-_PJRMI_SHAREDLIBS_PATH = os.path.dirname(__file__) + '/lib'
+_PJRMI_SHAREDLIBS_PATH = os.path.join(os.path.dirname(__file__), 'lib')
 
 # Pre-compiled struct formats provide better performance
 _STRUCT_INT8        = struct.Struct('!b')
@@ -101,7 +105,9 @@ class PJRmi:
     # Hello string, used upon connection. This should have the same value as the
     # one in the Java code. The major and minor version numbers should match the
     # `pjrmiVersion` values in `gradle.properties`. Typically the minor version
-    # number should change whenever the wire format changes.
+    # number should change whenever the wire format changes. Any differences
+    # between this value and the one on the Java side will cause the handshake
+    # to fail.
     _HELLO = b"PJRMI_1.13"
 
     # Flags denoting server info
@@ -3261,12 +3267,17 @@ public class TestInjectSource {
                                           for el in value))
 
                 elif isinstance(value, int):
+                    # The type boundaries for boxed integers are:
+                    #   [-128,               127] -> java.lang.Byte
+                    #   [-32768,           32767] -> java.lang.Short
+                    #   [-2147483648, 2147483647] -> java.lang.Integer
+                    #   everything else           -> java.lang.Long
                     if  -128 <= value < 128:
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Byte) +
                                 self._format_int8(strict_number(numpy.int8, value)))
 
-                    elif -16384 <= value < 16384:
+                    elif -32768 <= value < 32768:
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Short) +
                                 self._format_int16(strict_number(numpy.int16, value)))
@@ -4011,9 +4022,14 @@ public class TestInjectSource {
             (arr_type,  idx) = self._read_char (bytes_, idx)
 
             # Read the data
-            arg = pjrmi.extension.read_array(filename,
-                                             num_elems,
-                                             arr_type.encode('utf-8'))
+            try:
+                arg = pjrmi.extension.read_array(filename,
+                                                 num_elems,
+                                                 arr_type.encode('utf-8'))
+            except (NameError,AttributeError) as e:
+                raise ValueError(
+                    "Cannot read SHM data without the extension"
+                ) from e
 
         else:
             raise ValueError("Unknown argument marshall type '%s' %d" %
@@ -6908,6 +6924,7 @@ class UnixFifoTransport:
         starter_thread.join(timeout)
         if starter_thread.is_alive():
             # We have timed out trying to connect to our Java subprocess.
+            self.disconnect()
             raise RuntimeError("Timed out connecting to Java subprocess")
 
 

@@ -730,6 +730,16 @@ public class CubeMath
     private static final int NUM_THREADS;
 
     /**
+     * The loop unroll factor for matrix multiplication inner loops.
+     *
+     * <p>Unrolling the innermost loop reduces branch overhead and enables better
+     * instruction-level parallelism. This parameter can be set by passing the Java
+     * property {@code com.deshaw.hypercube.cubemath.matmulUnrollFactor} to
+     * 1, 2, 4 or 8. The default value is 4, which works well for most modern CPUs.
+     */
+    private static final int MATMUL_UNROLL_FACTOR;
+
+    /**
      * The executor service used for multithreading.
      */
     private static final ExecutorService ourExecutorService;
@@ -791,7 +801,7 @@ public class CubeMath
                 STAGING_SIZE = Integer.parseInt(System.getProperty(propName, "128"));
                 if (STAGING_SIZE < 1) {
                     throw new RuntimeException("Bad value for " + propName + ": " +
-                                               propName + " has to be a positive integer, " +
+                                               "has to be a positive integer, " +
                                                "but " + STAGING_SIZE + " was given.");
                 }
             }
@@ -805,7 +815,7 @@ public class CubeMath
                 THREADING_THRESHOLD = Integer.parseInt(System.getProperty(propName, "131072"));
                 if (THREADING_THRESHOLD < 0) {
                     throw new RuntimeException("Bad value for " + propName + ": " +
-                                               propName + " has to be a non-negative integer, " +
+                                               "has to be a non-negative integer, " +
                                                "but " + THREADING_THRESHOLD + " was given.");
                 }
             }
@@ -819,8 +829,25 @@ public class CubeMath
                 NUM_THREADS = Integer.parseInt(System.getProperty(propName, "4"));
                 if (NUM_THREADS < 0) {
                     throw new RuntimeException("Bad value for " + propName + ": " +
-                                               propName + " has to be a non-negative integer, " +
+                                               "has to be a non-negative integer, " +
                                                "but " + NUM_THREADS + " was given.");
+                }
+            }
+            catch (NumberFormatException e) {
+                throw new RuntimeException("Bad value for " + propName, e);
+            }
+        }
+        /*scope*/ {
+            final String propName = "com.deshaw.hypercube.cubemath.matmulUnrollFactor";
+            try {
+                MATMUL_UNROLL_FACTOR = Integer.parseInt(System.getProperty(propName, "4"));
+                // Only allow specific unroll factors: 1 (no unrolling), 2, 4, or 8
+                if (MATMUL_UNROLL_FACTOR != 1 && MATMUL_UNROLL_FACTOR != 2 &&
+                    MATMUL_UNROLL_FACTOR != 4 && MATMUL_UNROLL_FACTOR != 8)
+                {
+                    throw new RuntimeException("Bad value for " + propName + ": " +
+                                               "must be 1, 2, 4, or 8, " +
+                                               "but " + MATMUL_UNROLL_FACTOR + " was given.");
                 }
             }
             catch (NumberFormatException e) {
@@ -12275,19 +12302,64 @@ public class CubeMath
             {
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 a.preRead();
                 for (long i=0; i < numRows; i++) {
                     ai[0] = ri[0] = i;
                     long ao = a.toOffset(ai);
                     int sum = 0;
-                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                        sum += a.weakGetAt(ao) * bcol[bo];
+
+                    // Unrolled loop for better performance
+                    // Use switch to handle different unroll factors
+                    int bo = 0;
+                    final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                    // Main unrolled loop - switch on unroll factor
+                    switch (MATMUL_UNROLL_FACTOR) {
+                        case 8:
+                            for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                            }
+                            break;
+                        case 4:
+                            for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                            }
+                            break;
+                        case 2:
+                            for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                            }
+                            break;
+                        case 1:
+                            // No unrolling
+                            for (; bo < bcol.length; ao++, bo++) {
+                                sum += a.weakGetAt(ao) * bcol[bo];
+                            }
+                            break;
                     }
+
+                    // Handle remainder (unless unroll factor is 1)
+                    if (MATMUL_UNROLL_FACTOR > 1) {
+                        for (; bo < bcol.length; ao++, bo++) {
+                            sum += a.weakGetAt(ao) * bcol[bo];
+                        }
+                    }
+
                     r.set(sum, ri);
                 }
             }
@@ -12322,18 +12394,65 @@ public class CubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             a.preRead();
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 int sum = 0;
-                                for (int bo=0; bo < bcol.length; ao++, bo++) {
-                                    sum += a.weakGetAt(ao) * bcol[bo];
+
+                                // Unrolled loop for better performance
+                                // Use switch to handle different unroll factors
+                                int bo = 0;
+                                final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                                // Main unrolled loop - switch on unroll factor
+                                switch (MATMUL_UNROLL_FACTOR) {
+                                    case 8:
+                                        for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                            sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                            sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                            sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                            sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                                        }
+                                        break;
+                                    case 4:
+                                        for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                        }
+                                        break;
+                                    case 2:
+                                        for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                        }
+                                        break;
+                                    case 1:
+                                        // No unrolling
+                                        for (; bo < bcol.length; ao++, bo++) {
+                                            sum += a.weakGetAt(ao) * bcol[bo];
+                                        }
+                                        break;
                                 }
-                                r.set(sum, ri);
+
+                                // Handle remainder (unless unroll factor is 1)
+                                if (MATMUL_UNROLL_FACTOR > 1) {
+                                    for (; bo < bcol.length; ao++, bo++) {
+                                        sum += a.weakGetAt(ao) * bcol[bo];
+                                    }
+                                }
+
+                                r.setAt(rBaseOffset + i, sum);
                             }
                         }
                         finally {
@@ -14616,19 +14735,64 @@ public class CubeMath
             {
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 a.preRead();
                 for (long i=0; i < numRows; i++) {
                     ai[0] = ri[0] = i;
                     long ao = a.toOffset(ai);
                     long sum = 0;
-                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                        sum += a.weakGetAt(ao) * bcol[bo];
+
+                    // Unrolled loop for better performance
+                    // Use switch to handle different unroll factors
+                    int bo = 0;
+                    final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                    // Main unrolled loop - switch on unroll factor
+                    switch (MATMUL_UNROLL_FACTOR) {
+                        case 8:
+                            for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                            }
+                            break;
+                        case 4:
+                            for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                            }
+                            break;
+                        case 2:
+                            for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                            }
+                            break;
+                        case 1:
+                            // No unrolling
+                            for (; bo < bcol.length; ao++, bo++) {
+                                sum += a.weakGetAt(ao) * bcol[bo];
+                            }
+                            break;
                     }
+
+                    // Handle remainder (unless unroll factor is 1)
+                    if (MATMUL_UNROLL_FACTOR > 1) {
+                        for (; bo < bcol.length; ao++, bo++) {
+                            sum += a.weakGetAt(ao) * bcol[bo];
+                        }
+                    }
+
                     r.set(sum, ri);
                 }
             }
@@ -14663,18 +14827,65 @@ public class CubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             a.preRead();
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 long sum = 0;
-                                for (int bo=0; bo < bcol.length; ao++, bo++) {
-                                    sum += a.weakGetAt(ao) * bcol[bo];
+
+                                // Unrolled loop for better performance
+                                // Use switch to handle different unroll factors
+                                int bo = 0;
+                                final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                                // Main unrolled loop - switch on unroll factor
+                                switch (MATMUL_UNROLL_FACTOR) {
+                                    case 8:
+                                        for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                            sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                            sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                            sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                            sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                                        }
+                                        break;
+                                    case 4:
+                                        for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                        }
+                                        break;
+                                    case 2:
+                                        for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                        }
+                                        break;
+                                    case 1:
+                                        // No unrolling
+                                        for (; bo < bcol.length; ao++, bo++) {
+                                            sum += a.weakGetAt(ao) * bcol[bo];
+                                        }
+                                        break;
                                 }
-                                r.set(sum, ri);
+
+                                // Handle remainder (unless unroll factor is 1)
+                                if (MATMUL_UNROLL_FACTOR > 1) {
+                                    for (; bo < bcol.length; ao++, bo++) {
+                                        sum += a.weakGetAt(ao) * bcol[bo];
+                                    }
+                                }
+
+                                r.setAt(rBaseOffset + i, sum);
                             }
                         }
                         finally {
@@ -16957,19 +17168,64 @@ public class CubeMath
             {
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 a.preRead();
                 for (long i=0; i < numRows; i++) {
                     ai[0] = ri[0] = i;
                     long ao = a.toOffset(ai);
                     float sum = 0;
-                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                        sum += a.weakGetAt(ao) * bcol[bo];
+
+                    // Unrolled loop for better performance
+                    // Use switch to handle different unroll factors
+                    int bo = 0;
+                    final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                    // Main unrolled loop - switch on unroll factor
+                    switch (MATMUL_UNROLL_FACTOR) {
+                        case 8:
+                            for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                            }
+                            break;
+                        case 4:
+                            for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                            }
+                            break;
+                        case 2:
+                            for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                            }
+                            break;
+                        case 1:
+                            // No unrolling
+                            for (; bo < bcol.length; ao++, bo++) {
+                                sum += a.weakGetAt(ao) * bcol[bo];
+                            }
+                            break;
                     }
+
+                    // Handle remainder (unless unroll factor is 1)
+                    if (MATMUL_UNROLL_FACTOR > 1) {
+                        for (; bo < bcol.length; ao++, bo++) {
+                            sum += a.weakGetAt(ao) * bcol[bo];
+                        }
+                    }
+
                     r.set(sum, ri);
                 }
             }
@@ -17004,18 +17260,65 @@ public class CubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             a.preRead();
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 float sum = 0;
-                                for (int bo=0; bo < bcol.length; ao++, bo++) {
-                                    sum += a.weakGetAt(ao) * bcol[bo];
+
+                                // Unrolled loop for better performance
+                                // Use switch to handle different unroll factors
+                                int bo = 0;
+                                final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                                // Main unrolled loop - switch on unroll factor
+                                switch (MATMUL_UNROLL_FACTOR) {
+                                    case 8:
+                                        for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                            sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                            sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                            sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                            sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                                        }
+                                        break;
+                                    case 4:
+                                        for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                        }
+                                        break;
+                                    case 2:
+                                        for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                        }
+                                        break;
+                                    case 1:
+                                        // No unrolling
+                                        for (; bo < bcol.length; ao++, bo++) {
+                                            sum += a.weakGetAt(ao) * bcol[bo];
+                                        }
+                                        break;
                                 }
-                                r.set(sum, ri);
+
+                                // Handle remainder (unless unroll factor is 1)
+                                if (MATMUL_UNROLL_FACTOR > 1) {
+                                    for (; bo < bcol.length; ao++, bo++) {
+                                        sum += a.weakGetAt(ao) * bcol[bo];
+                                    }
+                                }
+
+                                r.setAt(rBaseOffset + i, sum);
                             }
                         }
                         finally {
@@ -19314,19 +19617,64 @@ public class CubeMath
             {
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 a.preRead();
                 for (long i=0; i < numRows; i++) {
                     ai[0] = ri[0] = i;
                     long ao = a.toOffset(ai);
                     double sum = 0;
-                    for (int bo=0 ; bo < bcol.length; ao++, bo++) {
-                        sum += a.weakGetAt(ao) * bcol[bo];
+
+                    // Unrolled loop for better performance
+                    // Use switch to handle different unroll factors
+                    int bo = 0;
+                    final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                    // Main unrolled loop - switch on unroll factor
+                    switch (MATMUL_UNROLL_FACTOR) {
+                        case 8:
+                            for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                            }
+                            break;
+                        case 4:
+                            for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                            }
+                            break;
+                        case 2:
+                            for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                sum += a.weakGetAt(ao)     * bcol[bo];
+                                sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                            }
+                            break;
+                        case 1:
+                            // No unrolling
+                            for (; bo < bcol.length; ao++, bo++) {
+                                sum += a.weakGetAt(ao) * bcol[bo];
+                            }
+                            break;
                     }
+
+                    // Handle remainder (unless unroll factor is 1)
+                    if (MATMUL_UNROLL_FACTOR > 1) {
+                        for (; bo < bcol.length; ao++, bo++) {
+                            sum += a.weakGetAt(ao) * bcol[bo];
+                        }
+                    }
+
                     r.set(sum, ri);
                 }
             }
@@ -19361,18 +19709,65 @@ public class CubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             a.preRead();
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 double sum = 0;
-                                for (int bo=0; bo < bcol.length; ao++, bo++) {
-                                    sum += a.weakGetAt(ao) * bcol[bo];
+
+                                // Unrolled loop for better performance
+                                // Use switch to handle different unroll factors
+                                int bo = 0;
+                                final int unrollLimit = bcol.length - (bcol.length % MATMUL_UNROLL_FACTOR);
+
+                                // Main unrolled loop - switch on unroll factor
+                                switch (MATMUL_UNROLL_FACTOR) {
+                                    case 8:
+                                        for (; bo < unrollLimit; bo += 8, ao += 8) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                            sum += a.weakGetAt(ao + 4) * bcol[bo + 4];
+                                            sum += a.weakGetAt(ao + 5) * bcol[bo + 5];
+                                            sum += a.weakGetAt(ao + 6) * bcol[bo + 6];
+                                            sum += a.weakGetAt(ao + 7) * bcol[bo + 7];
+                                        }
+                                        break;
+                                    case 4:
+                                        for (; bo < unrollLimit; bo += 4, ao += 4) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                            sum += a.weakGetAt(ao + 2) * bcol[bo + 2];
+                                            sum += a.weakGetAt(ao + 3) * bcol[bo + 3];
+                                        }
+                                        break;
+                                    case 2:
+                                        for (; bo < unrollLimit; bo += 2, ao += 2) {
+                                            sum += a.weakGetAt(ao)     * bcol[bo];
+                                            sum += a.weakGetAt(ao + 1) * bcol[bo + 1];
+                                        }
+                                        break;
+                                    case 1:
+                                        // No unrolling
+                                        for (; bo < bcol.length; ao++, bo++) {
+                                            sum += a.weakGetAt(ao) * bcol[bo];
+                                        }
+                                        break;
                                 }
-                                r.set(sum, ri);
+
+                                // Handle remainder (unless unroll factor is 1)
+                                if (MATMUL_UNROLL_FACTOR > 1) {
+                                    for (; bo < bcol.length; ao++, bo++) {
+                                        sum += a.weakGetAt(ao) * bcol[bo];
+                                    }
+                                }
+
+                                r.setAt(rBaseOffset + i, sum);
                             }
                         }
                         finally {
@@ -20644,4 +21039,4 @@ public class CubeMath
     }
 }
 
- // [[[end]]] (checksum: cc11d32c5bcdb9137b92e18a7686d0a7)
+ // [[[end]]] (checksum: 26a2f98874498e76ac243b88b011a5eb)

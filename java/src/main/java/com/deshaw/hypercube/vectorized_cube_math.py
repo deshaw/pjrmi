@@ -543,20 +543,21 @@ public class {class_name}
 ''',
 
     'MATMUL_DOT_OP': '''\
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             // The length of the column and row are the same
                             final {primitive_type}[] arow = new {primitive_type}[bcol.length];
-                            final long[] ai = new long[] {{ 0,  0 }};
-                            final long[] bi = new long[] {{ 0, jf }};
-                            final long[] ri = new long[] {{ 0, jf }};
                             final boolean exact = (arow.length % {species_length} == 0);
                             final {primitive_type}[] array =
                                 exact ? null : new {primitive_type}[{species_length} << 1];
                             for (long i = startIndex; i < endIndex; i++) {{
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 a.toFlattened(ao, arow, 0, arow.length);
 
-                                // Now do the dot product
+                                // Now do the dot product using Vector API (SIMD)
                                 {primitive_type} sum = 0;
                                 int offset = 0;
                                 for (final int end = exact ? bcol.length
@@ -587,7 +588,7 @@ public class {class_name}
                                                VectorMask.fromLong({species}, ((1L << left) - 1))
                                            );
                                 }}
-                                r.weakSet(sum, ri);
+                                r.setAt(rBaseOffset + i, sum);
                             }}
                             r.postWrite();
 ''',
@@ -601,10 +602,9 @@ public class {class_name}
 
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 // Walk all the rows and dot them against the column
                 for (long i=0; i < numRows; i++) {{
@@ -613,7 +613,7 @@ public class {class_name}
                     long ao = a.toOffset(ai);
                     a.toFlattened(ao, arow, 0, arow.length);
 
-                    // Now do the dot product
+                    // Now do the dot product using Vector API (SIMD)
                     {primitive_type} sum = 0;
                     int offset = 0;
                     for (final int end = exact ? bcol.length

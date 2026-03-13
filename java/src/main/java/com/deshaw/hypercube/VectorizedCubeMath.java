@@ -847,6 +847,16 @@ public class VectorizedCubeMath
     private static final int NUM_THREADS;
 
     /**
+     * The loop unroll factor for matrix multiplication inner loops.
+     *
+     * <p>Unrolling the innermost loop reduces branch overhead and enables better
+     * instruction-level parallelism. This parameter can be set by passing the Java
+     * property {@code com.deshaw.hypercube.cubemath.matmulUnrollFactor} to
+     * 1, 2, 4 or 8. The default value is 4, which works well for most modern CPUs.
+     */
+    private static final int MATMUL_UNROLL_FACTOR;
+
+    /**
      * The executor service used for multithreading.
      */
     private static final ExecutorService ourExecutorService;
@@ -908,7 +918,7 @@ public class VectorizedCubeMath
                 STAGING_SIZE = Integer.parseInt(System.getProperty(propName, "128"));
                 if (STAGING_SIZE < 1) {
                     throw new RuntimeException("Bad value for " + propName + ": " +
-                                               propName + " has to be a positive integer, " +
+                                               "has to be a positive integer, " +
                                                "but " + STAGING_SIZE + " was given.");
                 }
             }
@@ -922,7 +932,7 @@ public class VectorizedCubeMath
                 THREADING_THRESHOLD = Integer.parseInt(System.getProperty(propName, "131072"));
                 if (THREADING_THRESHOLD < 0) {
                     throw new RuntimeException("Bad value for " + propName + ": " +
-                                               propName + " has to be a non-negative integer, " +
+                                               "has to be a non-negative integer, " +
                                                "but " + THREADING_THRESHOLD + " was given.");
                 }
             }
@@ -936,8 +946,25 @@ public class VectorizedCubeMath
                 NUM_THREADS = Integer.parseInt(System.getProperty(propName, "4"));
                 if (NUM_THREADS < 0) {
                     throw new RuntimeException("Bad value for " + propName + ": " +
-                                               propName + " has to be a non-negative integer, " +
+                                               "has to be a non-negative integer, " +
                                                "but " + NUM_THREADS + " was given.");
+                }
+            }
+            catch (NumberFormatException e) {
+                throw new RuntimeException("Bad value for " + propName, e);
+            }
+        }
+        /*scope*/ {
+            final String propName = "com.deshaw.hypercube.cubemath.matmulUnrollFactor";
+            try {
+                MATMUL_UNROLL_FACTOR = Integer.parseInt(System.getProperty(propName, "4"));
+                // Only allow specific unroll factors: 1 (no unrolling), 2, 4, or 8
+                if (MATMUL_UNROLL_FACTOR != 1 && MATMUL_UNROLL_FACTOR != 2 &&
+                    MATMUL_UNROLL_FACTOR != 4 && MATMUL_UNROLL_FACTOR != 8)
+                {
+                    throw new RuntimeException("Bad value for " + propName + ": " +
+                                               "must be 1, 2, 4, or 8, " +
+                                               "but " + MATMUL_UNROLL_FACTOR + " was given.");
                 }
             }
             catch (NumberFormatException e) {
@@ -12894,10 +12921,9 @@ public class VectorizedCubeMath
 
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 // Walk all the rows and dot them against the column
                 for (long i=0; i < numRows; i++) {
@@ -12906,7 +12932,7 @@ public class VectorizedCubeMath
                     long ao = a.toOffset(ai);
                     a.toFlattened(ao, arow, 0, arow.length);
 
-                    // Now do the dot product
+                    // Now do the dot product using Vector API (SIMD)
                     int sum = 0;
                     int offset = 0;
                     for (final int end = exact ? bcol.length
@@ -12972,20 +12998,21 @@ public class VectorizedCubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             // The length of the column and row are the same
                             final int[] arow = new int[bcol.length];
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
                             final boolean exact = (arow.length % INTEGER_SPECIES_LENGTH == 0);
                             final int[] array =
                                 exact ? null : new int[INTEGER_SPECIES_LENGTH << 1];
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 a.toFlattened(ao, arow, 0, arow.length);
 
-                                // Now do the dot product
+                                // Now do the dot product using Vector API (SIMD)
                                 int sum = 0;
                                 int offset = 0;
                                 for (final int end = exact ? bcol.length
@@ -13016,7 +13043,7 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(INTEGER_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.weakSet(sum, ri);
+                                r.setAt(rBaseOffset + i, sum);
                             }
                             r.postWrite();
                         }
@@ -15558,10 +15585,9 @@ public class VectorizedCubeMath
 
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 // Walk all the rows and dot them against the column
                 for (long i=0; i < numRows; i++) {
@@ -15570,7 +15596,7 @@ public class VectorizedCubeMath
                     long ao = a.toOffset(ai);
                     a.toFlattened(ao, arow, 0, arow.length);
 
-                    // Now do the dot product
+                    // Now do the dot product using Vector API (SIMD)
                     long sum = 0;
                     int offset = 0;
                     for (final int end = exact ? bcol.length
@@ -15636,20 +15662,21 @@ public class VectorizedCubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             // The length of the column and row are the same
                             final long[] arow = new long[bcol.length];
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
                             final boolean exact = (arow.length % LONG_SPECIES_LENGTH == 0);
                             final long[] array =
                                 exact ? null : new long[LONG_SPECIES_LENGTH << 1];
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 a.toFlattened(ao, arow, 0, arow.length);
 
-                                // Now do the dot product
+                                // Now do the dot product using Vector API (SIMD)
                                 long sum = 0;
                                 int offset = 0;
                                 for (final int end = exact ? bcol.length
@@ -15680,7 +15707,7 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(LONG_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.weakSet(sum, ri);
+                                r.setAt(rBaseOffset + i, sum);
                             }
                             r.postWrite();
                         }
@@ -18222,10 +18249,9 @@ public class VectorizedCubeMath
 
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 // Walk all the rows and dot them against the column
                 for (long i=0; i < numRows; i++) {
@@ -18234,7 +18260,7 @@ public class VectorizedCubeMath
                     long ao = a.toOffset(ai);
                     a.toFlattened(ao, arow, 0, arow.length);
 
-                    // Now do the dot product
+                    // Now do the dot product using Vector API (SIMD)
                     float sum = 0;
                     int offset = 0;
                     for (final int end = exact ? bcol.length
@@ -18300,20 +18326,21 @@ public class VectorizedCubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             // The length of the column and row are the same
                             final float[] arow = new float[bcol.length];
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
                             final boolean exact = (arow.length % FLOAT_SPECIES_LENGTH == 0);
                             final float[] array =
                                 exact ? null : new float[FLOAT_SPECIES_LENGTH << 1];
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 a.toFlattened(ao, arow, 0, arow.length);
 
-                                // Now do the dot product
+                                // Now do the dot product using Vector API (SIMD)
                                 float sum = 0;
                                 int offset = 0;
                                 for (final int end = exact ? bcol.length
@@ -18344,7 +18371,7 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(FLOAT_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.weakSet(sum, ri);
+                                r.setAt(rBaseOffset + i, sum);
                             }
                             r.postWrite();
                         }
@@ -20941,10 +20968,9 @@ public class VectorizedCubeMath
 
                 // Where we start striding, see below
                 final long[] ai = new long[2];
-                final long[] bi = new long[2];
                 final long[] ri = new long[2];
-                ai[1] = bi[0] = 0;
-                bi[1] = ri[1] = j;
+                ai[1] = 0;
+                ri[1] = j;
 
                 // Walk all the rows and dot them against the column
                 for (long i=0; i < numRows; i++) {
@@ -20953,7 +20979,7 @@ public class VectorizedCubeMath
                     long ao = a.toOffset(ai);
                     a.toFlattened(ao, arow, 0, arow.length);
 
-                    // Now do the dot product
+                    // Now do the dot product using Vector API (SIMD)
                     double sum = 0;
                     int offset = 0;
                     for (final int end = exact ? bcol.length
@@ -21019,20 +21045,21 @@ public class VectorizedCubeMath
                     final long jf = j; // <-- "final j"
                     ourExecutorService.submit(() -> {
                         try {
+                            // Pre-compute base offsets to avoid repeated toOffset() calls
+                            final long aRowStride = a.getDimensions()[1].length();
+                            final long aBaseOffset = a.toOffset(0, 0);
+                            final long rBaseOffset = r.toOffset(0, jf);
+
                             // The length of the column and row are the same
                             final double[] arow = new double[bcol.length];
-                            final long[] ai = new long[] { 0,  0 };
-                            final long[] bi = new long[] { 0, jf };
-                            final long[] ri = new long[] { 0, jf };
                             final boolean exact = (arow.length % DOUBLE_SPECIES_LENGTH == 0);
                             final double[] array =
                                 exact ? null : new double[DOUBLE_SPECIES_LENGTH << 1];
                             for (long i = startIndex; i < endIndex; i++) {
-                                ai[0] = ri[0] = i;
-                                long ao = a.toOffset(ai);
+                                long ao = aBaseOffset + (i * aRowStride);
                                 a.toFlattened(ao, arow, 0, arow.length);
 
-                                // Now do the dot product
+                                // Now do the dot product using Vector API (SIMD)
                                 double sum = 0;
                                 int offset = 0;
                                 for (final int end = exact ? bcol.length
@@ -21063,7 +21090,7 @@ public class VectorizedCubeMath
                                                VectorMask.fromLong(DOUBLE_SPECIES, ((1L << left) - 1))
                                            );
                                 }
-                                r.weakSet(sum, ri);
+                                r.setAt(rBaseOffset + i, sum);
                             }
                             r.postWrite();
                         }
@@ -22534,4 +22561,4 @@ public class VectorizedCubeMath
     }
 }
 
-// [[[end]]] (checksum: 4bf6fd024ff100fec29c04d4e8391714)
+// [[[end]]] (checksum: 18a95294c5512295b074f009c9663113)

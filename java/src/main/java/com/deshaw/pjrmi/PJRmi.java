@@ -5093,9 +5093,11 @@ public abstract class PJRmi
 
         /**
          * The "depth" into the call stack. This is to spot cases where we are
-         * calling from Java to Python to Java to Python ad infinitum.
+         * calling from Java to Python to Java to Python ad infinitum. This
+         * might be touched by multiple threads as Java and Python call back
+         * into one another, but only in a single-threaded-like manner.
          */
-        private int myCallDepth;
+        private volatile int myCallDepth;
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -5911,7 +5913,8 @@ public abstract class PJRmi
                     }
                     catch (SocketException ee) {
                         // This is probably fine if the other side closed the
-                        // connection
+                        // connection. We check by looking to see if the
+                        // original exception was an EOF.
                         if (e instanceof EOFException) {
                             LOG.info("Looks like the client disconnected: " + ee);
                         }
@@ -5922,8 +5925,9 @@ public abstract class PJRmi
                     }
                     catch (IOException ee) {
                         // This is probably fine if the other side closed the
-                        // connection. We may get IOException on some transports
-                        // while trying to send the exception.
+                        // connection which we check by looking at 'e'. We may
+                        // get IOException on some transports while trying to
+                        // send the exception.
                         if (e instanceof EOFException) {
                             LOG.info("Looks like the client disconnected: " + ee);
                         }
@@ -5952,6 +5956,14 @@ public abstract class PJRmi
         /** For use in the listen() method only. */
         private final ThreadLocalByteArrayDataOutputStream mySendBufs =
             new ThreadLocalByteArrayDataOutputStream();
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        // In the below code we generally assume that the client sending us
+        // messages is trusted and correct (not buggy). In the event that there
+        // is an exception thrown during the message handling, of any form, then
+        // it will be propagated back to the sender. So, even if the sender
+        // somehow went rogue, it mostly only hurts itself.
 
         /**
          * Handle a raw set of bytes making up a payload. This could throw
@@ -6720,8 +6732,9 @@ public abstract class PJRmi
                     offset = ror.offset;
                     final Object sliceStep = ror.object;
 
-                    // Now build it. We might have been given any form of Number
-                    // but we convert them all to longs.
+                    // Now build it. The marshalling ensures that we get a
+                    // Number here but it might be given any form of Number, so
+                    // we convert them all to longs.
                     result = new PythonSlice(
                         (sliceStart != null) ? ((Number)sliceStart).longValue() : null,
                         (sliceStop  != null) ? ((Number)sliceStop ).longValue() : null,
@@ -8956,8 +8969,10 @@ public abstract class PJRmi
         byte[] buffer = ourThreadLocalByteBuffer.get();
         if (buffer.length < size) {
             // Need a bigger buffer, with 10% overhead to prevent malloc
-            // thrashing over time
-            buffer = new byte[(int)(size * 1.1)];
+            // thrashing over time. This could possibly overflow so we guard
+            // against that.
+            final int newSize = (int)(size * 1.1);
+            buffer = new byte[newSize > 0 ? newSize : Integer.MAX_VALUE];
             ourThreadLocalByteBuffer.set(buffer);
         }
         return buffer;

@@ -6,8 +6,8 @@ the child process does not do connection cleanup because if the child process
 tries to do this cleanup, it would get stuck while trying to close some of our
 resources.
 """
-from   tests.pjrmi_tests  import get_pjrmi
 import os
+import pjrmi
 import sys
 
 def main():
@@ -17,10 +17,10 @@ def main():
     args = sys.argv[1:]
     output_file = args[0]
 
-    pjrmi = get_pjrmi()
     # Get the Java process PID that we can write in file, so that the unit test
     # process can make sure that we clean up properly.
-    ProcessHandle = pjrmi.class_for_name('java.lang.ProcessHandle')
+    connection = pjrmi.connect_to_child_jvm(stdin=None, stdout=None)
+    ProcessHandle = connection.class_for_name('java.lang.ProcessHandle')
     java_pid = ProcessHandle.current().pid()
     python_child_pid = os.fork()
     if python_child_pid == 0:

@@ -772,26 +772,27 @@ class TestPJRmi(TestCase):
 
         command = os.path.join(os.path.dirname(__file__),
                                'forked_process_cleanup.py')
-        tmp_file = tempfile.mkstemp()
-        test_process = subprocess.Popen([command, tmp_file],
-                                        stdout=subprocess.PIPE)
+        fd, tmp_file = tempfile.mkstemp()
+        args = [command, tmp_file]
+        test_process = subprocess.Popen(args, stdout=subprocess.PIPE)
 
         # We will consider this test as passed if all the processes are dead
         # in some time. Otherwise fail the test and cleanup all the processes by
         # ourselves. Also we need to wait for the temporary file to exist. It
         # should be created by the script we launched after setting up the PJRmi
         # connection and forking the Python child.
-        timeout = 10
-        while timeout > 0 and not os.path.exists(tmp_file):
-            time.sleep(1)
-            timeout -= 1
+        until = time.time() + 10
+        while (time.time() < until and
+               (not os.path.exists(tmp_file) or os.stat(tmp_file).st_size == 0)):
+            time.sleep(0.1)
 
         # If the file now exists, then get the child PIDs else something is
         # wrong. We will handle the None values later.
         try:
             with open(tmp_file) as fh:
-                child_python_pid, java_pid = \
-                    (int(pid) for pid in fh.read().split(" "))
+                output = fh.read()
+            self.assertTrue(' ' in output, output)
+            child_python_pid, java_pid = (int(pid) for pid in output.split(" "))
         except IOError:
             child_python_pid, java_pid = (None, None)
 

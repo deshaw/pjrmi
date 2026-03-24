@@ -361,46 +361,46 @@ public class PJRmiTestHelpers
         public PrecedenceMethods(long   x) { ctor =  "l"; }
 
         // Least to most specific
-        public CharSequence f(A      x) { return "cs_f_a"; }
-        public CharSequence f(B      x) { return "cs_f_b"; }
-        public CharSequence f(C      x) { return "cs_f_c"; }
-        public CharSequence f(float  x) { return "cs_f_f"; }
-        public CharSequence f(double x) { return "cs_f_d"; }
-        public CharSequence f(short  x) { return "cs_f_s"; }
-        public CharSequence f(int    x) { return "cs_f_i"; }
-        public CharSequence f(long   x) { return "cs_f_l"; }
+        public String f(A      x) { return "cs_f_a"; }
+        public String f(B      x) { return "cs_f_b"; }
+        public String f(C      x) { return "cs_f_c"; }
+        public String f(float  x) { return "cs_f_f"; }
+        public String f(double x) { return "cs_f_d"; }
+        public String f(short  x) { return "cs_f_s"; }
+        public String f(int    x) { return "cs_f_i"; }
+        public String f(long   x) { return "cs_f_l"; }
 
         // Most to least specific
-        public CharSequence g(C      x) { return "cs_g_c"; }
-        public CharSequence g(B      x) { return "cs_g_b"; }
-        public CharSequence g(A      x) { return "cs_g_a"; }
-        public CharSequence g(double x) { return "cs_g_d"; }
-        public CharSequence g(float  x) { return "cs_g_f"; }
-        public CharSequence g(long   x) { return "cs_g_l"; }
-        public CharSequence g(int    x) { return "cs_g_i"; }
-        public CharSequence g(short  x) { return "cs_g_s"; }
+        public String g(C      x) { return "cs_g_c"; }
+        public String g(B      x) { return "cs_g_b"; }
+        public String g(A      x) { return "cs_g_a"; }
+        public String g(double x) { return "cs_g_d"; }
+        public String g(float  x) { return "cs_g_f"; }
+        public String g(long   x) { return "cs_g_l"; }
+        public String g(int    x) { return "cs_g_i"; }
+        public String g(short  x) { return "cs_g_s"; }
 
         // Least to most specific
-        public CharSequence f(A x, A y) { return "cs_f_aa"; }
-        public CharSequence f(B x, A y) { return "cs_f_ba"; }
-        public CharSequence f(A x, B y) { return "cs_f_ab"; }
+        public String f(A x, A y) { return "cs_f_aa"; }
+        public String f(B x, A y) { return "cs_f_ba"; }
+        public String f(A x, B y) { return "cs_f_ab"; }
 
         // Methods with what looks like a circular hierachy, but are actually
         // all incomparable
-        public CharSequence f(Integer x, String  y, Number  z) { return "cs_f_isn"; }
-        public CharSequence f(Number  x, Integer y, String  z) { return "cs_f_nis"; }
-        public CharSequence f(String  x, Number  y, Integer z) { return "cs_f_sni"; }
+        public String f(Integer x, String  y, Number  z) { return "cs_f_isn"; }
+        public String f(Number  x, Integer y, String  z) { return "cs_f_nis"; }
+        public String f(String  x, Number  y, Integer z) { return "cs_f_sni"; }
 
         // Ditto, but with inheritance between all the arguments
-        public CharSequence f(Integer x, Object  y, Number  z) { return "cs_f_ion"; }
-        public CharSequence f(Number  x, Integer y, Object  z) { return "cs_f_nio"; }
-        public CharSequence f(Object  x, Number  y, Integer z) { return "cs_f_oni"; }
+        public String f(Integer x, Object  y, Number  z) { return "cs_f_ion"; }
+        public String f(Number  x, Integer y, Object  z) { return "cs_f_nio"; }
+        public String f(Object  x, Number  y, Integer z) { return "cs_f_oni"; }
 
         // Methods which should not, and should, enforce strict typing owing to
         // whether they are overloaded or not
-        public CharSequence ff(int   i) { return "cs_ff_i"; }
-        public CharSequence gg(short i) { return "cs_gg_s"; }
-        public CharSequence gg(int   i) { return "cs_gg_i"; }
+        public String ff(int   i) { return "cs_ff_i"; }
+        public String gg(short i) { return "cs_gg_s"; }
+        public String gg(int   i) { return "cs_gg_i"; }
     }
 
     /**
@@ -413,9 +413,9 @@ public class PJRmiTestHelpers
         // Methods where the first two are incomparable but the last one is more
         // specific than both. Order is important here since the Python pjrmi
         // unittest code relies on it.
-        public CharSequence f(String x, Object y) { return "cs_f_so"; }
-        public CharSequence f(Object x, String y) { return "cs_f_os"; }
-        public CharSequence f(String x, String y) { return "cs_f_ss"; }
+        public String f(String x, Object y) { return "cs_f_so"; }
+        public String f(Object x, String y) { return "cs_f_os"; }
+        public String f(String x, String y) { return "cs_f_ss"; }
 
         // Overloaded return type
         public String f(A x, A y) { return "s_f_aa"; }

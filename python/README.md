@@ -198,17 +198,18 @@ available methods. It will use this to provide ipython tab completion and
 documentation.
 
     >>> foo._<tab>
-    foo.__add__           foo.__doc__           foo.__len__           foo.__repr__          foo._bases            foo._is_immutable
-    foo.__class__         foo.__eq__            foo.__module__        foo.__setattr__       foo._classname        foo._is_primitive
-    foo.__cmp__           foo.__format__        foo.__ne__            foo.__sizeof__        foo._handle           foo._pjrmi
-    foo.__del__           foo.__getattribute__  foo.__new__           foo.__str__           foo._hash_code        foo._type_id
-    foo.__delattr__       foo.__hash__          foo.__reduce__        foo.__subclasshook__  foo._instance_of
-    foo.__dict__          foo.__init__          foo.__reduce_ex__     foo.__weakref__       foo._is_array
+    foo.__add__           foo.__format__        foo.__len__           foo.__repr__          foo._classname        foo._pjrmi
+    foo.__class__         foo.__ge__            foo.__lt__            foo.__setattr__       foo._handle           foo._type_id
+    foo.__del__           foo.__getattribute__  foo.__module__        foo.__sizeof__        foo._hash_code
+    foo.__delattr__       foo.__gt__            foo.__ne__            foo.__str__           foo._instance_of
+    foo.__dict__          foo.__hash__          foo.__new__           foo.__subclasshook__  foo._is_array
+    foo.__doc__           foo.__init__          foo.__reduce__        foo.__weakref__       foo._is_immutable
+    foo.__eq__            foo.__le__            foo.__reduce_ex__     foo._bases            foo._is_primitive
     >>> foo._is_immutable
     True
     >>> str(foo)
     'Foo'
-    >>> foo._str
+    >>> foo._pjrmi_str
     'Foo'
 
 

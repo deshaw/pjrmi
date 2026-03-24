@@ -643,8 +643,8 @@ class PJRmi:
 
             def run(self_):
                 # Do this periodically, as long as we are connected
+                last = 0
                 while self._connected and not self._eof:
-                    last = 0
                     try:
                         # Handle this every second, but only sleep for 100ms so
                         # that we don't hold up the shutdown operations upon
@@ -737,6 +737,8 @@ class PJRmi:
                                                   filename)
                                     except OSError:
                                         pass
+                                else:
+                                    has_any = True
 
                             # If any file existed then save this list to check again
                             if has_any:
@@ -834,7 +836,7 @@ class PJRmi:
         """
 
         if not isinstance(name, str):
-            raise TypeError("Given value was not a string: %s" + str(name))
+            raise TypeError("Given value was not a string: %s" % str(name))
 
         # Check if we have a cached class
         try:
@@ -1033,6 +1035,8 @@ class PJRmi:
                                 (str(obj), str(obj.__class__)))
         if self is not None:
             if obj._pjrmi_inst is not self:
+                if obj._pjrmi_inst is None:
+                    raise ValueError("Object has no associated PJRmi instance")
                 raise KeyError(
                     "Attempt to use Java object (%s: %s) from connection %s with %s" %
                     (str(obj.__class__), str(obj),
@@ -2238,6 +2242,10 @@ public class TestInjectSource {
                         # Grab the return type and the object
                         klass = self._get_class(type_id)
                         obj   = self._get_callback_object(object_id)
+                        if obj is None:
+                            raise self._java_lang_NoSuchMethodException(
+                                "No callback object found for ID %d" % object_id
+                            )
 
                         # And figure out its arguments
                         (num_args, idx) = self._read_int32(payload, idx)
@@ -2529,6 +2537,10 @@ public class TestInjectSource {
                         # Grab the return type and the object
                         klass = self._get_class(type_id)
                         obj   = self._get_callback_object(object_id)
+                        if obj is None:
+                            raise self._java_lang_NoSuchFieldException(
+                                "No callback object found for ID %d" % object_id
+                            )
 
                         # What we'll give back to Java. If this raises an
                         # exception then we throw that back to the Java side and
@@ -2611,7 +2623,7 @@ public class TestInjectSource {
                         #  int64 : Object ID (as a long)
                         (count, idx) = self._read_int32(payload, 0)
                         for i in range(count):
-                            (object_id, idx) = self._read_int64(payload, 0)
+                            (object_id, idx) = self._read_int64(payload, idx)
                             try:
                                 self._drop_object_reference(object_id)
                                 # No response
@@ -2886,7 +2898,7 @@ public class TestInjectSource {
         if len(method._argument_type_ids) != len(args):
             raise ValueError(
                 "Wrong number of arguments given, expected %d but had %d" %
-                (len(self._argument_type_ids), len(args))
+                (len(method._argument_type_ids), len(args))
             )
 
         # And build the result
@@ -3293,7 +3305,9 @@ public class TestInjectSource {
                                 self._format_int64(strict_number(numpy.int64, value)))
 
                 elif isinstance(value, float):
-                    if numpy.float32(value) == value:
+                    # NaNs become doubles since a specially crafted float64 NaN
+                    # cannot always be losslessly converted to a float32 NaN.
+                    if numpy.float32(value) == value and not numpy.isnan(value):
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Float) +
                                 self._format_float(strict_number(numpy.float32, value)))
@@ -3407,7 +3421,9 @@ public class TestInjectSource {
                                 self._format_int64(strict_number(numpy.int64, value)))
 
                 elif isinstance(value, float):
-                    if numpy.float32(value) == value:
+                    # NaNs become doubles since a specially crafted float64 NaN
+                    # cannot always be losslessly converted to a float32 NaN.
+                    if numpy.float32(value) == value and not numpy.isnan(value):
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Float) +
                                 self._format_float(strict_number(numpy.float32, value)))
@@ -3452,10 +3468,10 @@ public class TestInjectSource {
                     raise ValueError("%s is not assignable to %s" %
                                      (type(value), klass._classname))
                 else:
-                    # Otherwise we'll use strict against a Python float here to
-                    # allow truncation to float32 happen silently. This is
-                    # intentional since it will probably always be what the user
-                    # wants to happen.
+                    # Otherwise we'll use strict against a float64 here to allow
+                    # truncation to float32 to happen silently. This is intentional
+                    # since it will probably always be what the user wants to
+                    # happen.
                     return (self._ARGUMENT_VALUE +
                             self._format_int32(type_id) +
                             self._format_float(strict_number(numpy.float64, value)))
@@ -4015,6 +4031,10 @@ public class TestInjectSource {
         elif arg_type == self._VALUE_FORMAT_PYTHON_REFERENCE:
             (object_id, idx) = self._read_int32(bytes_, idx)
             arg = self._get_callback_object(object_id)
+            if arg is None:
+                raise ValueError(
+                    "No callback object found for ID %d" % object_id
+                )
 
         elif arg_type == self._VALUE_FORMAT_SHMDATA:
             (filename,  idx) = self._read_utf16(bytes_, idx)
@@ -5106,8 +5126,8 @@ public class TestInjectSource {
             def __str__(self_):
                 # Look for a cached value. We rely on the caching in places like
                 # pjrmi.__exit__().
-                if hasattr(self_, '_str'):
-                    return getattr(self_, '_str')
+                if hasattr(self_, '_pjrmi_str'):
+                    return getattr(self_, '_pjrmi_str')
 
                 # Any changes to the object must happen under the guard
                 with self_._pjrmi_attr_guard:
@@ -5324,10 +5344,17 @@ public class TestInjectSource {
         # We need to handle the boot-strapping case where we're creating the
         # _java_lang_Comparable value here too.
         if isjavasubclass(klass, 'java.lang.Comparable', '_java_lang_Comparable'):
-            def __cmp__(self_, that):
-                return self_.compareTo(that)
+            # We use the conventions of explicit comparables as opposed to
+            # __cmp__ since we are Python3
+            def __lt__(self_, that): return self_.compareTo(that) < 0
+            def __le__(self_, that): return self_.compareTo(that) <= 0
+            def __gt__(self_, that): return self_.compareTo(that) > 0
+            def __ge__(self_, that): return self_.compareTo(that) >= 0
 
-            augment(klass, "__cmp__", __cmp__)
+            augment(klass, "__lt__", __lt__)
+            augment(klass, "__le__", __le__)
+            augment(klass, "__gt__", __gt__)
+            augment(klass, "__ge__", __ge__)
 
         # If something is an AutoCloseable then we add the __enter__() and
         # __exit__() methods for Python. We need to handle the boot-strapping
@@ -5941,10 +5968,15 @@ used as in a `with` conntext.
                 count -= 1
                 if count <= 0:
                     # Time to forget about it
-                    obj = self._callback_id2obj  .pop(object_id)
-                    self.      _callback_id2ref  .pop(object_id)
-                    self.      _callback_obj2id  .pop(id(obj))
-                    self.      _callback_obj2wrap.pop(id(obj))
+                    obj = self._callback_id2obj.pop(object_id)
+                    self._callback_id2ref      .pop(object_id)
+                    self._callback_obj2id      .pop(id(obj))
+                    # _callback_obj2wrap keys are (id(obj), type_id) tuples;
+                    # remove all wrap entries for this object
+                    wrap_keys = [k for k in self._callback_obj2wrap
+                                 if k[0] == id(obj)]
+                    for wk in wrap_keys:
+                        self._callback_obj2wrap.pop(wk)
                 else:
                     self._callback_id2ref[object_id] = count
             except Exception:
@@ -6911,8 +6943,8 @@ class UnixFifoTransport:
                 return
             # Ensure that this only happens once
             with exit_lock:
-                if not self._exited:
-                    self._exited = True
+                if not self_._exited:
+                    self_._exited = True
                     self_.disconnect()
         atexit.register(disconnect_subprocess)
 
@@ -7317,11 +7349,11 @@ class JavaLogHandler(logging.Handler):
 
         # Levels mapping, in order; these are specific to our RMI instance
         self._levels = (
-            (_DEEP_DEBUG,   Level.FINEST),
-            (logging.DEBUG, Level.FINE),
-            (logging.INFO,  Level.INFO),
-            (logging.WARN,  Level.WARNING),
-            (logging.ERROR, Level.SEVERE)
+            (_DEEP_DEBUG,     Level.FINEST),
+            (logging.DEBUG,   Level.FINE),
+            (logging.INFO,    Level.INFO),
+            (logging.WARNING, Level.WARNING),
+            (logging.ERROR,   Level.SEVERE)
         )
 
 

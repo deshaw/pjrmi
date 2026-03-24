@@ -2021,19 +2021,22 @@ public abstract class PJRmi
             // Validate the key before we use it
             assertKeyCorrectness(key);
 
-            // Keep walking down until we get to the penultimate array
+            // Walk down the key one dimension at a time. On each iteration
+            // `array` advances to the sub-array at the current key index, so
+            // that after the loop `array` is the direct container of the
+            // element addressed by the final key component.
             Object array = myArray;
             for (int i=0; i < key.length-1; i++) {
                 final Object k = key[i];
                 if (k instanceof Number) {
                     final int index = ((Number)k).intValue();
                     try {
-                        array = Array.get(value, ((Number)k).intValue());
+                        array = Array.get(array, index);
                     }
                     catch (ArrayIndexOutOfBoundsException e) {
                         throw new ArrayIndexOutOfBoundsException(
                             index + " was not in the range [0.." +
-                            Array.getLength(value) + ")"
+                            Array.getLength(array) + ")"
                         );
                     }
                 }
@@ -7215,6 +7218,11 @@ public abstract class PJRmi
 
             if (isById) {
                 desc = myTypeMapping.getDescription(int32);
+                if (desc == null) {
+                    throw new IllegalArgumentException(
+                        "Unknown type ID: " + int32
+                    );
+                }
             }
             else {
                 final StringBuilder sb = new StringBuilder();
@@ -7272,6 +7280,7 @@ public abstract class PJRmi
          *  boolean : isConstructor flag
          *  int32   : Type ID
          *  byte    : PythonValueFormat
+         *  byte    : SyncMode
          *  int64   : Object handle
          *  int32   : Method/constructor index as defined by TypeDescription
          *  byte[]  : Arguments (if any) as raw bytes
@@ -7288,7 +7297,7 @@ public abstract class PJRmi
                                       final ByteArrayDataOutputStream buf)
             throws Throwable
         {
-            if (payload.size() < 18) {
+            if (payload.size() < 19) {
                 throw new IllegalArgumentException(
                     "Got a malformed payload: " + PJRmi.toString(payload)
                 );
@@ -7383,7 +7392,7 @@ public abstract class PJRmi
                     }
                     catch (Exception e) {
                         // Proxy classes might balk here, for example
-                        LOG.finest("Error rendering argument " + i + ": e" + e);
+                        LOG.finest("Error rendering argument " + i + ": " + e);
                     }
                 }
             }
@@ -7495,7 +7504,7 @@ public abstract class PJRmi
                 }
                 else {
                     throw new UnsupportedOperationException(
-                        "Unhandle sync mode " + syncMode
+                        "Unhandled sync mode " + syncMode
                     );
                 }
 
@@ -7632,6 +7641,9 @@ public abstract class PJRmi
             final int  index  = payload.getInt (12);
 
             final TypeDescription desc = myTypeMapping.getDescription(typeId);
+            if (desc == null) {
+                throw new IllegalArgumentException("Unknown type ID: " + typeId);
+            }
             final Object object = myHandleMapping.getObject(handle);
 
             // Grab the field and its type
@@ -7705,6 +7717,9 @@ public abstract class PJRmi
 
             // The type information comes from the object itself
             final TypeDescription desc = myTypeMapping.getDescription(objTypeId);
+            if (desc == null) {
+                throw new IllegalArgumentException("Unknown type ID: " + objTypeId);
+            }
 
             // Now just set it
             if (desc.isArray()) {
@@ -7892,11 +7907,10 @@ public abstract class PJRmi
                     "Got a malformed payload: " + PJRmi.toString(payload)
                 );
             }
-            else {
-                final int length = payload.getInt(0);
-                final CharSequence name = new HashableSubSequence(payload, 4, length);
-                myLockManager.getExclusiveLockFor(name).lock();
-            }
+
+            final int length = payload.getInt(0);
+            final CharSequence name = new HashableSubSequence(payload, 4, length);
+            myLockManager.getExclusiveLockFor(name).lock();
 
             // ACK comes back
             buildMessage(buf.dataOut, MessageType.EMPTY_ACK, threadId, reqId, null);
@@ -7922,11 +7936,10 @@ public abstract class PJRmi
                     "Got a malformed payload: " + PJRmi.toString(payload)
                 );
             }
-            else {
-                final int length = payload.getInt(0);
-                final CharSequence name = new HashableSubSequence(payload, 4, length);
-                myLockManager.getExclusiveLockFor(name).unlock();
-            }
+
+            final int length = payload.getInt(0);
+            final CharSequence name = new HashableSubSequence(payload, 4, length);
+            myLockManager.getExclusiveLockFor(name).unlock();
 
             // ACK comes back
             buildMessage(buf.dataOut,
@@ -8106,25 +8119,9 @@ public abstract class PJRmi
             // The object handle
             final long handle = payload.getLong(0);
 
-            // The return format
+            // The return format; validity is checked in the if statement below
             final PythonValueFormat valueFormat =
                 PythonValueFormat.byId(payload.get(8));
-            switch (valueFormat) {
-            case RAW_PICKLE:
-            case SNAPPY_PICKLE:
-            case BESTEFFORT_PICKLE:
-            case BESTEFFORT_SNAPPY_PICKLE:
-            case SHMDATA:
-                // These are handled below
-                break;
-
-            default:
-                // Anything else isn't
-                throw new IllegalArgumentException(
-                  "Unhandled return format `" + valueFormat + "`; " +
-                  "only Python pickle and SHM-data formats are supported."
-                );
-            }
 
             // Get the object for this handle, allow it to be the null pointer
             final Object object = myHandleMapping.getObject(handle);
@@ -8172,8 +8169,8 @@ public abstract class PJRmi
                 else {
                     throw new IllegalArgumentException(
                       "Unhandled array type for object: " +
-                      object.getClass() +
-                      "`. Only primitive, non-char arrays are supported."
+                      (object == null ? "null" : object.getClass().getName()) +
+                      ". Only primitive, non-char arrays are supported."
                     );
                 }
 
@@ -8183,7 +8180,10 @@ public abstract class PJRmi
                                                      arrayInfo.type);
             }
             else {
-                throw new IllegalStateException("Someone can't code");
+                throw new IllegalArgumentException(
+                  "Unhandled return format `" + valueFormat + "`; " +
+                  "only Python pickle and SHM-data formats are supported."
+                );
             }
         }
 
@@ -8857,7 +8857,7 @@ public abstract class PJRmi
             }
             else if (b == '\\') {
                 // Since we use '\' as an escape char we also need to escape it.
-                // That makes cutting and pasting strings into python easier.
+                // That makes cutting and pasting strings into Python easier.
                 sb.append("\\\\");
             }
             else {
@@ -8884,6 +8884,11 @@ public abstract class PJRmi
             if (b < (byte)' ' || b > (byte)'~') {
                 sb.append("\\x");
                 appendHexByte(sb, b);
+            }
+            else if (b == '\\') {
+                // Since we use '\' as an escape char we also need to escape it.
+                // That makes cutting and pasting strings into Python easier.
+                sb.append("\\\\");
             }
             else {
                 sb.append((char)b);
@@ -8930,22 +8935,14 @@ public abstract class PJRmi
 
         // Copy the data into our buffer
         for (int i=0; i < len; i++) {
-            // How we handle the various UTF16 encodings. See section 2.1 in RFC2781:
-            //   https://www.ietf.org/rfc/rfc2781.txt
+            // How we handle the various UTF16 encodings. See section 2.1 in
+            // RFC2781: https://www.ietf.org/rfc/rfc2781.txt
+            //
+            // Surrogate pairs are not currently handled (would require
+            // iterating over code points rather than chars).
             final char u = string.charAt(i);
-            if (u < 0x10000) {
-                buffer[index++] = (byte)((u >> 8) & 0xff);
-                buffer[index++] = (byte)((u     ) & 0xff);
-            }
-            else {
-                final int uu = (int)u - 0x10000;
-                final int w1 = 0xd800 | ((uu >> 10) & 0x3ff);
-                final int w2 = 0xdc00 | ((uu      ) & 0x3ff);
-                buffer[index++] = (byte)((w1 >> 8) & 0xff);
-                buffer[index++] = (byte)((w1     ) & 0xff);
-                buffer[index++] = (byte)((w2 >> 8) & 0xff);
-                buffer[index++] = (byte)((w2     ) & 0xff);
-            }
+            buffer[index++] = (byte)((u >> 8) & 0xff);
+            buffer[index++] = (byte)((u     ) & 0xff);
         }
 
         // Now we know the number of bytes which make up the string

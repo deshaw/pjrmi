@@ -50,6 +50,22 @@ public class PJRmiTestHelpers
     // point; honest!
 
     /**
+     * A method which takes a generic and returns it.
+     *
+     * <p>This will be seen as a method taking an Object on the Python side but
+     * use of generics will ensure that the correct type is returned in PJRmi
+     * (instead of an Object instance).
+     *
+     * @param generic  The generic.
+     *
+     * @return the generic
+     */
+    public static <T> T genericIdentity(final T generic)
+    {
+        return generic;
+    }
+
+    /**
      * A method which takes a boolean[] and returns its length.
      *
      * @param array  The arrat.

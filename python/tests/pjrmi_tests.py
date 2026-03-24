@@ -275,13 +275,14 @@ class TestPJRmi(TestCase):
         Ensure that boxing to Python native types works as expected.
         """
 
-        Byte    = get_pjrmi().class_for_name('java.lang.Byte')
-        Short   = get_pjrmi().class_for_name('java.lang.Short')
-        Integer = get_pjrmi().class_for_name('java.lang.Integer')
-        Long    = get_pjrmi().class_for_name('java.lang.Long')
-        Float   = get_pjrmi().class_for_name('java.lang.Float')
-        Double  = get_pjrmi().class_for_name('java.lang.Double')
-        String  = get_pjrmi().class_for_name('java.lang.String')
+        Byte             = get_pjrmi().class_for_name('java.lang.Byte')
+        Short            = get_pjrmi().class_for_name('java.lang.Short')
+        Integer          = get_pjrmi().class_for_name('java.lang.Integer')
+        Long             = get_pjrmi().class_for_name('java.lang.Long')
+        Float            = get_pjrmi().class_for_name('java.lang.Float')
+        Double           = get_pjrmi().class_for_name('java.lang.Double')
+        String           = get_pjrmi().class_for_name('java.lang.String')
+        PJRmiTestHelpers = get_pjrmi().class_for_name('com.deshaw.pjrmi.test.PJRmiTestHelpers')
 
         for i in range(10):
             j = i + 10
@@ -327,6 +328,32 @@ class TestPJRmi(TestCase):
         self.assertEqual(s_p, s_j)
         self.assertEqual(s_p, s_j.python_object)
 
+        # Java classes that implement Comparable expose the four Python ordering
+        # operators, each delegating to compareTo().  Integer is a convenient
+        # test subject because its natural order matches integer arithmetic.
+        int_lo = Integer.valueOf(1)
+        int_hi = Integer.valueOf(2)
+        self.assertTrue (int_lo <  int_hi)
+        self.assertFalse(int_lo >  int_hi)
+        self.assertTrue (int_lo <= int_hi)
+        self.assertFalse(int_lo >= int_hi)
+        self.assertFalse(int_hi <  int_lo)
+        self.assertTrue (int_hi >  int_lo)
+        # Reflexive cases: an object satisfies <= and >= against itself but
+        # is neither strictly less than nor strictly greater than itself.
+        self.assertTrue (int_lo <= int_lo)
+        self.assertTrue (int_lo >= int_lo)
+        self.assertFalse(int_lo <  int_lo)
+        self.assertFalse(int_lo >  int_lo)
+
+        # float('nan') cannot be losslessly represented as a float32 value
+        # because specially crafted float64 NaNs may have a different bit
+        # pattern when reduced to a float32, so NaNs should always appear as
+        # doubles.
+        nan = PJRmiTestHelpers.genericIdentity(float('nan'))
+        self.assertTrue(get_pjrmi().is_instance_of(nan, Double),
+                        f'{type(nan)} was not a Double')
+
 
     def test_strings(self):
         """
@@ -361,12 +388,26 @@ class TestPJRmi(TestCase):
             # all other objects do, and get wrapped into a singleton array.
             self.assertEqual(1, PJRmiTestHelpers.objectArrayLength(chars))
 
+        # Strings containing backslash characters must survive the Java-to-Python
+        # UTF16 wire encoding (writeUTF16) intact.  Backslash (U+005C) lies in
+        # the BMP and is encoded as two big-endian bytes (0x00, 0x5C); it must
+        # not be dropped or doubled when decoded by the Python side.
+        backslash_chars = 'foo\\bar\\baz'
+        self.assertEqual(backslash_chars, String.valueOf(backslash_chars))
+
         # Ensure that treating a string as a byte[] works as expected (or not,
         # if we have unicode in there)
         self.assertEqual(len(english_chars),
                          PJRmiTestHelpers.byteArrayLength(english_chars))
         with self.assertRaises(TypeError):
             PJRmiTestHelpers.byteArrayLength(chinese_chars)
+
+        # class_for_name requires a str argument.  Any other type is rejected
+        # with a TypeError whose message contains the repr of the bad value so
+        # the caller can identify what they passed.
+        with self.assertRaises(TypeError) as ctx:
+            get_pjrmi().class_for_name(42)
+        self.assertIn('42', str(ctx.exception))
 
 
     def test_hashing(self):
@@ -591,7 +632,7 @@ class TestPJRmi(TestCase):
         self.assertEqual(PrecedenceMethods(a, b).ctor, 'ab')
         self.assertEqual(PrecedenceMethods(b, a).ctor, 'ba')
 
-        # And the same for the equivalent methods
+        # And the same for the equivalent methods.
         self.assertEqual(pm.f(a),    'cs_f_a')
         self.assertEqual(pm.f(b),    'cs_f_b')
         self.assertEqual(pm.f(c),    'cs_f_c')
@@ -1314,6 +1355,14 @@ public class TestNameMangling {
         hm3 = Objects.requireNonNullElseGet(None, ctor)
         self.assertEqual(hm2, hm3)
 
+        # Invoking a method handle with the wrong number of arguments raises
+        # ValueError.  Integer.toString() is a zero-argument method, so passing
+        # an extra argument is detectable before the call reaches Java.
+        with self.assertRaises(ValueError) as ctx:
+            bound("unexpected_arg")
+        self.assertIn('expected', str(ctx.exception).lower())
+        self.assertIn('0', str(ctx.exception))
+
 
     def test_futures(self):
         """
@@ -1469,6 +1518,16 @@ public class TestNameMangling {
                 self.assertEqual(array2d[i][j], wrapped[i][j])
                 self.assertEqual(array2d[i][j], wrapped[i, j])
 
+        # Writing with a multi-element index (e.g. wrapped[1, 2] = v) must
+        # update exactly the element at those coordinates and leave every
+        # other element at its original value.
+        original_02 = array2d[0][2]
+        original_10 = array2d[1][0]
+        wrapped[1, 2] = 99.0
+        self.assertEqual(99.0,        array2d[1][2])  # target element updated
+        self.assertEqual(original_02, array2d[0][2])  # same column, different row: unchanged
+        self.assertEqual(original_10, array2d[1][0])  # same row, different column: unchanged
+
 
     def test_iterators(self):
         """
@@ -1497,6 +1556,22 @@ public class TestNameMangling {
         # which should _not_ should be handled by PJRmi but propagated.
         with self.assertRaises(pjrmi.JavaException):
             next(i)
+
+        # Java exceptions carry a human-readable string representation.  Verify
+        # that str() on a caught JavaException returns a non-empty message and
+        # that repeated calls return the same content (the value is cached on
+        # the exception instance after the first conversion).
+        i = iter(OneTwoThrowIterator())
+        next(i)
+        next(i)
+        try:
+            next(i)
+            self.fail("Expected a JavaException from OneTwoThrowIterator")
+        except pjrmi.JavaException as exc:
+            msg = str(exc)
+            self.assertIsNotNone(msg)
+            self.assertGreater(len(msg), 0)
+            self.assertEqual(str(exc), msg)
 
 
     def test_extended_types(self):

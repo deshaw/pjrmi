@@ -90,7 +90,7 @@ class PJRmi:
     one supports the basic client/server model but it is not reentrant; i.e. you
     can not use callbacks from one side into the other. Callbacks can be needed
     when, say, you pass a Python function to a Java method to invoke. Callbacks
-    may be enabled on on the Java side by having a positive number of worker
+    may be enabled on the Java side by having a positive number of worker
     threads specified for the Java server. The two modes of operation use
     different threading models; when workers are enabled then a thread-handoff
     must happen on the Python side, thus reducing its call throughput.
@@ -220,7 +220,7 @@ class PJRmi:
     # (inclusive). 2147483647 is 2^31-1, also known as Integer.MAX_VALUE.
     _MAX_JAVA_ARRAY_SIZE = 2147483647
 
-    # All the instance, keyed by id()
+    # All the instances, keyed by id()
     _INSTANCES = weakref.WeakValueDictionary()
 
 
@@ -265,7 +265,7 @@ class PJRmi:
                     # not '.' in Java Land
                     subclass = self.class_for_name('%s$%s' % (cls._classname, k))
 
-                    # If we got here then we found it, save is as an attr so we
+                    # If we got here then we found it, save it as an attr so we
                     # don't need to perform the lookup next time
                     setattr(cls, k, subclass)
                     return subclass
@@ -450,7 +450,7 @@ class PJRmi:
         # We're now connected so it's correct to mark ourselves as so
         self._connected = True
 
-        # Make sure that we gracefuly disconnect at process exit; this is
+        # Make sure that we gracefully disconnect at process exit; this is
         # required to avoid race conditions in multi-threaded instances where
         # the Receiver thread will be hard-terminated and won't perform its
         # shutdown operations.
@@ -465,7 +465,7 @@ class PJRmi:
                 self_.disconnect()
         atexit.register(atexit_disconnect)
 
-        # Now instantiate a bunch classes we will reference a lot. Order is
+        # Now instantiate a bunch of classes we will reference a lot. Order is
         # important here since getting the class information of one object might
         # require having set up another (e.g. Object).
         #
@@ -1505,7 +1505,7 @@ public class TestInjectSource {
 
         You can send from any thread but, if you are planning to use threads
         really heavily then you are likely better off enabling callbacks in the
-        server and, thius, using a slightly different threading model
+        server and, thus, using a slightly different threading model
         internally.
         """
 
@@ -4193,7 +4193,7 @@ public class TestInjectSource {
         """
 
         # Possibly we should be making classes have a matching inheritance
-        # hierachy. That's a wish-list item for now...
+        # hierarchy. That's a wish-list item for now...
 
         # Figure out the list of types which we inherit from
         supertypes = set()
@@ -4221,7 +4221,7 @@ public class TestInjectSource {
 
     def _add_field(self, klass: type, field: dict[str,Any]) -> None:
         """
-        Adds a field as a property on a the given class.
+        Adds a field as a property on the given class.
         """
 
         # Static members have special handling, instance members are just
@@ -4287,7 +4287,7 @@ public class TestInjectSource {
         # All the method signatures in a sensible order.
         signatures = self._get_signatures(is_ctor, method_name, methods)
 
-        # Add each signature to the docstring, allong with anything extra.
+        # Add each signature to the docstring, along with anything extra.
         for signature in signatures:
             if klass_doc_url is None:
                 doc_link = ''
@@ -4865,7 +4865,7 @@ public class TestInjectSource {
                     # Got the right number of arguments for the constructor,
                     # create the argument list to invoke it. If this fails then
                     # we probably had the wrong method (overloaded with a
-                    # differnt type).
+                    # different type).
                     java_args = b""
                     exception = None
                     try:
@@ -4941,7 +4941,7 @@ public class TestInjectSource {
                                 # current list
                                 new_matches.append(match)
                             else:
-                                # This one from the current less is not as good
+                                # This one from the current list is not as good
                                 # as our new one. Drop it.
                                 pass
 
@@ -5230,7 +5230,7 @@ public class TestInjectSource {
             def __len__(self_):
                 return 2
 
-            # Explicity set here
+            # Explicitly set here
             setattr(klass, "__getitem__", __getitem__)
             setattr(klass, "__len__",     __len__    )
 
@@ -5350,7 +5350,7 @@ public class TestInjectSource {
             # having per-element access.
 
             def dtype_to_simplename(dtype: Union[numpy.dtype|str]):
-                # Get the class name of the a dtype, if any
+                # Get the class name of a dtype, if any
                 if isinstance(dtype, numpy.dtype):
                     dtype = dtype.name
                 match dtype:
@@ -5731,7 +5731,7 @@ used as in a `with` conntext.
                 self._callback_id2func[function_id] = function
 
                 # If the function is a bound method then the first argument is
-                # known to be `self` and is implictly placed as the first when
+                # known to be `self` and is implicitly placed as the first when
                 # the function is called. We have to account for that when we
                 # are determining the number of arguments.
                 if isinstance(function, (BuiltinMethodType,
@@ -5796,7 +5796,7 @@ used as in a `with` conntext.
         # data-structures, and to make this whole function atomic
         with self._callback_lock:
             # Already have one? Note that we use id() here since we want to
-            # track the object uniquelly (and we can't use mutables like dicts
+            # track the object uniquely (and we can't use mutables like dicts
             # as keys).
             object_id = self._callback_obj2id.get(id(python_object), None)
             if object_id is None:
@@ -6104,9 +6104,9 @@ def connect_to_child_jvm(
           callbacks to work.
       ``use_locking`` -- ``bool``
           Whether global locking should be enabled internally.
-      ``block_non_allowlisted_classes`` -- ``tuple<str>``
+      ``block_non_allowlisted_classes`` -- ``bool``
           Whether to enable class block-listing.
-      ``additional_allowlisted_classes`` -- ``bool``
+      ``additional_allowlisted_classes`` -- ``tuple<str>``
           The list of classes to allow, if blocklisting is enabled.
       ``allow_class_injection`` -- ``bool``
           Whether to allow class / source injection.
@@ -6118,7 +6118,7 @@ def connect_to_child_jvm(
     :param java_args:           A sequence of arguments to pass to the Java command.
     :param application_args:    A sequence of arguments to pass to the PJRmi application.
     :param timeout:             How long to wait for the child process to connect.
-    :param stdin:               the stdin file, or None to delete the handle.
+    :param stdin:               The stdin file, or None to delete the handle.
     :param stdout:              The stdout file, or None to delete the handle.
     :param stderr:              The stderr file, or None to delete the handle.
     :param interactive_mode:    Whether the session is interactive, if so then we try to
@@ -6564,7 +6564,7 @@ class SSLSocketTransport(SocketTransport):
         :param store:
             The path to the secret store.
         :param password:
-            The the password to unlock the store.
+            The password to unlock the store.
         """
         from cryptography.hazmat.primitives               import serialization
         from cryptography.hazmat.primitives.serialization import pkcs12
@@ -6597,7 +6597,7 @@ class SSLSocketTransport(SocketTransport):
         # we may load in the certificate chain from them.
         tmpdir = tempfile.mkdtemp(mode=0o700)
         try:
-            # Create two files to write the cerficates into so that we can load
+            # Create two files to write the certificates into so that we can load
             # them into the context. (Use Python3.6-compatible `with` syntax.)
             with tempfile.NamedTemporaryFile(dir=tmpdir, buffering=0) as key_file:
                 with tempfile.NamedTemporaryFile(dir=tmpdir, buffering=0) as pem_file:
@@ -6971,7 +6971,7 @@ class UnixFifoTransport:
                 LOG.error("Problem closing %s: %s", handle.name, e)
 
         # Remove the files etc. in a best-effort fashion. In theory the Java
-        # class should be watching these and will termimnate itself.
+        # class should be watching these and will terminate itself.
         try:
             os.remove(self._to_fifoname)
         except Exception:
@@ -7010,7 +7010,7 @@ class UnixFifoTransport:
 
         # Reap the child to collect the exit status; if we don't do this the
         # child will hang around forever as a zombie process. We do this in a
-        # thread so that we don't the main thread block on waitpid().
+        # thread so that we don't let the main thread block on waitpid().
         class Reaper(Thread):
             def run(self_):
                 # Keep trying until waitpid() returns gracefully
@@ -7041,7 +7041,7 @@ class UnixFifoTransport:
                        Process(self._pid).create_time() == self._pid_time):
                     time.sleep(0.1)
             except (NoSuchProcess, ProcessLookupError):
-                # This is okay, the proces was not found and we can be done.
+                # This is okay, the process was not found and we can be done.
                 pass
 
         # We're closed now
@@ -7079,7 +7079,7 @@ class StdioTransport:
     """
 
     # How we say we're ready. We embed some magic hex values (0xFeedBeef) to try
-    # to ensure that we don't accidently clash with another hello string.
+    # to ensure that we don't accidentally clash with another hello string.
     _HELLO = b"PYTHON IS READY: %c%c%c%c" % (0xfe, 0xed, 0xbe, 0xef)
 
     def __init__(self,
@@ -7301,8 +7301,8 @@ class JavaLogHandler(logging.Handler):
 
     def __init__(self, rmi: PJRmi, java_logger: _JavaObject):
         """
-        Instantiate with a PJRmi connection and a Java java.util.logger.Log
-        instance.
+        Instantiate with a PJRmi connection and a Java
+        ``java.util.logging.Logger`` instance.
         """
 
         # Ensure the base class is configured
@@ -7594,7 +7594,7 @@ class _JavaObject:
             (isinstance(that, _JavaObject) and self._pjrmi_handle == that._pjrmi_handle and
                                                self._pjrmi_inst  is that._pjrmi_inst)):
             # This is the trivial case; we know these are the same instance
-            # since they are either the same Python object or because have the
+            # since they are either the same Python object or because they have the
             # same handle on the Java object (which means they represent the
             # same Java object instance).
             return True
@@ -7641,7 +7641,7 @@ class _JavaObject:
 
     def __reduce__(self) -> bytes:
         """
-        Java Objects are tighly coupled to the server, none of their data lives in
+        Java Objects are tightly coupled to the server, none of their data lives in
         the Python process. This means that there's nothing to pickle.
         """
 
@@ -7660,7 +7660,7 @@ class _JavaObject:
         if not hasattr(self, k) and \
            hasattr(self, '_pjrmi_attr_guard') and self._pjrmi_attr_guard.active():
             raise AttributeError(
-                "Creation Python attributes outside of the _pjrmi_attr_guard "
+                "Creating Python attributes outside of the _pjrmi_attr_guard "
                 "context is disallowed"
             )
         else:
@@ -7673,7 +7673,7 @@ class _JavaObject:
         """
         if hasattr(self, '_pjrmi_attr_guard') and self._pjrmi_attr_guard.active():
             raise AttributeError(
-                "Deletion Python attributes outside of the _pjrmi_attr_guard "
+                "Deleting Python attributes outside of the _pjrmi_attr_guard "
                 "context is disallowed"
             )
         else:
@@ -7690,7 +7690,7 @@ class _JavaLock:
     Python instance.
 
     If acquiring the lock would result in deadlock then an exception will be
-    thrown, at which point it's up the caller to deal with handling the
+    thrown, at which point it's up to the caller to deal with handling the
     fall-out.
 
     >> with lock:
@@ -7711,7 +7711,7 @@ class _JavaLock:
 
     def __init__(self, rmi: PJRmi, name: str) -> None:
         """
-        Instatiate a named lock with a given PJRmi instance.
+        Instantiate a named lock with a given PJRmi instance.
 
         :param rmi:  The PJRmi instance this lock is using.
         :param name: The name of this lock.
@@ -7831,7 +7831,7 @@ class _JavaBox:
 
     def __reduce__(self) -> bytes:
         """
-        Java Objects are tighly coupled to the server, none of their data lives in
+        Java Objects are tightly coupled to the server, none of their data lives in
         the Python process. This means that there's nothing to pickle.
         """
         if self._java_object is None:

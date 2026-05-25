@@ -1316,7 +1316,61 @@ public class TestInjectSource {
                 self.assertEqual(array2d[i][j], wrapped[i][j])
                 self.assertEqual(array2d[i][j], wrapped[i, j])
 
+    def test_arraylike_slicing(self):
+        """
+        Ensure that slicing works correctly on WrappedArrayLike instances.
+        """
+        Ldouble          = get_pjrmi().class_for_name('[D')
+        WrappedArrayLike = get_pjrmi().class_for_name('com.deshaw.pjrmi.PJRmi$WrappedArrayLike')
 
+        # Create and populate a 1D double array
+        array1d = Ldouble(6)
+        for i in range(6):
+            array1d[i] = float(i)
+        wrapped = WrappedArrayLike(array1d)
+
+        # Basic slice
+        sliced = wrapped[1:4]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i + 1))
+
+        # Unbounded start
+        sliced = wrapped[:3]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i))
+
+        # Unbounded stop
+        sliced = wrapped[3:]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i + 3))
+
+        # Full slice
+        sliced = wrapped[:]
+        self.assertEqual(len(sliced), 6)
+        for i in range(6):
+            self.assertEqual(sliced[i], float(i))
+
+        # Negative indices
+        sliced = wrapped[-3:]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i + 3))
+
+        # Test __setitem__ with slice
+        source = Ldouble(3)
+        for i in range(3):
+            source[i] = float(i + 10)
+        wrapped[1:4] = source
+        for i in range(3):
+            self.assertEqual(wrapped[i + 1], float(i + 10))
+
+        # Step != 1 should raise UnsupportedOperationException
+        with self.assertRaises(Exception):
+            _ = wrapped[::2]
+            
     def test_iterators(self):
         """
         Ensure that we handle iterators (and especially) exceptions from

@@ -1993,7 +1993,30 @@ public abstract class PJRmi
                         );
                     }
                 }
-                // TODO handle PythonSlice in here too
+                else if (k instanceof PythonSlice) {
+                    final PythonSlice s = (PythonSlice) k;
+                    // We only support unit steps, matching Hypercube semantics
+                    if (s.step != null && s.step != 1L) {
+                        throw new UnsupportedOperationException(
+                            "Can't handle a slice of the form " + s
+                        );
+                    }
+                    final int len   = Array.getLength(value);
+                    int start = (s.start == null) ? 0   : s.start.intValue();
+                    int stop  = (s.stop  == null) ? len : s.stop .intValue();
+                    if (start < 0) start = Math.max(0, len + start);
+                    if (stop  < 0) stop  = Math.max(0, len + stop);
+                    start = Math.min(Math.max(start, 0), len);
+                    stop  = Math.min(Math.max(stop,  0), len);
+                    final int sliceLen = Math.max(0, stop - start);
+                    final Object result = Array.newInstance(
+                        value.getClass().getComponentType(), sliceLen
+                    );
+                    for (int i = 0; i < sliceLen; i++) {
+                        Array.set(result, i, Array.get(value, start + i));
+                    }
+                    value = result;
+                }
                 else {
                     throw new IllegalArgumentException(
                         "Don't know how to index with " + k + " in key " +
@@ -2001,13 +2024,13 @@ public abstract class PJRmi
                     );
                 }
             }
-
             // If we have an array then we wrap that, else we just return what
             // we got
             return (value != null && value.getClass().isArray())
                 ? new WrappedArrayLike(value)
                 : value;
         }
+    
 
         /**
          * {@inheritDoc}
@@ -2027,12 +2050,12 @@ public abstract class PJRmi
                 if (k instanceof Number) {
                     final int index = ((Number)k).intValue();
                     try {
-                        array = Array.get(value, ((Number)k).intValue());
+                        array = Array.get(array, ((Number)k).intValue());
                     }
                     catch (ArrayIndexOutOfBoundsException e) {
                         throw new ArrayIndexOutOfBoundsException(
                             index + " was not in the range [0.." +
-                            Array.getLength(value) + ")"
+                            Array.getLength(array) + ")"
                         );
                     }
                 }
@@ -2060,12 +2083,30 @@ public abstract class PJRmi
                         );
                     }
                 }
-                else {
-                    throw new IllegalArgumentException(
-                        "Don't know how to index with " + k + " in key " +
-                        Arrays.toString(key)
+                else if (k instanceof PythonSlice) {
+                final PythonSlice s = (PythonSlice) k;
+                if (s.step != null && s.step != 1L) {
+                    throw new UnsupportedOperationException(
+                        "Can't handle a slice of the form " + s
                     );
                 }
+                final int len   = Array.getLength(array);
+                int start = (s.start == null) ? 0   : s.start.intValue();
+                int stop  = (s.stop  == null) ? len : s.stop .intValue();
+                if (start < 0) start = Math.max(0, len + start);
+                if (stop  < 0) stop  = Math.max(0, len + stop);
+                start = Math.min(Math.max(start, 0), len);
+                stop  = Math.min(Math.max(stop,  0), len);
+                for (int i = start; i < stop; i++) {
+                    Array.set(array, i, Array.get(value, i - start));
+                }
+            }
+            else {
+                throw new IllegalArgumentException(
+                    "Don't know how to index with " + k + " in key " +
+                    Arrays.toString(key)
+                );
+            }
             }
             catch (ClassCastException e) {
                 throw new IllegalArgumentException(

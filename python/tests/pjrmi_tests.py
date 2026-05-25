@@ -1529,6 +1529,173 @@ public class TestNameMangling {
         self.assertEqual(original_10, array2d[1][0])  # same row, different column: unchanged
 
 
+    def test_arraylike_slicing(self):
+        """
+        Ensure that slicing works correctly on WrappedArrayLike instances.
+
+        Covers __getitem__: basic slice, unbounded start (``[:n]``),
+        unbounded stop (``[n:]``), full slice (``[:]``), negative indices
+        (``[-n:]``), out-of-range clamping, empty slices, multi-dimensional
+        slicing, and object-array slicing.
+
+        Covers __setitem__: slice assignment, length-mismatch rejection
+        (with target-unchanged guarantee), null/scalar rejection, and
+        rejection of slices in non-final key dimensions.
+
+        Covers error reporting: non-unit step raises
+        ``UnsupportedOperationException`` with a specific message.
+        """
+        Ldouble          = get_pjrmi().class_for_name('[D')
+        LLdouble         = get_pjrmi().class_for_name('[[D')
+        Lstring          = get_pjrmi().class_for_name('[Ljava.lang.String;')
+        WrappedArrayLike = get_pjrmi().class_for_name('com.deshaw.pjrmi.PJRmi$WrappedArrayLike')
+
+        # Create and populate a 1D double array
+        array1d = Ldouble(6)
+        for i in range(6):
+            array1d[i] = float(i)
+        wrapped = WrappedArrayLike(array1d)
+
+        # Basic slice
+        sliced = wrapped[1:4]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i + 1))
+
+        # Unbounded start
+        sliced = wrapped[:3]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i))
+
+        # Unbounded stop
+        sliced = wrapped[3:]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i + 3))
+
+        # Full slice
+        sliced = wrapped[:]
+        self.assertEqual(len(sliced), 6)
+        for i in range(6):
+            self.assertEqual(sliced[i], float(i))
+
+        # Negative indices
+        sliced = wrapped[-3:]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i + 3))
+
+        # Out-of-range positives clamp to len
+        sliced = wrapped[0:100]
+        self.assertEqual(len(sliced), 6)
+        sliced = wrapped[100:200]
+        self.assertEqual(len(sliced), 0)
+
+        # Out-of-range negatives clamp to 0
+        sliced = wrapped[-100:3]
+        self.assertEqual(len(sliced), 3)
+        for i in range(3):
+            self.assertEqual(sliced[i], float(i))
+
+        # Empty slices: start == stop and start > stop both yield length 0
+        sliced = wrapped[3:3]
+        self.assertEqual(len(sliced), 0)
+        sliced = wrapped[5:2]
+        self.assertEqual(len(sliced), 0)
+
+        # Test __setitem__ with slice
+        source = Ldouble(3)
+        for i in range(3):
+            source[i] = float(i + 10)
+        wrapped[1:4] = source
+        for i in range(3):
+            self.assertEqual(wrapped[i + 1], float(i + 10))
+
+        # __setitem__ length-mismatch rejection: the target must be
+        # unchanged after a failed assignment (atomicity).
+        before = [wrapped[i] for i in range(6)]
+        short_source = Ldouble(2)
+        short_source[0] = 99.0
+        short_source[1] = 98.0
+        with self.assertRaisesRegex(pjrmi.JavaException,
+                                    "Cannot assign sequence of length 2 "
+                                    "into slice of length 3"):
+            wrapped[1:4] = short_source
+        after = [wrapped[i] for i in range(6)]
+        self.assertEqual(before, after)
+
+        long_source = Ldouble(5)
+        for i in range(5):
+            long_source[i] = float(i + 100)
+        with self.assertRaisesRegex(pjrmi.JavaException,
+                                    "Cannot assign sequence of length 5 "
+                                    "into slice of length 3"):
+            wrapped[1:4] = long_source
+        after = [wrapped[i] for i in range(6)]
+        self.assertEqual(before, after)
+
+        # __setitem__ rejects None and non-array (scalar) RHS
+        with self.assertRaisesRegex(pjrmi.JavaException,
+                                    "Cannot assign null to a slice"):
+            wrapped[1:4] = None
+        with self.assertRaisesRegex(pjrmi.JavaException,
+                                    "Slice assignment requires an array "
+                                    "source"):
+            wrapped[1:4] = 5.0
+
+        # Step != 1 raises UnsupportedOperationException with a clear message
+        with self.assertRaisesRegex(pjrmi.JavaException,
+                                    "Non-unit step is not supported"):
+            _ = wrapped[::2]
+
+        # Multi-dimensional __getitem__: slicing the first dim of a 2D array
+        # yields a 1-D array of inner-array references, re-wrapped as a
+        # WrappedArrayLike.
+        array2d = LLdouble(4)
+        for i in range(4):
+            row = Ldouble(3)
+            for j in range(3):
+                row[j] = float(i * 10 + j)
+            array2d[i] = row
+        wrapped2d = WrappedArrayLike(array2d)
+        rows = wrapped2d[1:3]
+        self.assertEqual(len(rows), 2)
+        for i in range(2):
+            for j in range(3):
+                self.assertEqual(rows[i][j], float((i + 1) * 10 + j))
+
+        # Multi-dimensional __setitem__: a slice in a non-final dimension
+        # is explicitly rejected with an informative message.
+        src_row = Ldouble(3)
+        with self.assertRaisesRegex(pjrmi.JavaException,
+                                    "PythonSlice is only supported in the "
+                                    "final dimension"):
+            wrapped2d[1:3, 0] = src_row
+
+        # Object-array slicing: takes the reference-typed reflection path
+        # rather than the primitive path.
+        sa = Lstring(4)
+        sa[0] = "a"
+        sa[1] = "b"
+        sa[2] = "c"
+        sa[3] = "d"
+        wrapped_str = WrappedArrayLike(sa)
+        sliced_str = wrapped_str[1:3]
+        self.assertEqual(len(sliced_str), 2)
+        self.assertEqual(sliced_str[0], "b")
+        self.assertEqual(sliced_str[1], "c")
+
+        replacement = Lstring(2)
+        replacement[0] = "B"
+        replacement[1] = "C"
+        wrapped_str[1:3] = replacement
+        self.assertEqual(wrapped_str[0], "a")
+        self.assertEqual(wrapped_str[1], "B")
+        self.assertEqual(wrapped_str[2], "C")
+        self.assertEqual(wrapped_str[3], "d")
+
+
     def test_iterators(self):
         """
         Ensure that we handle iterators (and especially) exceptions from

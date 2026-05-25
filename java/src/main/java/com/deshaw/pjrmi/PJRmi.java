@@ -1967,6 +1967,20 @@ public abstract class PJRmi
 
         /**
          * {@inheritDoc}
+         *
+         * <p>Each key component may be either a {@code long} index or a
+         * {@link PythonSlice}. A slice may appear in any dimension and returns
+         * a freshly allocated sub-array of the same component type (a copy, not
+         * a view), wrapped in a new {@link WrappedArrayLike}. Mutating the
+         * result does not affect the underlying array (though for
+         * multi-dimensional arrays the inner sub-arrays are aliased, matching
+         * Python's {@code list[:]} semantics for contained mutables).
+         *
+         * <p>Only positve unit-step slices are supported; other step values
+         * raise {@link UnsupportedOperationException}. {@code null} start and
+         * stop are treated as unbounded, negative indices are interpreted
+         * relative to the dimension length, and out-of-range values are
+         * clamped, all matching Python's {@code slice.indices(len)}.
          */
         @Override
         @GenericReturnType
@@ -1994,7 +2008,18 @@ public abstract class PJRmi
                         );
                     }
                 }
-                // TODO handle PythonSlice in here too
+                else if (k instanceof PythonSlice) {
+                    final PythonSlice s = (PythonSlice) k;
+                    final int[]      se = s.resolve(Array.getLength(value));
+                    final int     start = se[0];
+                    final int      stop = se[1];
+                    final int  sliceLen = Math.max(0, stop - start);
+                    final Object result = Array.newInstance(
+                        value.getClass().getComponentType(), sliceLen
+                    );
+                    System.arraycopy(value, start, result, 0, sliceLen);
+                    value = result;
+                }
                 else {
                     throw new IllegalArgumentException(
                         "Don't know how to index with " + k + " in key " +
@@ -2012,6 +2037,24 @@ public abstract class PJRmi
 
         /**
          * {@inheritDoc}
+         *
+         * <p>A {@link PythonSlice} is accepted only as the final component
+         * of the key; the {@code value} must then be an array whose length
+         * equals the resolved slice length, and its elements are copied
+         * into the addressed range. Slices in non-final key positions
+         * raise {@link IllegalArgumentException}. Only unit-step slices
+         * are supported; non-unit steps raise
+         * {@link UnsupportedOperationException}. {@code null} start and
+         * stop are treated as unbounded, negative indices are interpreted
+         * relative to the dimension length, and out-of-range values are
+         * clamped, all matching Python's {@code slice.indices(len)}.
+         *
+         * <p>Source-array preconditions (non-null, array type, matching
+         * length) are validated up front, so a failed slice assignment
+         * leaves the target unmutated. A per-element type-mismatch
+         * detected by {@link System#arraycopy} may, however, leave the
+         * target partially mutated and raise
+         * {@link IllegalArgumentException}.
          */
         @Override
         public void __setitem__(final Object[] key, final Object value)
@@ -2040,7 +2083,13 @@ public abstract class PJRmi
                         );
                     }
                 }
-                // TODO handle PythonSlice in here too
+                else if (k instanceof PythonSlice) {
+                    throw new IllegalArgumentException(
+                        "PythonSlice is only supported in the final " +
+                        "dimension of a __setitem__ key; got slice at " +
+                        "dimension " + i + " of key " + Arrays.toString(key)
+                    );
+                }
                 else {
                     throw new IllegalArgumentException(
                         "Don't know how to index with " + k + " in key " +
@@ -2064,6 +2113,35 @@ public abstract class PJRmi
                         );
                     }
                 }
+                else if (k instanceof PythonSlice) {
+                    final PythonSlice  s = (PythonSlice) k;
+                    final int[]     se = s.resolve(Array.getLength(array));
+                    final int    start = se[0];
+                    final int     stop = se[1];
+                    final int sliceLen = Math.max(0, stop - start);
+
+                    // Validate the source up front so a failed slice
+                    // assignment never leaves the target half-mutated.
+                    if (value == null) {
+                        throw new IllegalArgumentException(
+                            "Cannot assign null to a slice"
+                        );
+                    }
+                    if (!value.getClass().isArray()) {
+                        throw new IllegalArgumentException(
+                            "Slice assignment requires an array source; " +
+                            "got " + value.getClass().getSimpleName()
+                        );
+                    }
+                    final int srcLen = Array.getLength(value);
+                    if (srcLen != sliceLen) {
+                        throw new IllegalArgumentException(
+                            "Cannot assign sequence of length " + srcLen +
+                            " into slice of length " + sliceLen
+                        );
+                    }
+                    System.arraycopy(value, 0, array, start, sliceLen);
+                }
                 else {
                     throw new IllegalArgumentException(
                         "Don't know how to index with " + k + " in key " +
@@ -2071,7 +2149,9 @@ public abstract class PJRmi
                     );
                 }
             }
-            catch (ClassCastException e) {
+            catch (ClassCastException |
+                   ArrayStoreException e)
+            {
                 throw new IllegalArgumentException(
                     "Failed to set in array of " + array.getClass() + " " +
                     "with value of type " +

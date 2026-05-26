@@ -7649,6 +7649,13 @@ class _JavaObject:
         return str(self)
 
 
+    def _ipython_display_(self) -> None:
+        # IPython's display protocol; delegates to __interactive_display__ so
+        # both hooks produce consistent output.
+        from IPython.display import display as _display
+        _display(self.__interactive_display__())
+
+
     def __hash__(self) -> int:
         """
         We defer to the Java's hash-code in order to ensure that semantics are

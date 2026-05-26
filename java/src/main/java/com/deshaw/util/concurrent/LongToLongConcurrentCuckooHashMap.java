@@ -870,7 +870,7 @@ public class LongToLongConcurrentCuckooHashMap
     public boolean contains(final long value)
     {
         try (Iterator itr = iterator()) {
-            while (itr.hasNext()) {
+            while (itr.next()) {
                 if (itr.currentValue() == value) {
                     return true;
                 }

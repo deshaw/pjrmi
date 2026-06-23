@@ -180,6 +180,44 @@ namespace exception {
                               const size_t array_bytes,
                               const ArrayType type);
 
+    /**
+     * Map a "safe" shm file privately and return a pointer to its array
+     * contents, without copying the data.
+     *
+     * Unlike read_bytes_from_shm(), which copies the file into freshly
+     * allocated memory, this maps the file copy-on-write (MAP_PRIVATE) and
+     * hands back a pointer straight into the mapped pages. The pages fault in
+     * on demand, so reading only part of a large array only touches the pages
+     * it needs, and the array remains privately writable. The file is unlinked
+     * before returning, so nothing is left in the shm directory even if the
+     * caller later crashes; the mapping stays valid until unmap_shm_array().
+     *
+     * @param file               The name of the mmaped file.
+     * @param array_bytes        The number of bytes we expect in the file.
+     * @param type               The type of the array we expect in the file.
+     *
+     * @return                   A pointer to the start of the array contents.
+     *
+     * @throws io                If the file cannot be opened or mapped, or its
+     *                           header or type does not match what is expected.
+     */
+    void* map_bytes_from_shm(const char* file,
+                             const size_t array_bytes,
+                             const ArrayType type);
+
+    /**
+     * Release a mapping previously returned by map_bytes_from_shm().
+     *
+     * @param array              The pointer returned by map_bytes_from_shm().
+     * @param array_bytes        The number of array bytes passed to the map.
+     * @param type               The type passed to the map.
+     *
+     * @throws io                If there is an error in unmapping the file.
+     */
+    void unmap_shm_array(void* array,
+                         const size_t array_bytes,
+                         const ArrayType type);
+
 } // namespace pjrmi
 } // namespace des
 

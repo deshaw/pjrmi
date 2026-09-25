@@ -42,41 +42,25 @@ configurations {
 // specifically have imperfect JavaDoc for and the warnings don't really help.
 javadoc {
     options.addStringOption('Xdoclint:all,-missing', '-quiet')
+
+    // VectorizedCubeMath imports the Vector API, which is an incubator module
+    // and so is not in the default module graph. The compile and run tasks are
+    // given it at the bottom of this file; javadoc is a separate tool
+    // invocation and needs its own copy. Gradle prefixes the key with a single
+    // dash, so the leading dash here is what makes it "--add-modules".
+    options.addStringOption('-add-modules', 'jdk.incubator.vector')
 }
 
 // Configuration from the outside world.
 def SNAPPY = 'org.xerial.snappy:snappy-java:' + snappyVersion
-
-// Support for Vectorized math.
-ext {
-    // The user-given parameter that is used to decide whether to include
-    // vectorized classes when building:
-    //   ./gradlew build -PincludeVectorized
-    INCLUDE_VECTORIZED = 'includeVectorized'
-}
 
 
 // Choose which Java version to use, for the general population. This section
 // can be commented out if you want to let the build pick up the Java version
 // from the environment, though read the comments about Vectorized support.
 java {
-    if (project.hasProperty(INCLUDE_VECTORIZED)) {
-        // PJRmi is specifically Java11 so as not to force users to later
-        // versions. However, as of 20230906, the Vector API incubator module
-        // is only available in Java17.
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
-        }
-    }
-    else {
-        // PJRmi is specifically Java11 so as not to force users to later
-        // versions, if they have dependencies, so enforce this in the build.
-        //
-        // If we change this then we should change any workarounds accordingly.
-        // Look for JAVA_11_FIXME in the code.
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(11)
-        }
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -277,39 +261,22 @@ dependencies {
     testImplementation SNAPPY
 }
 
-// Add the Vector API incubator module when the 'includeVectorized' build
-// parameter is passed. Otherwise, exclude the vectorized files that include
-// this module from the build.
+// Add the Vector API which is an incubator module for Java17
 sourceSets {
     main {
         java {
-            if (project.hasProperty(INCLUDE_VECTORIZED)) {
-                // Include the Vector API incubator module when building
-                compileJava {
-                    options.compilerArgs.addAll(['--enable-preview', '--add-modules', 'jdk.incubator.vector'])
-                }
-                compileTestJava {
-                    options.compilerArgs += ['--add-modules', 'jdk.incubator.vector']
-                }
-                tasks.withType(Test) {
-                    jvmArgs += ["--enable-preview", "--add-modules", "jdk.incubator.vector"]
-                }
-                tasks.withType(JavaExec) {
-                    jvmArgs += ["--enable-preview", "--add-modules", "jdk.incubator.vector"]
-                }
+            // Include the Vector API incubator module when building
+            compileJava {
+                options.compilerArgs.addAll(['--enable-preview', '--add-modules', 'jdk.incubator.vector'])
             }
-            else {
-                // Remove tests for vectorized modules
-                exclude '**/Vectorized*.java'
+            compileTestJava {
+                options.compilerArgs += ['--add-modules', 'jdk.incubator.vector']
             }
-        }
-    }
-
-    test {
-        java {
-            if (!project.hasProperty(INCLUDE_VECTORIZED)) {
-                // Remove tests for vectorized modules
-                exclude '**/Vectorized*.java'
+            tasks.withType(Test) {
+                jvmArgs += ["--enable-preview", "--add-modules", "jdk.incubator.vector"]
+            }
+            tasks.withType(JavaExec) {
+                jvmArgs += ["--enable-preview", "--add-modules", "jdk.incubator.vector"]
             }
         }
     }

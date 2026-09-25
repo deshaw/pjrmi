@@ -22,12 +22,12 @@ fetched while the build runs.
 
 On Ubuntu you will want some of the following packages:
 ```bash
-sudo apt install build-essential g++ openjdk-11-jdk-headless python3-numpy py3c-dev python3-pip python3-setuptools python3-wheel python3-snappy python3-dev libpython3-dev python3-pytest python3-plumbum
+sudo apt install build-essential g++ openjdk-17-jdk-headless python3-numpy py3c-dev python3-pip python3-setuptools python3-wheel python3-snappy python3-dev libpython3-dev python3-pytest python3-plumbum
 ```
 
 On RHEL8 you will want some of the following packages:
 ```bash
-sudo yum install gcc-toolset-12-gcc-c++ java-11-openjdk java-11-openjdk-devel python3-numpy python3-pip python3-setuptools py3c-devel python3-pytest python3-wheel snappy-devel
+sudo yum install gcc-toolset-12-gcc-c++ java-17-openjdk java-17-openjdk-devel python3-numpy python3-pip python3-setuptools py3c-devel python3-pytest python3-wheel snappy-devel
 pip3 install python-snappy plumbum
 ```
 

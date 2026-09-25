@@ -9015,16 +9015,7 @@ public abstract class PJRmi
                         // then we are not trying to invoke its functional
                         // method. We handle these here and early-out.
                         if (method.isDefault()) {
-                            // This is only available in JDK 16 onwards
-                            if (ourInvokeDefault == null) {
-                                throw new UnsupportedOperationException(
-                                    "Can only invoke default methods " +
-                                    "on proxy interfaces in Java 16 onwards"
-                                );
-                            }
-                            else {
-                                return ourInvokeDefault.invoke(null, proxy, method, args);
-                            }
+                            return InvocationHandler.invokeDefault(proxy, method, args);
                         }
 
                         // Determine the arguments which we are passing along
@@ -9701,27 +9692,6 @@ public abstract class PJRmi
      */
     private static final ThreadLocal<PythonPickle> ourPythonPickle =
         ThreadLocal.withInitial(PJRmiPythonPickle::new);
-
-    /**
-     * A handle in InvocationHandler.invokeDefault, which is only available in
-     * Java 16 onwards. Since we are Java11 we attempt to find it by reflection.
-     */
-    // JAVA_11_FIXME
-    private static final Method ourInvokeDefault;
-    static {
-        Method invokeDefault;
-        try {
-            invokeDefault = 
-                InvocationHandler.class.getMethod(
-                    "invokeDefault",
-                    Object.class, Method.class, Object[].class
-                );
-        }
-        catch (NoSuchMethodException e) {
-            invokeDefault = null;
-        }
-        ourInvokeDefault = invokeDefault;
-    }
 
     // Force the classes which read tuning properties to initialise, so that a
     // value which is set but cannot be honoured stops the process here.

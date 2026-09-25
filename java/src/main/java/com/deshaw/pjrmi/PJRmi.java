@@ -12,6 +12,7 @@ import com.deshaw.hypercube.IntegerMappedHypercube;
 import com.deshaw.hypercube.LongHypercube;
 import com.deshaw.hypercube.LongMappedHypercube;
 import com.deshaw.io.BlockingPipe;
+import com.deshaw.io.ByteListOutputStream;
 import com.deshaw.python.DType;
 import com.deshaw.python.Operations;
 import com.deshaw.python.PythonPickle;
@@ -24,7 +25,6 @@ import com.deshaw.util.concurrent.LockManager;
 import com.deshaw.util.concurrent.VirtualThreadLock;
 import com.deshaw.util.concurrent.VirtualThreadLock.VirtualThread;
 
-import java.io.ByteArrayOutputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -851,6 +851,12 @@ public abstract class PJRmi
 
     /**
      * The wire format to use when sending objects to python.
+     *
+     * <p>On a reply this says what was actually sent, which is not always what
+     * was asked for. Data too large to compress goes out under the format which
+     * {@link #uncompressed()} gives back, in place of the SNAPPY form which was
+     * requested; the client keys off the format byte it receives rather than
+     * the one it asked for.
      */
     private enum PythonValueFormat
     {
@@ -878,6 +884,34 @@ public abstract class PJRmi
          * The unique identifier of this return format.
          */
         public final byte id;
+
+        /**
+         * The format which describes the same data sent without compression.
+         *
+         * <p>This is the downgrade which applies when a value turns out to be
+         * too large to compress. Formats which do not ask for compression are
+         * their own answer, so this is safe to call on any of them.
+         *
+         * @return the uncompressed equivalent of this format.
+         */
+        public PythonValueFormat uncompressed()
+        {
+            switch (this) {
+            case SNAPPY_PICKLE:            return RAW_PICKLE;
+            case BESTEFFORT_SNAPPY_PICKLE: return BESTEFFORT_PICKLE;
+            default:                       return this;
+            }
+        }
+
+        /**
+         * Whether this format asks for the data to be compressed.
+         *
+         * @return whether compression was requested.
+         */
+        public boolean isCompressed()
+        {
+            return (this != uncompressed());
+        }
 
         /**
          * Get the PythonValueFormat instance for a given ID.
@@ -2462,13 +2496,13 @@ public abstract class PJRmi
     private static class ReadObjectResult
     {
         // The result is an offset and the object read
-        public final int    offset;
+        public final long   offset;
         public final Object object;
 
         /**
          * CTOR.
          */
-        public ReadObjectResult(final int offset, final Object object)
+        public ReadObjectResult(final long offset, final Object object)
         {
             this.offset = offset;
             this.object = object;
@@ -3384,31 +3418,46 @@ public abstract class PJRmi
     }
 
     /**
-     * A ByteArrayOutputStream wrapped in a DataOutputStream.
+     * A {@link ByteList} wrapped in a {@link DataOutputStream}.
+     *
+     * <p>The backing is a {@link ByteList}, and not a
+     * {@link java.io.ByteArrayOutputStream}, so that a message may be larger
+     * than {@code Integer.MAX_VALUE} bytes.
      */
-    private static class ByteArrayDataOutputStream
+    private static class ByteListDataOutputStream
     {
-        /* The ByteArrayOutputStream which is fed by the DataOutputStream. */
-        public final ByteArrayOutputStream bytes   = new ByteArrayOutputStream(1024);
-        public final DataOutputStream      dataOut = new DataOutputStream(bytes);
+        /* The ByteList which is fed by the DataOutputStream. */
+        public final ByteList         bytes   = new ByteList(1024);
+        public final DataOutputStream dataOut =
+            new DataOutputStream(new ByteListOutputStream(bytes));
 
-        /** Sugar method to reset the {@link ByteArrayOutputStream}. */
-        public void reset() { bytes.reset(); }
+        /** Sugar method to empty the {@link ByteList}. */
+        public void reset() { bytes.clear(); }
     }
 
     /**
-     * A thread-local instance of the ByteArrayDataOutputStream.
+     * A thread-local instance of the ByteListDataOutputStream.
      */
-    private static class ThreadLocalByteArrayDataOutputStream
-        extends ThreadLocal<ByteArrayDataOutputStream>
+    private static class ThreadLocalByteListDataOutputStream
+        extends ThreadLocal<ByteListDataOutputStream>
     {
         /**
          * {@inheritDoc}
          */
         @Override
-        public ByteArrayDataOutputStream get()
+        public ByteListDataOutputStream get()
         {
-            final  ByteArrayDataOutputStream buffer = super.get();
+            ByteListDataOutputStream buffer = super.get();
+
+            // Give back the space taken by an outsized message, rather than
+            // holding on to it forever
+            if (buffer.bytes.capacity() >
+                    PJRmiProperties.getMaxRetainedBufferBytes())
+            {
+                buffer = new ByteListDataOutputStream();
+                set(buffer);
+            }
+
             buffer.reset();
             return buffer;
         }
@@ -3417,9 +3466,9 @@ public abstract class PJRmi
          * {@inheritDoc}
          */
         @Override
-        protected ByteArrayDataOutputStream initialValue()
+        protected ByteListDataOutputStream initialValue()
         {
-            return new ByteArrayDataOutputStream();
+            return new ByteListDataOutputStream();
         }
     }
 
@@ -3457,7 +3506,8 @@ public abstract class PJRmi
             private volatile long             myThreadId    = -1L;
             private volatile VirtualThread    myThread      = null;
             private volatile int              myRequestId   = -1;
-            private final    ByteList         myPayload     = new ByteList(1024 * 1024);
+            private volatile ByteList         myPayload     =
+                new ByteList(INITIAL_BUFFER_BYTES);
             private volatile DataOutputStream myOut         = null;
 
             /**
@@ -3471,9 +3521,16 @@ public abstract class PJRmi
              * The sending buffer instance used by this worker thread. This is
              * used to build up the message which this worker creates via the
              * receive() calls.
+             *
+             * <p>Like {@link #myPayload}, this is replaced rather than emptied
+             * once it grows past
+             * {@link PJRmiProperties#getMaxRetainedBufferBytes()}. Only the
+             * worker thread itself ever touches it, so the reassignment needs
+             * no memory barrier, which is why this is not {@code volatile}
+             * where {@link #myPayload} is.
              */
-            private final ByteArrayDataOutputStream mySendBuf =
-                new ByteArrayDataOutputStream();
+            private ByteListDataOutputStream mySendBuf =
+                new ByteListDataOutputStream();
 
             /**
              * Constructor.
@@ -3617,7 +3674,7 @@ public abstract class PJRmi
                     }
 
                     // What we'll be sending back
-                    final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                    final ByteListDataOutputStream bados = ourByteOutBuffer.get();
 
                     // We'll treat this like a normal object
                     final TypeDescription exDesc =
@@ -3673,12 +3730,39 @@ public abstract class PJRmi
                         }
                     }
 
-                    // Zero out our params
+                    // Zero out our params. Both of our buffers get the same
+                    // treatment as the connection's: clearing one keeps
+                    // whatever it grew to, and since a worker lives for as
+                    // long as its connection does, one outsized message would
+                    // otherwise pin that much heap per worker until the
+                    // connection dropped. Now that a message can be larger
+                    // than 2GB that pin has no upper bound.
+                    //
+                    // The reply has already gone out above, so the send buffer
+                    // is done with. Handing it back here, rather than at the
+                    // reset() which starts the next message, is what keeps the
+                    // space from being held while the worker sits idle in the
+                    // queue waiting for one.
                     myMessageType = MessageType.NONE;
                     myRequestId   = -1;
                     myThreadId    = -1;
                     myThread      = null;
-                    myPayload.clear();
+                    if (myPayload.capacity() >
+                            PJRmiProperties.getMaxRetainedBufferBytes())
+                    {
+                        myPayload = new ByteList(INITIAL_BUFFER_BYTES);
+                    }
+                    else {
+                        myPayload.clear();
+                    }
+                    if (mySendBuf.bytes.capacity() >
+                            PJRmiProperties.getMaxRetainedBufferBytes())
+                    {
+                        mySendBuf = new ByteListDataOutputStream();
+                    }
+                    else {
+                        mySendBuf.reset();
+                    }
                     myOut         = null;
 
                     // Disassociate
@@ -4039,7 +4123,7 @@ public abstract class PJRmi
                 final int requestId = myPythonCallbackRequestId.getAndIncrement();
 
                 // Build the data to make the call
-                final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                 bados.dataOut.writeInt(requestId);
                 bados.dataOut.writeInt(myFunctionId);
                 if (args == null) {
@@ -4579,7 +4663,7 @@ public abstract class PJRmi
                     final int requestId = myPythonCallbackRequestId.getAndIncrement();
 
                     // Build the data to make the call
-                    final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                    final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                     bados.dataOut.writeInt(requestId);
                     bados.dataOut.writeInt(myFunctionId);
                     if (args == null) {
@@ -4657,7 +4741,7 @@ public abstract class PJRmi
                 myOut = out;
 
                 // Tell Python that we are adding a reference
-                final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                 bados.dataOut.writeLong(myObjectId);
                 sendMessage(myOut,
                             MessageType.ADD_REFERENCE,
@@ -4737,7 +4821,7 @@ public abstract class PJRmi
                 final int requestId = myPythonCallbackRequestId.getAndIncrement();
 
                 // Build the data to make the call
-                final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                 bados.dataOut.writeInt(requestId);
                 bados.dataOut.writeInt(myObjectId);
                 bados.dataOut.writeInt(myTypeMapping.getId(method.getReturnType()));
@@ -4812,7 +4896,7 @@ public abstract class PJRmi
             {
                 try {
                     // Tell Python that it can forget about this object now
-                    final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                    final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                     bados.dataOut.writeInt(1);
                     bados.dataOut.writeLong(myObjectId);
                     sendMessage(myOut,
@@ -4879,7 +4963,7 @@ public abstract class PJRmi
                 myOut      = out;
 
                 // Tell Python that we are adding a reference
-                final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                 bados.dataOut.writeLong(myObjectId);
                 sendMessage(myOut,
                             MessageType.ADD_REFERENCE,
@@ -4926,7 +5010,7 @@ public abstract class PJRmi
                                                                returnType);
 
                 // Build the data to make the call
-                final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                 bados.dataOut.writeInt(requestId);
                 bados.dataOut.writeInt(myObjectId);
                 bados.dataOut.writeInt(returnTypeId);
@@ -5006,7 +5090,7 @@ public abstract class PJRmi
                                                               fieldType);
 
                 // Build the data to make the call
-                final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                 bados.dataOut.writeInt(requestId);
                 bados.dataOut.writeInt(myObjectId);
                 bados.dataOut.writeInt(fieldTypeId);
@@ -5087,7 +5171,7 @@ public abstract class PJRmi
             {
                 try {
                     // Tell Python that it can forget about this object now
-                    final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                    final ByteListDataOutputStream bados = ourByteOutBuffer.get();
                     bados.dataOut.writeInt(1);
                     bados.dataOut.writeLong(myObjectId);
                     sendMessage(myOut,
@@ -5349,7 +5433,7 @@ public abstract class PJRmi
             final int requestId = myPythonCallbackRequestId.getAndIncrement();
 
             // Build the data to make the call
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt(requestId);
 
             // What name for the variable
@@ -5411,7 +5495,7 @@ public abstract class PJRmi
             final long threadId = getThreadId();
 
             // Build the data to make the call
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt(requestId);
             bados.dataOut.writeInt(myTypeMapping.getId(returnType));
             writeUTF16(bados.dataOut, functionName);
@@ -5462,7 +5546,7 @@ public abstract class PJRmi
             final long threadId = getThreadId();
 
             // Build the data to make the call
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt(requestId);
             writeUTF16(bados.dataOut, string);
 
@@ -5506,7 +5590,7 @@ public abstract class PJRmi
             final long threadId = getThreadId();
 
             // Build the data to make the call
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt(requestId);
             writeUTF16(bados.dataOut, functionName);
             if (args == null) {
@@ -5593,7 +5677,7 @@ public abstract class PJRmi
             final long threadId = getThreadId();
 
             // Build the data to make the call
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt(requestId);
             bados.dataOut.writeBoolean(isEval);
             bados.dataOut.writeInt(myTypeMapping.getId(returnType));
@@ -5695,16 +5779,31 @@ public abstract class PJRmi
 
                     // Otherwise, proceed with normal pickle protocol
                     else {
-                        // Convert it to a byte[] and compress
-                        final byte[] bytes =
-                            Snappy.compress(
-                                ourPythonPickle.get().toByteArray(reference)
-                            );
+                        // Pickle it and compress that if we can. Compressing
+                        // needs the data as a byte[], which limits how much of
+                        // it there can be, so anything larger goes out
+                        // uncompressed and says so.
+                        final ByteList bytes =
+                            ourPythonPickle.get().toByteList(reference);
+                        final byte[] compressed =
+                            isCompressible(bytes.size())
+                                ? Snappy.compress(bytes.toArray())
+                                : null;
 
-                        // Marshall it
-                        out.writeByte(PythonValueFormat.SNAPPY_PICKLE.id);
-                        out.writeInt (bytes.length);
-                        out.write    (bytes, 0, bytes.length);
+                        // Marshall it. Note that the format goes first here,
+                        // and the length after it; handleGetValueOf() sends the
+                        // same two fields the other way around. Each matches
+                        // the reader on the Python side which parses it.
+                        if (compressed != null) {
+                            out.writeByte(PythonValueFormat.SNAPPY_PICKLE.id);
+                            out.writeLong(compressed.length);
+                            out.write    (compressed, 0, compressed.length);
+                        }
+                        else {
+                            out.writeByte(PythonValueFormat.RAW_PICKLE.id);
+                            out.writeLong(bytes.size());
+                            bytes.writeTo(out);
+                        }
                     }
                 }
             }
@@ -5734,23 +5833,33 @@ public abstract class PJRmi
             int        numRequests  = 0;
 
             // How we pull in the data
-            final ByteList payload = new ByteList(1024 * 1024);
-            final byte[]   header  = new byte[17];
-            final byte[]   buffer  = new byte[64 * 1024];
+            ByteList     payload = new ByteList(INITIAL_BUFFER_BYTES);
+            final byte[] header  = new byte[HEADER_SIZE];
+            final byte[] buffer  = new byte[64 * 1024];
 
             // Keep reading the stream socket until it's done
             while (true) {
-                // Set everything to empty to start with
-                payload.clear();
+                // Set everything to empty to start with. An outsized message
+                // gets its space given back, rather than pinned for the life
+                // of the connection; this is the buffer whose size the peer,
+                // and not us, decides.
+                if (payload.capacity() >
+                        PJRmiProperties.getMaxRetainedBufferBytes())
+                {
+                    payload = new ByteList(INITIAL_BUFFER_BYTES);
+                }
+                else {
+                    payload.clear();
+                }
                 byte        typeId   = -1;
                 long        threadId = -1;
                 int         reqId    = -1;
                 MessageType type     = null;
                 try {
-                    // Read in the header; this should be a byte (type ID)
-                    // followed by an int (size). We try to read this in a
-                    // single go since reading a byte and then an int winds
-                    // making 5 calls to recvfrom(), as opposed to just 1!
+                    // Read in the header; see HEADER_SIZE for its layout.
+                    // We try to read this in a single go since reading the
+                    // fields one at a time winds up making 4 calls to
+                    // recvfrom(), as opposed to just 1!
                     int headerRead = 0;
                     while (headerRead < header.length) {
                         final int read = myIn.read(header,
@@ -5781,10 +5890,14 @@ public abstract class PJRmi
                                       ((( (int)header[10]) & 0xff) << 16) |
                                       ((( (int)header[11]) & 0xff) <<  8) |
                                       ((( (int)header[12]) & 0xff)      ));
-                    final int size = (((( (int)header[13]) & 0xff) << 24) |
-                                      ((( (int)header[14]) & 0xff) << 16) |
-                                      ((( (int)header[15]) & 0xff) <<  8) |
-                                      ((( (int)header[16]) & 0xff)      ));
+                    final long size = (((((long)header[13]) & 0xffL) << 56) |
+                                       ((((long)header[14]) & 0xffL) << 48) |
+                                       ((((long)header[15]) & 0xffL) << 40) |
+                                       ((((long)header[16]) & 0xffL) << 32) |
+                                       ((((long)header[17]) & 0xffL) << 24) |
+                                       ((((long)header[18]) & 0xffL) << 16) |
+                                       ((((long)header[19]) & 0xffL) <<  8) |
+                                       ((((long)header[20]) & 0xffL)      ));
 
                     // Log the header, both the details and the raw form. The
                     // latter is handy if something manages to corrupt the I/O
@@ -5797,7 +5910,7 @@ public abstract class PJRmi
                             "threadId = " + threadId     + " " +
                             "reqId = "    + reqId        + " " +
                             "size = "     + size         + " " +
-                            "header = "   + PJRmi.toString(payload)
+                            "header = "   + PJRmi.toString(header)
                         );
                     }
 
@@ -5813,15 +5926,27 @@ public abstract class PJRmi
                     // Now read the payload. We keep reading until we believe
                     // that we got everything we care about. The payload might
                     // be split over several packets etc.
-                    payload.ensureCapacity(size);
-                    int totalRead = 0;
+                    //
+                    // Reserving up-front only saves the list from growing as
+                    // the data comes in, so we cap what we will reserve on the
+                    // peer's say-so. Otherwise a 21-byte header claiming a
+                    // petabyte would have us exhaust the heap before reading a
+                    // single byte of payload. Beyond the cap the list grows as
+                    // the data actually arrives, so the peer has to send what
+                    // it claimed in order to cost us the space.
+                    payload.ensureCapacity(
+                        Math.min(size,
+                                 PJRmiProperties.getMaxPayloadPreallocBytes())
+                    );
+                    long totalRead = 0;
                     while (totalRead < size) {
-                        // Pull in all the data we can into the local buffer
+                        // Pull in all the data we can into the local buffer.
+                        // The cast is safe since we clamp to buffer.length.
                         final int read =
                             myIn.read(
                                 buffer,
                                 0,
-                                Math.min(buffer.length, size - totalRead)
+                                (int)Math.min(buffer.length, size - totalRead)
                             );
 
                         // Check for EOF
@@ -5875,7 +6000,7 @@ public abstract class PJRmi
                             // The result goes in here. It's important that
                             // no-one else uses this buffer for anything; we own
                             // it here.
-                            final ByteArrayDataOutputStream sendBuf = mySendBufs.get();
+                            final ByteListDataOutputStream sendBuf = mySendBufs.get();
 
                             // Do all this inside a try-catch since we don't
                             // want any form of exception to take down the
@@ -5983,7 +6108,7 @@ public abstract class PJRmi
                     }
 
                     // What we'll be sending back
-                    final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+                    final ByteListDataOutputStream bados = ourByteOutBuffer.get();
 
                     // We'll treat this like a normal object
                     final TypeDescription exDesc =
@@ -6046,8 +6171,8 @@ public abstract class PJRmi
                      "AccessedClasses: "    + classes);
         }
         /** For use in the listen() method only. */
-        private final ThreadLocalByteArrayDataOutputStream mySendBufs =
-            new ThreadLocalByteArrayDataOutputStream();
+        private final ThreadLocalByteListDataOutputStream mySendBufs =
+            new ThreadLocalByteListDataOutputStream();
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -6070,7 +6195,7 @@ public abstract class PJRmi
                              final VirtualThread thread,
                              final int reqId,
                              final ByteList payload,
-                             final ByteArrayDataOutputStream result,
+                             final ByteListDataOutputStream result,
                              final DataOutputStream clientReceiver)
             throws Throwable
         {
@@ -6082,7 +6207,7 @@ public abstract class PJRmi
             if (result.bytes.size() != 0) {
                 throw new IllegalStateException(
                     "Result buffer was non-empty: " +
-                    PJRmi.toString(result.bytes.toByteArray())
+                    PJRmi.toString(result.bytes)
                 );
             }
 
@@ -6178,17 +6303,17 @@ public abstract class PJRmi
         }
 
         /**
-         * Put a ByteArrayOutputStream as the payload into a buffer which we can
-         * later send over the wire.
+         * Put a ByteList as the payload into a buffer which we can later send
+         * over the wire.
          *
          * <p>The payload may be null if there is none. This can be true for
          * simple ACK messages, for example.
          */
-        private void buildMessage(final DataOutputStream      out,
-                                  final MessageType           type,
-                                  final long                  threadId,
-                                  final int                   reqId,
-                                  final ByteArrayOutputStream payload)
+        private void buildMessage(final DataOutputStream out,
+                                  final MessageType      type,
+                                  final long             threadId,
+                                  final int              reqId,
+                                  final ByteList         payload)
             throws IOException
         {
             final long start = myInstrumentors[type.ordinal()].start();
@@ -6207,12 +6332,12 @@ public abstract class PJRmi
                             "Creating " + type + " '" + (char)type.id + "' " +
                             "for thread ID " + threadId + " " +
                             "and request ID " + reqId + ": " +
-                            PJRmi.toString(payload.toByteArray())
+                            PJRmi.toString(payload)
                         );
                     }
 
                     // Write out the payload size and whatever it is
-                    out.writeInt(payload.size());
+                    out.writeLong(payload.size());
                     payload.writeTo(out);
                 }
                 else {
@@ -6221,7 +6346,7 @@ public abstract class PJRmi
                     }
 
                     // No payload so size is zero
-                    out.writeInt(0);
+                    out.writeLong(0);
                 }
 
                 // Ensure everything is in there
@@ -6233,12 +6358,12 @@ public abstract class PJRmi
         }
 
         /**
-         * Send a ByteArrayDataOutputStream over the wire.
+         * Send a ByteListDataOutputStream over the wire.
          *
          * <p>This could be called from multiple threads so it needs to be
          * synchronized in order to prevent mangling the output stream.
          */
-        private synchronized void send(final ByteArrayDataOutputStream msg,
+        private synchronized void send(final ByteListDataOutputStream msg,
                                        final DataOutputStream          out)
             throws IOException
         {
@@ -6246,7 +6371,7 @@ public abstract class PJRmi
             // sent, using a flush()
             if (msg.bytes.size() > 0) {
                 if (LOG.isLoggable(Level.FINER)) {
-                    LOG.finer("Sending: " + PJRmi.toString(msg.bytes.toByteArray()));
+                    LOG.finer("Sending: " + PJRmi.toString(msg.bytes));
                 }
                 msg.bytes.writeTo(out);
                 out.flush();
@@ -6256,20 +6381,20 @@ public abstract class PJRmi
         /**
          * Build a message and send it.
          */
-        private void sendMessage(final DataOutputStream      out,
-                                 final MessageType           type,
-                                 final long                  threadId,
-                                 final int                   reqId,
-                                 final ByteArrayOutputStream payload)
+        private void sendMessage(final DataOutputStream out,
+                                 final MessageType      type,
+                                 final long             threadId,
+                                 final int              reqId,
+                                 final ByteList         payload)
             throws IOException
         {
-            final ByteArrayDataOutputStream sendBuf = mySendMessageBufs.get();
+            final ByteListDataOutputStream sendBuf = mySendMessageBufs.get();
             buildMessage(sendBuf.dataOut, type, threadId, reqId, payload);
             send(sendBuf, out);
         }
         /** Only used by sendMessage(). */
-        private final ThreadLocalByteArrayDataOutputStream mySendMessageBufs =
-            new ThreadLocalByteArrayDataOutputStream();
+        private final ThreadLocalByteListDataOutputStream mySendMessageBufs =
+            new ThreadLocalByteListDataOutputStream();
 
         /**
          * Convert an object to a payload byte stream, following the given
@@ -6282,14 +6407,14 @@ public abstract class PJRmi
          */
         private void renderObject(final long                      threadId,
                                   final int                       reqId,
-                                  final ByteArrayDataOutputStream buf,
+                                  final ByteListDataOutputStream buf,
                                   final PythonValueFormat         valueFormat,
                                   final Object                    object,
                                   final TypeDescription           objectType)
             throws Throwable
         {
             // What we'll be sending back
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
 
             switch (valueFormat) {
             case REFERENCE:
@@ -6335,31 +6460,43 @@ public abstract class PJRmi
             case RAW_PICKLE:
             case SNAPPY_PICKLE:
             case BESTEFFORT_PICKLE:
-            case BESTEFFORT_SNAPPY_PICKLE:
-                // Figure out which PythonPickle instance to use
-                final PythonPickle pickle;
-                if (valueFormat == PythonValueFormat.RAW_PICKLE ||
-                    valueFormat == PythonValueFormat.SNAPPY_PICKLE)
-                {
-                    pickle = ourPythonPickle.get();
+            case BESTEFFORT_SNAPPY_PICKLE: {
+                // Figure out which PythonPickle instance to use; a
+                // best-effort pickler is a different instance, not just a
+                // different format.
+                final boolean bestEffort =
+                    (valueFormat == PythonValueFormat.BESTEFFORT_PICKLE ||
+                     valueFormat == PythonValueFormat.BESTEFFORT_SNAPPY_PICKLE);
+                final PythonPickle pickle = bestEffort
+                    ? myBestEffortPythonPickle.get()
+                    : ourPythonPickle.get();
+
+                // Pickle it and compress that if it was asked for and we
+                // can manage it. Compressing needs the data as a byte[], which
+                // limits how much of it there can be, so anything larger goes
+                // out uncompressed under the format which says so; the client
+                // keys off the format byte it gets, not the one it asked for.
+                final ByteList bytes = pickle.toByteList(object);
+                final byte[]   compressed =
+                    (valueFormat.isCompressed() && isCompressible(bytes.size()))
+                        ? Snappy.compress(bytes.toArray())
+                        : null;
+
+                // Stuff this into our buffer. Note that the length goes first
+                // here, and the format after it; writeObject() sends the same
+                // two fields the other way around. Each matches the reader on
+                // the Python side which parses it.
+                // Number of bytes sent = data size + valueFormat byte.
+                if (compressed != null) {
+                    bados.dataOut.writeLong(compressed.length + 1);
+                    bados.dataOut.writeByte(valueFormat.id);
+                    bados.dataOut.write    (compressed, 0, compressed.length);
                 }
                 else {
-                    pickle = myBestEffortPythonPickle.get();
+                    bados.dataOut.writeLong(bytes.size() + 1);
+                    bados.dataOut.writeByte(valueFormat.uncompressed().id);
+                    bytes.writeTo(bados.dataOut);
                 }
-
-                // Convert it to a byte[], and possibly compress it
-                byte[] bytes = pickle.toByteArray(object);
-                if (valueFormat == PythonValueFormat.SNAPPY_PICKLE ||
-                    valueFormat == PythonValueFormat.BESTEFFORT_SNAPPY_PICKLE)
-                {
-                    bytes = Snappy.compress(bytes);
-                }
-
-                // Stuff this into our buffer
-                // Number of bytes sent = data size + valueFormat byte
-                bados.dataOut.writeInt (bytes.length + 1);
-                bados.dataOut.writeByte(valueFormat.id);
-                bados.dataOut.write    (bytes, 0, bytes.length);
 
                 // And package it up
                 buildMessage(buf.dataOut,
@@ -6367,7 +6504,8 @@ public abstract class PJRmi
                              threadId,
                              reqId,
                              bados.bytes);
-                return;
+            }
+            return;
 
             default:
                 throw new IllegalArgumentException(
@@ -6390,14 +6528,14 @@ public abstract class PJRmi
          */
         private void writeShmObject(final long                      threadId,
                                     final int                       reqId,
-                                    final ByteArrayDataOutputStream buf,
+                                    final ByteListDataOutputStream buf,
                                     final String                    filename,
                                     final int                       numElems,
                                     final char                      type)
             throws Throwable
         {
             // What we'll be sending back
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
 
             // Let 'em know we're sending an ArrayHandle
             bados.dataOut.writeByte(PythonValueFormat.SHMDATA.id);
@@ -6561,10 +6699,12 @@ public abstract class PJRmi
          * Read a peer-supplied length, or element count, from the wire.
          *
          * <p>The value is read as a big-endian 32-bit signed integer
-         * ({@code int32}), which is the width the wire format uses for all
-         * lengths and counts; a length sent as any other width must not be read
-         * with this method. The value read is of size {@link Integer#BYTES}
-         * which the caller will need to account for in subsequent reads.
+         * ({@code int32}). Most lengths and counts inside a payload are sent
+         * at that width, since each describes something bounded by the size of
+         * a Java array. Not all are: the pickled-value length is an
+         * {@code int64}. A length sent at any other width must not be read
+         * with this method. The value read is of size {@link Integer#BYTES},
+         * which the caller has to account for in subsequent reads.
          *
          * <p>A negative value means that the peer sent us something malformed.
          * We turn it into an {@link IOException} here so that it is immediately
@@ -6579,7 +6719,7 @@ public abstract class PJRmi
          * @throws IOException if the peer gave us a negative length.
          */
         private int readLength(final ByteList bytes,
-                               final int      offset,
+                               final long     offset,
                                final String   what)
             throws IOException
         {
@@ -6595,7 +6735,7 @@ public abstract class PJRmi
         /**
          * Read an Object from an input stream along with its type information.
          */
-        private ReadObjectResult readObject(final ByteList bytes, int offset)
+        private ReadObjectResult readObject(final ByteList bytes, long offset)
             throws IOException
         {
             final long start = myReadObjectInstrumentor.start();
@@ -6687,9 +6827,8 @@ public abstract class PJRmi
                     final int count = readLength(bytes, offset, "string length");
                     offset += Integer.BYTES;
                     final byte[] buffer = getByteArray(count);
-                    for (int i=0; i < count; i++) {
-                        buffer[i] = bytes.get(offset++);
-                    }
+                    bytes.copyTo(offset, buffer, 0, count);
+                    offset += count;
                     final String string = new String(buffer, 0, count, "UTF-16");
 
                     // Switch to the desired type
@@ -6728,9 +6867,8 @@ public abstract class PJRmi
                     final int    len   = readLength(bytes, offset, "array length");
                     final byte[] array = new byte[len];
                     offset += Integer.BYTES;
-                    for (int i=0; i < array.length; i++) {
-                        array[i] = bytes.get(offset++);
-                    }
+                    bytes.copyTo(offset, array, 0, len);
+                    offset += len;
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[D")) {
@@ -6889,9 +7027,8 @@ public abstract class PJRmi
                     final int count = readLength(bytes, offset, "filename length");
                     offset += Integer.BYTES;
                     final byte[] buffer = getByteArray(count);
-                    for (int i=0; i < count; i++) {
-                        buffer[i] = bytes.get(offset++);
-                    }
+                    bytes.copyTo(offset, buffer, 0, count);
+                    offset += count;
                     final String filename = new String(buffer, 0, count, "UTF-16");
                     final Dimension<?>[] dimensions = Dimension.of((long[])shape);
 
@@ -7000,9 +7137,8 @@ public abstract class PJRmi
                 final int countString = readLength(bytes, offset, "filename length");
                 offset += Integer.BYTES;
                 final byte[] bufferString = getByteArray(countString);
-                for (int i=0; i < countString; i++) {
-                    bufferString[i] = bytes.get(offset++);
-                }
+                bytes.copyTo(offset, bufferString, 0, countString);
+                offset += countString;
                 final String filename = new String(bufferString, 0, countString, "UTF-16");
 
                 if (LOG.isLoggable(Level.FINEST)) {
@@ -7021,9 +7157,8 @@ public abstract class PJRmi
                 final int countChar = readLength(bytes, offset, "array type length");
                 offset += Integer.BYTES;
                 final byte[] bufferChar = getByteArray(countChar);
-                for (int i=0; i < countChar; i++) {
-                    bufferChar[i] = bytes.get(offset++);
-                }
+                bytes.copyTo(offset, bufferChar, 0, countChar);
+                offset += countChar;
                 final String stringType = new String(bufferChar, 0, countChar, "UTF-16");
 
                 // Let's make sure it was actually a char
@@ -7206,7 +7341,7 @@ public abstract class PJRmi
         private void handleInstanceRequest(final long                      threadId,
                                            final int                       reqId,
                                            final ByteList                  payload,
-                                           final ByteArrayDataOutputStream buf)
+                                           final ByteListDataOutputStream buf)
             throws IOException
         {
             // Need at least 4 bytes at the start of the message, for the string length
@@ -7228,7 +7363,7 @@ public abstract class PJRmi
 
             // Get the object
             final Object instance = getObjectInstance(name);
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             if (instance == null) {
                 bados.dataOut.writeInt (myTypeMapping.getId(Object.class));
                 bados.dataOut.writeLong(HandleMapping.NULL_HANDLE);
@@ -7257,7 +7392,7 @@ public abstract class PJRmi
         private void handleAddReference(final long                      threadId,
                                         final int                       reqId,
                                         final ByteList                  payload,
-                                        final ByteArrayDataOutputStream buf)
+                                        final ByteListDataOutputStream buf)
             throws IOException
         {
             if (payload.size() != 8) {
@@ -7285,7 +7420,7 @@ public abstract class PJRmi
         private void handleDropReferences(final long                      threadId,
                                           final int                       reqId,
                                           final ByteList                  payload,
-                                          final ByteArrayDataOutputStream buf)
+                                          final ByteListDataOutputStream buf)
             throws IOException
         {
             if (payload.size() < 4) {
@@ -7295,7 +7430,7 @@ public abstract class PJRmi
             }
 
             // Our position in the payload data
-            int offset = 0;
+            long offset = 0;
 
             // How many to drop
             final int count = payload.getInt(offset);
@@ -7333,7 +7468,7 @@ public abstract class PJRmi
         private void handleTypeRequest(final long                      threadId,
                                        final int                       reqId,
                                        final ByteList                  payload,
-                                       final ByteArrayDataOutputStream buf)
+                                       final ByteListDataOutputStream buf)
             throws ClassNotFoundException,
                    IOException,
                    SecurityException
@@ -7345,7 +7480,7 @@ public abstract class PJRmi
             }
 
             // Our position in the payload data
-            int offset = 0;
+            long offset = 0;
 
             // Start off by finding out what sort of call this is
             final boolean isById = (payload.get(offset++) != 0);
@@ -7433,7 +7568,7 @@ public abstract class PJRmi
                                       final VirtualThread             virtualThread,
                                       final int                       reqId,
                                       final ByteList                  payload,
-                                      final ByteArrayDataOutputStream buf)
+                                      final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() < 19) {
@@ -7443,7 +7578,7 @@ public abstract class PJRmi
             }
 
             // Our position in the payload data
-            int offset = 0;
+            long offset = 0;
 
             // Pull in the header information from the wire, everything up to
             // the, optional, arguments
@@ -7724,7 +7859,7 @@ public abstract class PJRmi
         private void handleToString(final long                      threadId,
                                     final int                       reqId,
                                     final ByteList                  payload,
-                                    final ByteArrayDataOutputStream buf)
+                                    final ByteListDataOutputStream buf)
             throws IOException
         {
             if (payload.size() != 8) {
@@ -7736,7 +7871,7 @@ public abstract class PJRmi
             final long handle = payload.getLong(0);
 
             final Object instance = myHandleMapping.getObject(handle);
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             if (instance == null) {
                 bados.dataOut.writeInt(-1);
             }
@@ -7766,7 +7901,7 @@ public abstract class PJRmi
         private void handleGetField(final long                      threadId,
                                     final int                       reqId,
                                     final ByteList                  payload,
-                                    final ByteArrayDataOutputStream buf)
+                                    final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() != 16) {
@@ -7812,7 +7947,7 @@ public abstract class PJRmi
             }
 
             // Simply marshal up the value which we got back
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             writeObject(bados.dataOut, field, fieldType);
             buildMessage(buf.dataOut,
                          MessageType.ARBITRARY_ITEM,
@@ -7835,7 +7970,7 @@ public abstract class PJRmi
         private void handleSetField(final long                      threadId,
                                     final int                       reqId,
                                     final ByteList                  payload,
-                                    final ByteArrayDataOutputStream buf)
+                                    final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() < 17) {
@@ -7886,7 +8021,7 @@ public abstract class PJRmi
         private void handleGetArrayLength(final long                      threadId,
                                           final int                       reqId,
                                           final ByteList                  payload,
-                                          final ByteArrayDataOutputStream buf)
+                                          final ByteListDataOutputStream buf)
             throws IOException
         {
             if (payload.size() != 8) {
@@ -7906,7 +8041,7 @@ public abstract class PJRmi
 
             // Simply marshal up the value which we got back. If the object is
             // not an array then getLength() will throw an exception.
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt(Array.getLength(object));
             buildMessage(buf.dataOut,
                          MessageType.ARRAY_LENGTH,
@@ -7930,7 +8065,7 @@ public abstract class PJRmi
         private void handleNewArrayInstance(final long                      threadId,
                                             final int                       reqId,
                                             final ByteList                  payload,
-                                            final ByteArrayDataOutputStream buf)
+                                            final ByteListDataOutputStream buf)
             throws IOException
         {
             if (payload.size() != 8) {
@@ -7953,7 +8088,7 @@ public abstract class PJRmi
                 Array.newInstance(klass.getArrayComponentType(), length);
 
             // Return the new instance along with its type information
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt (typeId);
             bados.dataOut.writeLong(myHandleMapping.addReference(array));
             bados.dataOut.writeInt (-1);
@@ -7979,7 +8114,7 @@ public abstract class PJRmi
         private void handleObjectCast(final long                      threadId,
                                       final int                       reqId,
                                       final ByteList                  payload,
-                                      final ByteArrayDataOutputStream buf)
+                                      final ByteListDataOutputStream buf)
             throws IOException
         {
             if (payload.size() != 12) {
@@ -8015,7 +8150,7 @@ public abstract class PJRmi
             myHandleMapping.addReference(handle);
 
             // Echo back the instance along with the type ID
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             bados.dataOut.writeInt (typeId);
             bados.dataOut.writeLong(handle);
             bados.dataOut.writeInt (-1);
@@ -8038,7 +8173,7 @@ public abstract class PJRmi
         private void handleLock(final long                      threadId,
                                 final int                       reqId,
                                 final ByteList                  payload,
-                                final ByteArrayDataOutputStream buf)
+                                final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() < 4) {
@@ -8067,7 +8202,7 @@ public abstract class PJRmi
         private void handleUnlock(final long                      threadId,
                                   final int                       reqId,
                                   final ByteList                  payload,
-                                  final ByteArrayDataOutputStream buf)
+                                  final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() < 4) {
@@ -8096,11 +8231,19 @@ public abstract class PJRmi
         private void handleInjectClass(final long                      threadId,
                                        final int                       reqId,
                                        final ByteList                  payload,
-                                       final ByteArrayDataOutputStream buf)
+                                       final ByteListDataOutputStream buf)
             throws Throwable
         {
+            // Ensure that the payload is reasonable and can be handled by the
+            // client code
             if (payload.size() == 0) {
                 throw new IllegalArgumentException("Got an empty payload");
+            }
+            if (payload.size() > MAX_ARRAY_LENGTH) {
+                throw new IllegalArgumentException(
+                    "Class file size too large: " +
+                    payload.size() + " > " + MAX_ARRAY_LENGTH
+                );
             }
 
             // Disallow class injection?
@@ -8110,7 +8253,7 @@ public abstract class PJRmi
 
             // Inject it
             final Class<?> klass =
-                myClassInjector.inject(payload.toArray(), payload.size());
+                myClassInjector.inject(payload.toArray(), (int)payload.size());
 
             // And give it back
             writeTypeDesc(myTypeMapping.getDescription(klass),
@@ -8133,7 +8276,7 @@ public abstract class PJRmi
         private void handleInjectSource(final long                      threadId,
                                         final int                       reqId,
                                         final ByteList                  payload,
-                                        final ByteArrayDataOutputStream buf)
+                                        final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() == 0) {
@@ -8148,10 +8291,14 @@ public abstract class PJRmi
             }
 
             // Our position in the payload data
-            int offset = 0;
+            long offset = 0;
 
-            // Get the class name
-            final int lenClassName = payload.getInt(offset);
+            // Get the class name. Both lengths here come off the wire, so they
+            // go through readLength(), which rejects a negative rather than
+            // letting the loop below fall straight through and hand back an
+            // empty name, leaving the rest of the payload to be misread.
+            final int lenClassName =
+                readLength(payload, offset, "class name length");
             offset += Integer.BYTES;
             final StringBuilder sbClassName = new StringBuilder();
             while (sbClassName.length() < lenClassName) {
@@ -8160,7 +8307,7 @@ public abstract class PJRmi
             final String className = sbClassName.toString();
 
             // Get the source code
-            final int lenSource = payload.getInt(offset);
+            final int lenSource = readLength(payload, offset, "source length");
             offset += Integer.BYTES;
             final StringBuilder sbSource = new StringBuilder();
             while (sbSource.length() < lenSource) {
@@ -8186,7 +8333,7 @@ public abstract class PJRmi
         private void handleReplaceClass(final long                      threadId,
                                         final int                       reqId,
                                         final ByteList                  payload,
-                                        final ByteArrayDataOutputStream buf)
+                                        final ByteListDataOutputStream buf)
             throws Throwable
         {
             // Usual care needs to be taken
@@ -8195,13 +8342,23 @@ public abstract class PJRmi
             }
 
             // Pull in the full payload, including the bytecode at the end
-            int offset = 0;
+            long offset = 0;
             final int typeId = payload.getInt(offset); offset += Integer.BYTES;
-            final int len    = payload.getInt(offset); offset += Integer.BYTES;
-            final byte[] bytecode = new byte[len];
-            for (int i=0; i < len; i++) {
-                bytecode[i] = payload.get(offset++);
+            // Go via readLength() so that a negative length is reported as the
+            // protocol error it is, rather than as a
+            // NegativeArraySizeException, then refuse a length we could not
+            // give a byte[] anyway.
+            final int len = readLength(payload, offset, "bytecode length");
+            offset += Integer.BYTES;
+            if (len > MAX_ARRAY_LENGTH) {
+                throw new IllegalArgumentException(
+                    "Bytecode of " + len + " bytes is larger than the " +
+                    MAX_ARRAY_LENGTH + " which we can allocate"
+                );
             }
+            final byte[] bytecode = new byte[len];
+            payload.copyTo(offset, bytecode, 0, len);
+            offset += len;
 
             // This will only work if we have a Instrumentation class in the
             // Agent
@@ -8238,15 +8395,18 @@ public abstract class PJRmi
          *  byte  : PythonValueFormat
          *
          * Gives back:
-         *  int32  : Number of bytes
+         *  int64  : Number of bytes which follow
+         *  byte   : PythonValueFormat, which may not be the one which was
+         *           asked for; data which is too large to compress is sent
+         *           uncompressed and says so here
          *  byte[] : The pickled form of the object, or each component of a
-         *           {@link JniPJRmi$ArrayHandle}, depending on the specified
+         *           {@link JniPJRmi$ArrayHandle}, depending on the
          *           {@link PythonValueFormat}.
          */
         private void handleGetValueOf(final long                      threadId,
                                       final int                       reqId,
                                       final ByteList                  payload,
-                                      final ByteArrayDataOutputStream buf)
+                                      final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() != 9) {
@@ -8350,7 +8510,7 @@ public abstract class PJRmi
         private void handleGetCallbackHandle(final long                      threadId,
                                              final int                       reqId,
                                              final ByteList                  payload,
-                                             final ByteArrayDataOutputStream buf,
+                                             final ByteListDataOutputStream buf,
                                              final DataOutputStream          out)
             throws Throwable
         {
@@ -8510,7 +8670,7 @@ public abstract class PJRmi
 
             // Convert the callback, whatever it was, to a payload byte stream
             // and send it
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             writeObject(bados.dataOut, callback, typeDesc);
             buildMessage(buf.dataOut,
                          MessageType.ARBITRARY_ITEM,
@@ -8532,7 +8692,7 @@ public abstract class PJRmi
         private void handleCallbackResponse(final long                      threadId,
                                             final int                       reqId,
                                             final ByteList                  payload,
-                                            final ByteArrayDataOutputStream buf)
+                                            final ByteListDataOutputStream buf)
             throws Throwable
         {
             if (payload.size() < 5) {
@@ -8572,7 +8732,7 @@ public abstract class PJRmi
         private void handleGetProxy(final long                      threadId,
                                     final int                       reqId,
                                     final ByteList                  payload,
-                                    final ByteArrayDataOutputStream buf,
+                                    final ByteListDataOutputStream buf,
                                     final DataOutputStream          out)
             throws Throwable
         {
@@ -8602,7 +8762,7 @@ public abstract class PJRmi
                 );
 
             // And send it back
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             writeObject(bados.dataOut, proxy, typeDesc);
             buildMessage(buf.dataOut,
                          MessageType.ARBITRARY_ITEM,
@@ -8663,11 +8823,11 @@ public abstract class PJRmi
         private void writeTypeDesc(final TypeDescription           desc,
                                    final long                      threadId,
                                    final int                       reqId,
-                                   final ByteArrayDataOutputStream buf)
+                                   final ByteListDataOutputStream buf)
             throws IOException
         {
             // Look up the description
-            final ByteArrayDataOutputStream bados = ourByteOutBuffer.get();
+            final ByteListDataOutputStream bados = ourByteOutBuffer.get();
             if (desc == null) {
                 bados.dataOut.writeInt(-1);
             }
@@ -8989,15 +9149,51 @@ public abstract class PJRmi
     // ---------------------------------------------------------------------- //
 
     /**
+     * Whether a given number of bytes can be handed to Snappy to compress.
+     *
+     * <p>Compressing needs the data as a {@code byte[]} and hands back another
+     * one, and the compressed form can be larger than what went into it. Both
+     * of those have to fit, so we ask Snappy how big its result might be rather
+     * than assuming anything about how it sizes it.
+     *
+     * @param size  The number of bytes to be compressed.
+     *
+     * @return whether compressing that many bytes will work.
+     */
+    /*package*/ static boolean isCompressible(final long size)
+    {
+        // The data itself has to be a byte[] before Snappy can see it
+        if (size > MAX_ARRAY_LENGTH) {
+            return false;
+        }
+
+        // And so does whatever comes back. Note that this overflows to a
+        // negative for a large enough input, which the comparison also catches.
+        final int maxCompressed = Snappy.maxCompressedLength((int)size);
+        return (maxCompressed >= 0 && maxCompressed <= MAX_ARRAY_LENGTH);
+    }
+
+    /**
      * Render a ByteList as a string, converting non-ASCII chars to sensible
      * printed values.
+     *
+     * <p>At most {@link PJRmiProperties#getMaxRenderedBytes()} bytes are
+     * rendered; anything beyond that is reported as a trailing count.
      */
     private static String toString(final ByteList bytes)
     {
         StringBuilder sb = ourByteListStringBuilder.get();
 
+        // A payload may be many gigabytes, and each byte can render as four
+        // characters, so rendering all of one would be a way to run the JVM
+        // out of memory by turning on logging. The head of the payload is what
+        // matters when reading these.
+        final long size  = bytes.size();
+        final long limit =
+            Math.min(size, PJRmiProperties.getMaxRenderedBytes());
+
         sb.append('<');
-        for (int i=0; i < bytes.size(); i++) {
+        for (long i=0; i < limit; i++) {
             final byte b = bytes.get(i);
             if (b < (byte)' ' || b > (byte)'~') {
                 sb.append("\\x");
@@ -9011,6 +9207,9 @@ public abstract class PJRmi
             else {
                 sb.append((char)b);
             }
+        }
+        if (limit < size) {
+            sb.append("...").append(size - limit).append(" more bytes");
         }
         sb.append('>');
 
@@ -9068,9 +9267,21 @@ public abstract class PJRmi
         // as to make sure that our buffer will be big enough.
         final int len = string.length();
 
-        // The buffer must be big enough for a pathological UTF string, with 4
-        // bytes at the front for the length
-        final byte[] buffer = getByteArray(len * 4 + 4);
+        // Two bytes go out for every char, after the two of the byte-order
+        // mark, and the whole lot is described by the int32 which precedes it.
+        // This is computed as a long since 2 * len overflows an int for a long
+        // enough string, which used to give a negative buffer size.
+        final long numBytes = 2L * len + 2;
+        if (numBytes + Integer.BYTES > MAX_ARRAY_LENGTH) {
+            throw new IOException(
+                "String of " + len + " characters is too long to send; " +
+                "it needs " + (numBytes + Integer.BYTES) + " bytes and the " +
+                "most we can send is " + MAX_ARRAY_LENGTH
+            );
+        }
+
+        // The buffer holds the length, the byte-order mark, and the chars
+        final byte[] buffer = getByteArray((int)numBytes + Integer.BYTES);
 
         // Pointer into the buffer for stuffing in the string's chars. This
         // starts 4 bytes in so as to leave room for the size at the front.
@@ -9108,16 +9319,34 @@ public abstract class PJRmi
 
     /**
      * Get a thread-local byte[] of at least the given size.
+     *
+     * @param size  The number of bytes needed.
+     *
+     * @return the buffer, which may be longer than what was asked for.
+     *
+     * @throws IllegalArgumentException if more was asked for than the largest
+     *                                  allocatable {@code byte[]}.
      */
     private static byte[] getByteArray(final int size)
+        throws IllegalArgumentException
     {
+        // We can't hand back what we can't allocate. Saying so is better than
+        // giving back a buffer which is smaller than what was asked for, and
+        // then having the caller overrun it.
+        if (size > MAX_ARRAY_LENGTH) {
+            throw new IllegalArgumentException(
+                "Cannot allocate a buffer of " + size + " bytes; the most we " +
+                "can allocate is " + MAX_ARRAY_LENGTH
+            );
+        }
+
         byte[] buffer = ourThreadLocalByteBuffer.get();
         if (buffer.length < size) {
             // Need a bigger buffer, with 10% overhead to prevent malloc
-            // thrashing over time. This could possibly overflow so we guard
-            // against that.
-            final int newSize = (int)(size * 1.1);
-            buffer = new byte[newSize > 0 ? newSize : Integer.MAX_VALUE];
+            // thrashing over time, capped at what we can actually allocate.
+            final long newSize =
+                Math.min((long)(size * 1.1), MAX_ARRAY_LENGTH);
+            buffer = new byte[(int)newSize];
             ourThreadLocalByteBuffer.set(buffer);
         }
         return buffer;
@@ -9379,7 +9608,42 @@ public abstract class PJRmi
      * {@code pjrmiVersion} values in {@code gradle.properties}. Typically the
      * minor version number should change whenever the wire format changes.
      */
-    private static final String HELLO = "PJRMI_1.13";
+    private static final String HELLO = "PJRMI_1.14";
+
+    /**
+     * The largest {@code byte[]} which we will attempt to allocate. Some VMs
+     * reserve a few header words and so refuse anything larger than this.
+     */
+    private static final int MAX_ARRAY_LENGTH = Integer.MAX_VALUE - 8;
+
+    /**
+     * How large a payload buffer starts out, both when it is first made and
+     * when one which outgrew {@link PJRmiProperties#getMaxRetainedBufferBytes}
+     * is replaced. Enough for an everyday message to be read or built without
+     * regrowing.
+     *
+     * <p>The two uses have to agree: a replacement buffer larger than the
+     * original would ratchet the floor up on every outsized message.
+     */
+    private static final long INITIAL_BUFFER_BYTES = 1024L * 1024;
+
+    /**
+     * The number of bytes in the header which precedes every message. The
+     * layout is big-endian, with no padding:<pre>
+     *   offset  width  field
+     *        0      1  message type ID
+     *      1-8      8  thread ID    (int64)
+     *     9-12      4  request ID   (int32)
+     *    13-20      8  payload size (int64)
+     * </pre>
+     *
+     * <p>The payload follows immediately afterwards.
+     *
+     * <p>This must match the {@code _STRUCT_HEADER} layout in the Python code,
+     * which is the other implementation of this header and has to be changed in
+     * lockstep.
+     */
+    private static final int HEADER_SIZE = 21;
 
     /**
      * The request ID to use for callbacks (which are unsolicited from Python's
@@ -9429,8 +9693,8 @@ public abstract class PJRmi
      * The byte buffers used to build up the output messages. Always returned
      * empty.
      */
-    private static final ThreadLocal<ByteArrayDataOutputStream> ourByteOutBuffer =
-        new ThreadLocalByteArrayDataOutputStream();
+    private static final ThreadLocal<ByteListDataOutputStream> ourByteOutBuffer =
+        new ThreadLocalByteListDataOutputStream();
 
     /**
      * Our per-thread PythonPicklers, for converting values to pickle format.
@@ -9457,6 +9721,13 @@ public abstract class PJRmi
             invokeDefault = null;
         }
         ourInvokeDefault = invokeDefault;
+    }
+
+    // Force the classes which read tuning properties to initialise, so that a
+    // value which is set but cannot be honoured stops the process here.
+    static {
+        PJRmiProperties.getMaxRetainedBufferBytes();
+        PythonPickle   .getMaxRetainedCapacity();
     }
 
     // ---------------------------------------------------------------------- //

@@ -16,6 +16,7 @@ import os
 import pickle
 import random
 import re
+import select
 import shutil
 import signal
 import ssl
@@ -27,6 +28,7 @@ import tempfile
 import time
 import weakref
 
+from   abc              import ABC, abstractmethod
 from   builtins         import ascii
 from   collections.abc  import Iterable
 from   inspect          import getfullargspec
@@ -75,8 +77,33 @@ _STRUCT_INT64       = struct.Struct('!q')
 _STRUCT_FLOAT       = struct.Struct('!f')
 _STRUCT_DOUBLE      = struct.Struct('!d')
 _STRUCT_CHAR        = struct.Struct('!H')    # Java char is unsigned 16-bit
-_STRUCT_HEADER      = struct.Struct('!cqii') # msg_type, thread_id, request_id, payload_size
-_STRUCT_SEND_HEADER = struct.Struct('!qii')  # thread_id, request_id, payload_size
+_STRUCT_HEADER      = struct.Struct('!cqiq') # msg_type, thread_id, request_id, payload_size
+_STRUCT_SEND_HEADER = struct.Struct('!qiq')  # thread_id, request_id, payload_size
+
+# How much of a payload _truncate_bytes() keeps by default. A payload can be
+# many gigabytes, so rendering a whole one into a log line is a way to run out
+# of memory by turning on debug logging. 64kB is far more than anyone reads out
+# of a log line, and small enough that holding one costs nothing.
+#
+# This is the counterpart of the Java side's maxRenderedBytes property; the two
+# bound the same thing at the two ends of a connection and should agree, so that
+# the same message does not get cut at two different points in the two logs.
+_MAX_LOGGED_PAYLOAD_BYTES = 64 * 1024
+
+# Payloads at or below this size go out in a single send(), concatenated with
+# their header; larger ones are sent as two calls. Below the threshold the copy
+# which concatenating costs is cheaper than a second syscall, and it keeps the
+# common small-message path to one write, which matters because two writes
+# followed by a read is the pattern Nagle plus delayed-ACK penalises.
+_MAX_COALESCED_SEND_BYTES = 64 * 1024
+
+# The most we will ask a transport for in a single recv() call. The payload size
+# comes off the wire, so passing it to recv() unclamped would let a corrupt or
+# hostile header have us attempt an arbitrarily large allocation before a single
+# byte of payload has arrived; the read loop accumulates chunks anyway, so
+# nothing is lost by capping each one. This is the Python counterpart of the
+# Java side's maxPayloadPreallocBytes.
+_MAX_RECV_CHUNK_BYTES = 4 * 1024 * 1024
 
 # Every byte value, pre-rendered and indexed by that value. Looking one up is
 # cheaper than building the bytes object afresh each time one is wanted.
@@ -118,7 +145,7 @@ class PJRmi:
     # number should change whenever the wire format changes. Any differences
     # between this value and the one on the Java side will cause the handshake
     # to fail.
-    _HELLO = b"PJRMI_1.13"
+    _HELLO = b"PJRMI_1.14"
 
     # Flags denoting server info
     _FLAG_USE_WORKERS = 1
@@ -227,8 +254,12 @@ class PJRmi:
     ))
 
     # Java can't represent arrays which are any larger than this value
-    # (inclusive). 2147483647 is 2^31-1, also known as Integer.MAX_VALUE.
-    _MAX_JAVA_ARRAY_SIZE = 2147483647
+    # (inclusive). Integer.MAX_VALUE is 2^31-1, but some VMs reserve a few
+    # header words and refuse anything within 8 of it, so the real ceiling is
+    # eight lower. This guards what we send; the receiving Java class states
+    # the same ceiling for itself where it allocates the array. A value between
+    # the two would pass here and be rejected on arrival.
+    _MAX_JAVA_ARRAY_SIZE = 2147483647 - 8
 
     # The number of pending drops queued up before we tell the Java side to drop
     # its references.
@@ -977,7 +1008,7 @@ class PJRmi:
 
     def value_of(self,
                  obj        : _JavaObject,
-                 compress   : bool = True,
+                 compress   : bool = False,
                  best_effort: bool = False) -> Any:
         """
         Get a Python copy of the given Java object of the given object, if
@@ -1012,7 +1043,12 @@ class PJRmi:
         :param obj:         The Java object to render to Python
         :param compress:    Boolean to indicate whether to use compression when
                             transmitting back the value from the Java side, via
-                            pickling.
+                            pickling. If the result is greater than 2GB in size
+                            then this will (currently) not be honored. Sorry.
+                            Since pushing data around is fast but using
+                            compression is slow (especially when on the same
+                            machine), you likely only want to use compression
+                            when bandwidth is a limiting factor.
         :param best_effort: Boolean to indicate whether to do a "best-effort"
                             attempt, meaning some Java objects might not be
                             fully converted.
@@ -1561,20 +1597,11 @@ public class TestInjectSource {
 
         assert payload is not None
 
-        # We can't currently send messages larger than 2GB in size. This will
-        # require a number of changes on both sides, partly since Java arrays
-        # are limited by this value and we use byte[]s on the other side to
-        # receive the message.
+        # The payload size goes over the wire as an int64 and Java holds the
+        # message in a ByteList, so there is no 2GB limit here. Individual
+        # values inside the payload are still bounded by what a Java array can
+        # hold; that's checked where they are marshalled, not here.
         payload_size = len(payload)
-        if payload_size > self._MAX_JAVA_ARRAY_SIZE:
-            # Note that this kinda sucks if any exception printing code attempts
-            # to capture the local variables up the stack via a __repr__; it
-            # will get unhappy since we have a bunch of multi-gigabyte arrays.
-            raise IOError(
-                "Can't send a message of size %d (which exceeds %d) bytes" % (
-                    payload_size, self._MAX_JAVA_ARRAY_SIZE
-                )
-            )
 
         # Determine the thread ID. This is mildly expensive so we only do it if
         # we are re-entrant.
@@ -1598,22 +1625,44 @@ public class TestInjectSource {
             # Pack everything by hand to avoid the overhead of multiple function
             # calls
             request_id = self._send_request_id()
-            LOG.debug(
-                "Sending "
-                "msg_type = %s "
-                "thread_id = %d "
-                "request_id = %d "
-                "payload_size = %d "
-                "payload = %s",
-                msg_type, thread_id, request_id, payload_size, payload
-            )
-            # Use direct concatenation instead of % formatting for better
-            # performance, and use pre-compiled struct format
-            self._transport.send(
-                msg_type +
-                _STRUCT_SEND_HEADER.pack(thread_id, request_id, payload_size) +
-                payload
-            )
+
+            # Note the isEnabledFor() guard. Python evaluates a call's arguments
+            # before the call, so without it every send would pay for the
+            # _truncate_bytes() call -- and, for a payload large enough to need
+            # it, the 64kB slice -- whether or not debug logging is on.
+            if LOG.isEnabledFor(logging.DEBUG):
+                LOG.debug(
+                    "Sending "
+                    "msg_type = %s "
+                    "thread_id = %d "
+                    "request_id = %d "
+                    "payload_size = %d "
+                    "payload = %s",
+                    msg_type,
+                    thread_id,
+                    request_id,
+                    payload_size,
+                    _truncate_bytes(payload)
+                )
+
+            header = (msg_type +
+                      _STRUCT_SEND_HEADER.pack(thread_id,
+                                               request_id,
+                                               payload_size))
+
+            # A small message goes out as a single send. A large one has its
+            # header and payload sent separately: concatenating them would copy
+            # the whole payload just to put _STRUCT_HEADER.size bytes in front
+            # of it, which for a multi-gigabyte payload is a needless second
+            # copy of all of it. Below the threshold that copy is cheaper than
+            # the extra syscall, and most messages are small method calls. The
+            # send lock which we hold is what keeps a split pair together on the
+            # stream.
+            if payload_size <= _MAX_COALESCED_SEND_BYTES:
+                self._transport.send(header + payload)
+            else:
+                self._transport.send(header)
+                self._transport.send(payload)
 
         return request_id
 
@@ -1632,15 +1681,16 @@ public class TestInjectSource {
 
         # Keep trying until we get something to give back
         while True:
-            # Need to read something off the wire. We want 17 bytes in the
-            # header, which we'll unpack below.
+            # Need to read something off the wire. We want the whole header,
+            # which we'll unpack below. Take its size from the struct so that
+            # the two can't drift apart.
             result = b''
-            while len(result) < 17:
+            while len(result) < _STRUCT_HEADER.size:
                 # Read in the data on the connection; this will block
                 # until it's read something
-                chunk = self._transport.recv(17 - len(result))
+                chunk = self._transport.recv(_STRUCT_HEADER.size - len(result))
 
-                # If the result is empty that's Python telling us the
+                # If the result is empty that's Python telling us that
                 # we've hit the EOF and the connection is dead
                 if len(chunk) == 0:
                     self._eof = True
@@ -1655,19 +1705,61 @@ public class TestInjectSource {
             (msg_type, thread_id, request_id, payload_size) = \
                 _STRUCT_HEADER.unpack(result)
 
+            # The size is a signed int64 which the peer chose, so reject a
+            # negative one here rather than letting the read loop below fall
+            # straight through and blame the resulting mismatch on truncation.
+            # The Java reader makes the same check on its side.
+            if payload_size < 0:
+                self._eof = True
+                raise IOError(
+                    f"Invalid payload size from peer: {payload_size}"
+                )
+
             # Read the payload. Guard against an EOF from the transport
             # returning b'' for the chunk, just in case.
-            payload = b''
-            while len(payload) < payload_size:
-                chunk = self._transport.recv(payload_size - len(payload))
+            #
+            # The chunks are collected and joined once at the end, rather than
+            # appended to a bytes as we go. There is no in-place append for a
+            # bytes, so doing that would copy everything read so far on every
+            # chunk, which is quadratic in the size of the payload; for the
+            # multi-gigabyte payloads which the protocol now allows that is the
+            # difference between seconds and hours.
+            #
+            # Note that each recv() is capped rather than being asked for the
+            # whole remainder. Every transport preallocates a buffer of the size
+            # it is asked for, so handing it a peer-supplied size would let a
+            # corrupt header have us attempt an arbitrary allocation before any
+            # payload had arrived. The cap means the peer has to actually send
+            # the bytes it claimed in order to spend our memory.
+            #
+            # It is not free, though: a transport whose recv() would have handed
+            # back the whole payload in one go, as a buffered reader does, now
+            # returns it in pieces, so the join below allocates a second copy
+            # instead of handing back the only one. Peak use over the read is
+            # therefore twice the payload rather than once. Sockets deliver in
+            # pieces regardless, so this only changes the local-FIFO case.
+            chunks   = []
+            num_read = 0
+            while num_read < payload_size:
+                chunk = self._transport.recv(
+                    min(payload_size - num_read, _MAX_RECV_CHUNK_BYTES)
+                )
                 if chunk:
-                    payload += chunk
+                    chunks.append(chunk)
+                    num_read += len(chunk)
                 else:
                     break
-            if len(payload) != payload_size:
+            if num_read != payload_size:
                 raise EOFError(
-                    f"Truncated payload got {len(payload)}, expected {payload_size}"
+                    f"Truncated payload got {num_read}, expected {payload_size}"
                 )
+
+            # Note that join() on a one-element list of exact bytes gives back
+            # that element rather than a copy, so the common small-message case
+            # needs no special handling here. Going through join() also
+            # normalises the result to bytes, whatever buffer type a transport's
+            # recv() happened to hand back.
+            payload = b''.join(chunks)
 
             # See if it happened to be a callback
             if request_id == self._CALLBACK_REQUEST_ID:
@@ -2056,13 +2148,17 @@ public class TestInjectSource {
 
 
     def _handle_pickle_bytes(self, msg_type: bytes, payload: bytes) -> Any:
-        # Read in the array of bytes (as a string)
-        value = self._read_byte_array(payload, 0)[0]
+        # Read in the array of bytes. This takes a view rather than a copy,
+        # since the block here is the whole payload and may be many gigabytes;
+        # both snappy.decompress() and pickle.loads() take a buffer directly, so
+        # nothing downstream needs it materialised.
+        value = self._read_byte_list_view(payload, 0)[0]
 
         # Get the value encoding format, and the data. For the format we use a
         # slice of length 1, instead of indexing with [0], because direct
-        # indexing of bytes returns an int not a bytes object.
-        value_format = value[0:1]
+        # indexing returns an int not a bytes object; it is materialised so that
+        # the comparison below is against a bytes, as the constants are.
+        value_format = bytes(value[0:1])
         data         = value[1: ]
 
         # See if we need to decompress it
@@ -4033,25 +4129,133 @@ public class TestInjectSource {
         return (bytes_[index] != 0, index+1)
 
 
+    def _read_sized_view(self,
+                         bytes_     : bytes,
+                         index      : int,
+                         read_length: Callable[[bytes,int],tuple[int,int]],
+                         width      : int) -> tuple[memoryview,int]:
+        """
+        Reads a length-prefixed block of bytes from a byte buffer, giving back a
+        view onto it rather than a copy.
+
+        The two prefix widths which the wire format uses differ only in how the
+        length is read, so both go through here; see ``_read_byte_array`` and
+        ``_read_byte_list`` for the two.
+
+        Every malformed input raises, rather than some of them handing back a
+        ``None`` for the caller to trip over several frames later. The length
+        comes off the wire, so none of these cases can be ruled out by anything
+        this side controls.
+
+        :param bytes_:      The buffer to read from.
+        :param index:       The offset to read at.
+        :param read_length: How to read the length prefix.
+        :param width:       How many bytes that prefix occupies.
+
+        :return: A view of the bytes, and the new offset into the buffer.
+
+        :raises IOError: if the buffer is too short to hold the length, or the
+                         declared length is negative, or it runs past the end of
+                         the buffer.
+        """
+        if len(bytes_) < index + width:
+            raise IOError(
+                "Buffer of %d bytes is too short to hold a %d-byte length at "
+                "offset %d" % (len(bytes_), width, index)
+            )
+
+        (length, index) = read_length(bytes_, index)
+        if length < 0:
+            raise IOError("Negative declared length of %d" % (length,))
+        elif index + length > len(bytes_):
+            # The length is whatever the peer said it was; slicing would
+            # silently give back a short result and leave the caller to fail
+            # somewhere less informative
+            raise IOError(
+                "Declared length of %d exceeds the %d bytes remaining"
+                % (length, len(bytes_) - index)
+            )
+        else:
+            return (memoryview(bytes_)[index:index+length], index+length)
+
+
+    def _read_sized_bytes(self,
+                          bytes_     : bytes,
+                          index      : int,
+                          read_length: Callable[[bytes,int],tuple[int,int]],
+                          width      : int) -> tuple[bytes,int]:
+        """
+        As ``_read_sized_view``, but materialising the result as ``bytes``.
+
+        :param bytes_:      The buffer to read from.
+        :param index:       The offset to read at.
+        :param read_length: How to read the length prefix.
+        :param width:       How many bytes that prefix occupies.
+
+        :return: The bytes, and the new offset into the buffer.
+
+        :raises IOError: if the buffer or the declared length was malformed.
+        """
+        (view, index) = self._read_sized_view(bytes_, index, read_length, width)
+        return (bytes(view), index)
+
+
+    def _read_byte_list(self, bytes_: bytes, index: int) -> tuple[bytes,int]:
+        """
+        Reads a possibly large byte array from some data looking like
+        [int64:size][byte[]:data] from a byte buffer.
+
+        :param bytes_: The buffer to read from.
+        :param index:  The offset to read at.
+
+        :return: The bytes, and the new offset into the byte buffer.
+
+        :raises IOError: if the buffer or the declared length was malformed;
+                         see ``_read_sized_bytes``.
+        """
+        return self._read_sized_bytes(bytes_, index,
+                                      self._read_int64, _STRUCT_INT64.size)
+
+
+    def _read_byte_list_view(self,
+                             bytes_: bytes,
+                             index : int) -> tuple[memoryview,int]:
+        """
+        As ``_read_byte_list``, but giving back a view rather than a copy.
+
+        This exists for the pickle paths, where the block is the whole payload
+        and can be many gigabytes; copying it out only to slice it again would
+        double the memory the message costs and add a second full copy for
+        nothing. The view stays valid for as long as the buffer it came from
+        does, which for a payload is as long as the message is being handled.
+
+        :param bytes_: The buffer to read from.
+        :param index:  The offset to read at.
+
+        :return: A view of the bytes, and the new offset into the byte buffer.
+
+        :raises IOError: if the buffer or the declared length was malformed;
+                         see ``_read_sized_view``.
+        """
+        return self._read_sized_view(bytes_, index,
+                                     self._read_int64, _STRUCT_INT64.size)
+
+
     def _read_byte_array(self, bytes_: bytes, index: int) -> tuple[bytes,int]:
         """
         Reads a byte array from some data looking like [int32:size][byte[]:data]
         from a byte buffer.
 
-        :return: A string representing the bytes, the new offset into the byte
-                 buffer.
+        :param bytes_: The buffer to read from.
+        :param index:  The offset to read at.
+
+        :return: The bytes, and the new offset into the byte buffer.
+
+        :raises IOError: if the buffer or the declared length was malformed;
+                         see ``_read_sized_bytes``.
         """
-
-        if len(bytes_) < 4 + index:
-            return (None, 0)
-
-        (length, index) = self._read_int32(bytes_, index)
-        if length < 0:
-            return (None, index)
-        elif length == 0:
-            return ("", index)
-        else:
-            return (bytes_[index:index+length], index+length)
+        return self._read_sized_bytes(bytes_, index,
+                                      self._read_int32, _STRUCT_INT32.size)
 
 
     def _read_int8_array(self,
@@ -4094,11 +4298,16 @@ public class TestInjectSource {
             arg = self._create_object(type_id, handle, raw)
 
         elif arg_type == self._VALUE_FORMAT_RAW_PICKLE:
-            (data, idx) = self._read_byte_array(bytes_, idx)
-            arg = pickle.loads(data)
+            # An int64 length, since a pickle can be bigger than 2GB. The Java
+            # side sends this format, rather than the compressed one, for data
+            # which is too large to compress. A view rather than a copy, since
+            # this is the branch which carries the multi-gigabyte payloads and
+            # pickle.loads() takes a buffer directly.
+            (data, idx) = self._read_byte_list_view(bytes_, idx)
+            arg = pickle.loads(data, encoding="bytes")
 
         elif arg_type == self._VALUE_FORMAT_SNAPPY_PICKLE:
-            (data, idx) = self._read_byte_array(bytes_, idx)
+            (data, idx) = self._read_byte_list_view(bytes_, idx)
             arg = pickle.loads(snappy.decompress(data), encoding="bytes")
 
         elif arg_type == self._VALUE_FORMAT_PYTHON_REFERENCE:
@@ -6075,6 +6284,26 @@ def _handle_pickle_bytes_create_object(pjrmi_id: int,
     # native Python types.
     return PJRmi._INSTANCES[pjrmi_id]._create_object(type_id, handle, None)
 
+
+def _truncate_bytes(bytes_: bytes,
+                    length: int = _MAX_LOGGED_PAYLOAD_BYTES) -> bytes:
+    """
+    Give back at most ``length`` bytes, saying how many were dropped.
+
+    :param bytes_: The bytes to truncate.
+    :param length: The most bytes to keep.
+
+    :return: The bytes, or their head plus a count of what was left out. The
+             trailing count is worded the same way as the Java side's, so that
+             a message truncated at both ends of a connection reads the same in
+             both logs.
+    """
+    if len(bytes_) <= length:
+        return bytes_
+    else:
+        return b"%s...%d more bytes" % (bytes_[:length], len(bytes_) - length)
+
+
 # -----------------------------------------------------------------------------
 
 def connect_to_socket(host    : str,
@@ -6556,17 +6785,115 @@ class JavaMethod:
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-# The different connection transports are defined here. They should all have the
-# following shape:
-#
-#   connect()     -- Opens the connection; throws exceptions on error.
-#   disconnect()  -- Closes the connection, rendering it unusable.
-#   send(bytes)   -- Sends the bag or raw bytes completely.
-#   recv(count)   -- Receives at most 'count' bytes from the other side. Blocks
-#                    until data is available; returns [] upon EOF.
-#   __str__()     -- A brief description of the transport (optional).
+# The different connection transports are defined here.
 
-class SocketTransport:
+class Transport(ABC):
+    """
+    The base class for the ways in which we can talk to the Java side.
+
+    A transport is a bi-directional byte stream and nothing more; what travels
+    over it is the business of `PJRmi`.
+    """
+
+    @abstractmethod
+    def connect(self) -> None:
+        """
+        Open the connection.
+
+        :raises Exception: if the connection could not be opened.
+        """
+
+
+    @abstractmethod
+    def disconnect(self, block: bool = False) -> None:
+        """
+        Close the connection, rendering it unusable.
+
+        :param block: Whether to wait for the other side to go away before
+                      giving back. A transport which does not control the
+                      remote process cannot honour this and ignores it, but it
+                      must still accept it: `PJRmi` passes it by keyword when
+                      it shuts a connection down, so an implementation which
+                      omits it raises a ``TypeError`` there.
+        """
+
+
+    @abstractmethod
+    def send(self, bytes_: bytes) -> None:
+        """
+        Send a bag of raw bytes, in its entirety.
+
+        :param bytes_: The bytes to send.
+        """
+
+
+    @abstractmethod
+    def recv(self, count: int) -> bytes:
+        """
+        Receive at most ``count`` bytes from the other side.
+
+        This blocks until data is available.
+
+        :param count: The most bytes to give back.
+
+        :return: The bytes read, or empty upon EOF.
+        """
+
+
+    @abstractmethod
+    def is_localhost(self) -> bool:
+        """
+        Whether we are guaranteed to be talking to the same host.
+
+        This may say `False` when we are, but never `True` when we are not.
+
+        :return: Whether the other side is known to be local.
+        """
+
+
+    def _write_all(self, stream, bytes_: bytes) -> None:
+        """
+        Write all the given bytes to the given stream.
+
+        A raw unbuffered handle may accept only part of a large write. Linux
+        takes at most 0x7ffff000 bytes per call, which a message of more than
+        2GB exceeds, so one ``write()`` is not enough to send one. This retries
+        until every byte has gone.
+
+        :param stream: The stream to write to.
+        :param bytes_: The bytes to write.
+        """
+        # A memoryview so that the retry slicing below doesn't copy what can be
+        # gigabytes of data each time around
+        view = memoryview(bytes_)
+        while len(view) > 0:
+            written = stream.write(view)
+
+            # A raw stream gives back None, or zero, if it cannot accept
+            # anything right now. Wait for it to become writable rather than
+            # spinning on it. Not everything which can be written to has a
+            # descriptor to wait on, and an in-memory one will not block
+            # anyway, so those just go around again.
+            #
+            # Note that this asks for the descriptor rather than testing for
+            # the attribute: an io.BytesIO has a fileno() which raises when it
+            # is called, so hasattr() would say yes and then select() would
+            # raise for exactly the in-memory case described above.
+            if not written:
+                try:
+                    fileno = stream.fileno()
+                except (AttributeError, OSError, io.UnsupportedOperation):
+                    fileno = None
+                if fileno is not None:
+                    select.select([], [fileno], [])
+                continue
+
+            view = view[written:]
+
+        stream.flush()
+
+
+class SocketTransport(Transport):
     """
     An underlying transport for talking to Java, implemented using raw sockets.
     """
@@ -6722,7 +7049,7 @@ class SSLSocketTransport(SocketTransport):
             os.rmdir(tmpdir)
 
 
-class InprocessTransport:
+class InprocessTransport(Transport):
     """
     An underlying transport for talking to a JVM running in the same process.
 
@@ -6808,7 +7135,7 @@ class InprocessTransport:
         return True
 
 
-class UnixFifoTransport:
+class UnixFifoTransport(Transport):
     """
     An underlying transport for talking to a JVM which is launched as a new
     process and which sits on the end of a unix pipe.
@@ -7177,8 +7504,7 @@ class UnixFifoTransport:
         """
         Write a bag of bytes into the FIFO.
         """
-        self._to_fifo.write(bytes_)
-        self._to_fifo.flush()
+        self._write_all(self._to_fifo, bytes_)
 
 
     def recv(self, count: int) -> bytes:
@@ -7197,7 +7523,7 @@ class UnixFifoTransport:
         return True
 
 
-class StdioTransport:
+class StdioTransport(Transport):
     """
     An underlying transport for talking to a JVM which has spawned us as a
     sub-process and is talking to us via stdin and stdout.
@@ -7378,8 +7704,7 @@ class StdioTransport:
         """
         Write a bag of bytes into the FIFO.
         """
-        self._to.write(bytes_)
-        self._to.flush()
+        self._write_all(self._to, bytes_)
 
 
     def recv(self, count: int) -> bytes:

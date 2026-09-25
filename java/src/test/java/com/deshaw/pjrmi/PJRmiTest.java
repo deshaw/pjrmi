@@ -13,6 +13,8 @@ import java.util.function.BiConsumer;
 
 import org.junit.jupiter.api.Test;
 
+import org.xerial.snappy.Snappy;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -54,6 +56,120 @@ public class PJRmiTest
         throws Throwable
     {
         assertEquals(Byte.valueOf((byte)5), PYTHON.invoke("len", "hello"));
+    }
+
+    /**
+     * Test invoke() with arguments sent by value.
+     *
+     * <p>A by-value argument is pickled and sent as data, rather than as a
+     * handle back to the Java object, so this is what exercises the pickled
+     * argument encoding.
+     */
+    @Test
+    public void testPythonInvokeByValue()
+        throws Throwable
+    {
+        // A collection is never sent via shared memory, so this always takes
+        // the pickling path
+        assertEquals(
+            Byte.valueOf((byte)4),
+            PYTHON.invoke("len",
+                          PythonMinion.byValue(Arrays.asList(1, 2, 3, 4)))
+        );
+
+        // An array may go either way, depending on whether shared memory is
+        // available, but should give the same answer regardless
+        assertEquals(
+            Byte.valueOf((byte)3),
+            PYTHON.invoke("len",
+                          PythonMinion.byValue(new double[] { 1.5, -2.5, 3.25 }))
+        );
+
+        // And the contents should survive the trip, not just the length
+        assertEquals(
+            Byte.valueOf((byte)60),
+            PYTHON.invoke("sum",
+                          PythonMinion.byValue(Arrays.asList(10, 20, 30)))
+        );
+    }
+
+    /**
+     * Test the decision about whether data can be Snappy-compressed.
+     *
+     * <p>This is what chooses between sending a pickle compressed and
+     * downgrading it to the uncompressed format. Both of its bounds sit at
+     * sizes which no test can actually allocate, so they are checked directly
+     * rather than by round-tripping data.
+     */
+    @Test
+    public void testIsCompressible()
+        throws Throwable
+    {
+        // The everyday cases
+        assertTrue(PJRmi.isCompressible(0));
+        assertTrue(PJRmi.isCompressible(1));
+        assertTrue(PJRmi.isCompressible(1024 * 1024));
+
+        // Anything which won't fit in a byte[] can't be handed to Snappy at
+        // all
+        assertFalse(PJRmi.isCompressible((long)Integer.MAX_VALUE));
+        assertFalse(PJRmi.isCompressible((long)Integer.MAX_VALUE + 1));
+        assertFalse(PJRmi.isCompressible(1L << 40));
+
+        // And neither can anything whose compressed form might not fit, which
+        // bites well below the byte[] limit since Snappy's output can be
+        // larger than its input. Find wherever that boundary falls rather than
+        // hard-coding Snappy's sizing formula, then check both sides of it.
+        long good = 1024;
+        long bad  = Integer.MAX_VALUE;
+        while (good + 1 < bad) {
+            final long mid = good + (bad - good) / 2;
+            if (PJRmi.isCompressible(mid)) {
+                good = mid;
+            }
+            else {
+                bad = mid;
+            }
+        }
+
+        // The largest byte[] a VM will hand out; some reserve a few header
+        // words. Stated here rather than reached for from another class, since
+        // what this test cares about is the JVM's limit and not any particular
+        // class's opinion of it.
+        final long maxArray = Integer.MAX_VALUE - 8;
+
+        // The boundary has to sit below what a byte[] can hold at all; if it
+        // were up at that limit then the output-size check would be doing
+        // nothing
+        assertTrue(good < maxArray,
+                   "Expected a limit below what a byte[] can hold, but got " +
+                   good);
+
+        // Either side of it behaves. Note these two mostly restate the
+        // postcondition the search above exits on, so they are not what pins
+        // the boundary down; they are here for the case where the search never
+        // moves off its seed, which the assertions below would not catch, and
+        // to say that the predicate is monotonic across the step.
+        assertTrue (PJRmi.isCompressible(good));
+        assertFalse(PJRmi.isCompressible(good + 1));
+
+        // What the boundary accepts really is safe to hand to Snappy: the
+        // output buffer which Snappy would size for it neither overflows nor
+        // grows past what a byte[] can hold. This is the independent check --
+        // it goes to Snappy's own sizing rather than restating the search.
+        final int maxCompressed = Snappy.maxCompressedLength((int)good);
+        assertTrue(maxCompressed >= 0,
+                   "Snappy's output bound overflowed for an accepted size");
+        assertTrue(maxCompressed <= maxArray,
+                   "Snappy's output would not fit for an accepted size");
+
+        // And one step past it is rejected for exactly that reason, rather
+        // than incidentally
+        final int badCompressed = Snappy.maxCompressedLength((int)(good + 1));
+        assertTrue(badCompressed < 0 ||
+                   badCompressed > maxArray,
+                   "The first rejected size should be one Snappy cannot size, "
+                   + "but its bound was " + badCompressed);
     }
 
     /**

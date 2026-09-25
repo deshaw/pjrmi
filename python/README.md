@@ -355,6 +355,21 @@ This can be useful, for example, since it means that the Python client doesn't
 need to create, and invoke methods on, a Java iterator in order to traverse the
 list.
 
+A value copied this way may be larger than 2GB; the wire format carries an
+`int64` byte count for it. Two things follow from that size:
+
+ * `compress=True` is honoured on a best-effort basis. Compression needs the
+   data as a single Java array, so anything too large for that is sent
+   uncompressed instead. This is not an error and needs nothing from the
+   caller, but do not rely on a large value having been compressed.
+ * The size limit is not symmetric. Java can send back a value of any size,
+   since only Java pickles; the Python client marshals arguments field by
+   field and never sends a pickle. Going the other way, a typed array passed
+   as a method argument lands in a Java array on arrival, so it is capped at
+   what one can hold -- `Integer.MAX_VALUE - 8` *elements*, not bytes, which a
+   `float64` array reaches at eight times the byte count of a `bytes` one.
+   Over that and the call raises before anything is sent.
+
 
 ## Type Inference
 

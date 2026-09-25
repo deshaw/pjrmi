@@ -2,7 +2,7 @@ from   numpy      import arange, int16, int32, int64, float32, float64
 from   plumbum    import local
 from   textwrap   import dedent
 from   threading  import Thread
-from   unittest   import TestCase
+from   unittest   import TestCase, skipUnless
 
 import gc
 import numpy
@@ -2145,3 +2145,431 @@ class TestBecomePJRmiMinion(TestCase):
         # It should be done
         if thread.is_alive:
             self.fail("Failed to create a minion")
+
+
+class TestVersionHandshake(TestCase):
+    """
+    Test that a peer speaking a different protocol version is turned away.
+
+    The wire format changed incompatibly in PJRMI_1.14 -- the header grew from
+    17 bytes to 21 when the payload size widened to an int64 -- so the handshake
+    is the only thing standing between a stale client and a stream which
+    silently misframes. This is what a user of a mismatched pair hits first, so
+    it should fail clearly rather than hanging or decoding garbage.
+    """
+
+    def test_mismatched_version_is_rejected(self):
+        # Pose as an older client by claiming a version the server does not
+        # speak. Nothing else about the connection changes.
+        real = pjrmi.PJRmi._HELLO
+        self.assertEqual(real, b"PJRMI_1.14",
+                         "Update this test when the version is bumped")
+
+        pjrmi.PJRmi._HELLO = b"PJRMI_1.13"
+        try:
+            with self.assertRaises(IOError) as caught:
+                pjrmi.connect_to_child_jvm(stdin =None,
+                                           stdout=None,
+                                           stderr=None)
+        finally:
+            pjrmi.PJRmi._HELLO = real
+
+        # The complaint should name what was sent and what came back, since
+        # that is what tells the user which side is out of date
+        message = str(caught.exception)
+        self.assertIn("1.13", message)
+        self.assertIn("handshake", message.lower())
+
+
+    class _OneShotHello:
+        """
+        A `_HELLO` which reads as a stale version once and as the real one
+        afterwards.
+
+        `_handshake()` reads the constant for two different purposes: once to
+        decide what to send, and again to decide whether the reply was right. A
+        plain string cannot tell those apart, so patching it makes the client
+        disagree with itself and refuse the server's reply before it has looked
+        at what the server decided. Giving the stale value out only for the
+        first read sends a stale client onto the wire while leaving the client
+        willing to accept a correct answer.
+
+        This is a non-data descriptor, so it resolves on the class where
+        `_HELLO` already lives and nothing on the instance shadows it.
+        """
+
+        def __init__(self, stale, real):
+            self._stale = stale
+            self._real  = real
+            self._sent  = False
+
+
+        def __get__(self, obj, objtype=None):
+            if self._sent:
+                return self._real
+            self._sent = True
+            return self._stale
+
+
+    def test_server_rejects_a_stale_client(self):
+        """
+        Test the server's half of the check.
+
+        The test above cannot see it. With `_HELLO` patched outright the client
+        rejects the server's reply on its own account, so it passes whether or
+        not the server ever looks at what it was sent -- the Java-side check
+        could be deleted and nothing would go red. This one gets the client past
+        its own check so that the server's rejection is what surfaces.
+        """
+        real = pjrmi.PJRmi._HELLO
+        self.assertEqual(real, b"PJRMI_1.14",
+                         "Update this test when the version is bumped")
+        stale = b"PJRMI_1.13"
+
+        pjrmi.PJRmi._HELLO = self._OneShotHello(stale, real)
+        try:
+            # The client sends its argv, pid and id straight after the HELLO
+            # and before reading anything back, so they are in the pipe well
+            # before the server has finished reading the HELLO it is going to
+            # object to. What comes back is the error, not a broken pipe.
+            with self.assertRaises(ValueError) as caught:
+                pjrmi.connect_to_child_jvm(stdin =None,
+                                           stdout=None,
+                                           stderr=None)
+        finally:
+            pjrmi.PJRmi._HELLO = real
+
+        # This message is the server's, not ours: awaitConnection() writes it
+        # back as a negative-length string before dropping the connection.
+        # Receiving it is the proof that the server looked.
+        message = str(caught.exception)
+        self.assertIn("Malformed HELLO", message)
+        self.assertIn(stale.decode(), message)
+        self.assertIn(real.decode(),  message)
+
+
+class TestSplitSend(TestCase):
+    """
+    Test the send path which puts the header and the payload on the wire
+    separately.
+
+    A message at or below `_MAX_COALESCED_SEND_BYTES` goes out as one buffer.
+    Above it the two are sent one after the other, to avoid copying a
+    multi-gigabyte payload just to put 21 bytes in front of it. Only the second
+    of those arms is new, and reaching it honestly needs a payload larger than
+    the 64kB default -- which in practice means the huge-payload tier, gated on
+    a machine with 24GB going spare.
+
+    Lowering the threshold instead reaches the same arm on any machine, with an
+    ordinary small call. What is being tested is that a message split in two
+    still arrives as one message, and that is not a function of its size.
+    """
+
+    def test_large_payload_is_sent_as_header_then_payload(self):
+        """
+        A message over the threshold goes out as two sends, and still arrives.
+        """
+        pjrmi_conn = get_pjrmi()
+        header_size = pjrmi._STRUCT_HEADER.size
+
+        # The same call twice, once either side of the threshold. Comparing the
+        # two is what makes the header-sized send meaningful: on its own it
+        # could just as well be a coalesced message which happened to carry no
+        # payload.
+        coalesced = self._sends_for_a_call(pjrmi_conn, threshold=None)
+        split     = self._sends_for_a_call(pjrmi_conn, threshold=8)
+
+        self.assertNotIn(
+            header_size, coalesced,
+            "a header-sized send with the threshold left alone means this "
+            "call cannot tell the two arms apart: %s" % (coalesced,)
+        )
+        self.assertIn(
+            header_size, split,
+            "no send was header-sized, so the split arm was never taken: %s" %
+            (split,)
+        )
+
+
+    def _sends_for_a_call(self, pjrmi_conn, threshold):
+        """
+        Make one ordinary call and give back the size of each send it made.
+
+        :param threshold: What to set `_MAX_COALESCED_SEND_BYTES` to for the
+                          duration, or `None` to leave it alone.
+        """
+        transport = pjrmi_conn._transport
+        real_send = transport.send
+        sends     = []
+
+        def counting_send(data):
+            sends.append(len(data))
+            return real_send(data)
+
+        was = pjrmi._MAX_COALESCED_SEND_BYTES
+        if threshold is not None:
+            pjrmi._MAX_COALESCED_SEND_BYTES = threshold
+        transport.send = counting_send
+        try:
+            # An ordinary call, whose payload is comfortably over 8 bytes and
+            # well under the 64kB default
+            result = pjrmi_conn.class_for_name('java.lang.String')("hello")
+            self.assertEqual(str(result), "hello")
+        finally:
+            transport.send = real_send
+            pjrmi._MAX_COALESCED_SEND_BYTES = was
+
+        return sends
+
+
+class TestReadSizedBytes(TestCase):
+    """
+    Test the length-prefixed byte readers.
+
+    These frame every pickled value which crosses the wire, and the length they
+    read is whatever the peer put there, so the malformed cases matter as much
+    as the ordinary one. They are pure functions over a `bytes`, so none of this
+    needs a JVM or any real memory.
+    """
+
+    class _Readers(pjrmi.PJRmi):
+        """
+        Just the reader methods. These are instance methods on `PJRmi`, but none
+        of them touches the connection, so this stands in for one without
+        opening anything; the constructor and destructor are stubbed out so that
+        no connection state is expected to exist.
+        """
+
+        def __init__(self):
+            pass
+
+        def __del__(self):
+            pass
+
+    _READER = _Readers()
+
+
+    def test_reads_the_declared_run(self):
+        # An int64 length of 3, then the bytes, then a tail which must be left
+        # alone and reported as the new offset
+        buf = pjrmi._STRUCT_INT64.pack(3) + b'abc' + b'tail'
+        (data, index) = self._READER._read_byte_list(buf, 0)
+        self.assertEqual(data,  b'abc')
+        self.assertEqual(index, pjrmi._STRUCT_INT64.size + 3)
+
+
+    def test_reads_at_an_offset(self):
+        buf = b'xx' + pjrmi._STRUCT_INT64.pack(2) + b'yz'
+        (data, index) = self._READER._read_byte_list(buf, 2)
+        self.assertEqual(data,  b'yz')
+        self.assertEqual(index, 2 + pjrmi._STRUCT_INT64.size + 2)
+
+
+    def test_empty_run_is_bytes(self):
+        # Zero length gives an empty bytes, not an empty str; the int32 reader
+        # used to disagree with the int64 one about that
+        for (read, prefix) in (
+            (self._READER._read_byte_list,  pjrmi._STRUCT_INT64.pack(0)),
+            (self._READER._read_byte_array, pjrmi._STRUCT_INT32.pack(0))
+        ):
+            (data, _) = read(prefix, 0)
+            self.assertEqual(data, b'')
+            self.assertIsInstance(data, bytes)
+
+
+    def test_short_buffer_is_rejected(self):
+        # Not even enough room for the length prefix
+        with self.assertRaises(IOError):
+            self._READER._read_byte_list(b'\x00\x01', 0)
+
+
+    def test_negative_length_is_rejected(self):
+        # The length is a signed int64 off the wire. Returning None here, as
+        # this used to, deferred the failure to a TypeError several frames away.
+        with self.assertRaises(IOError):
+            self._READER._read_byte_list(pjrmi._STRUCT_INT64.pack(-1), 0)
+
+
+    def test_overrunning_length_is_rejected(self):
+        # Slicing would quietly give back a short result
+        with self.assertRaises(IOError):
+            self._READER._read_byte_list(
+                pjrmi._STRUCT_INT64.pack(100) + b'abc', 0
+            )
+
+
+    def test_view_does_not_copy(self):
+        # The pickle paths take a view, since the run there is the whole
+        # payload and may be gigabytes
+        buf = pjrmi._STRUCT_INT64.pack(3) + b'abc'
+        (view, _) = self._READER._read_byte_list_view(buf, 0)
+        self.assertIsInstance(view, memoryview)
+        self.assertEqual(bytes(view), b'abc')
+
+
+class TestWriteAll(TestCase):
+    """
+    Test that `Transport._write_all()` keeps writing until the whole buffer has
+    gone. A raw handle can accept only part of a large write, which in practice
+    needs a payload of more than 2GB, so it is provoked here with a stream which
+    takes a few bytes at a time.
+    """
+
+    def test_write_all(self):
+        class ChunkingStream:
+            """
+            A stream which takes at most three bytes per write, and nothing at
+            all on the first attempt.
+            """
+            def __init__(self):
+                self.written = bytearray()
+                self.first   = True
+
+            def write(self, view):
+                if self.first:
+                    self.first = False
+                    return 0
+                self.written += bytes(view[:3])
+                return min(len(view), 3)
+
+            def flush(self):
+                pass
+
+        data   = bytes(range(256))
+        stream = ChunkingStream()
+
+        # A minimal concrete Transport, rather than a SocketTransport: the
+        # helper under test is inherited from the ABC, and building a
+        # SocketTransport opens a real socket which this test would then leak.
+        class _Bare(pjrmi.Transport):
+            def connect(self):                 pass
+            def disconnect(self, block=False): pass
+            def send(self, bytes_):            pass
+            def recv(self, count):             return b''
+            def is_localhost(self):            return True
+
+        _Bare()._write_all(stream, data)
+
+        self.assertEqual(bytes(stream.written), data)
+
+
+# The environment variable which opts in to the huge-payload test below.
+_HUGE_PAYLOAD_ENV_VAR = 'PJRMI_TEST_HUGE_PAYLOADS'
+
+
+@skipUnless(
+    os.environ.get(_HUGE_PAYLOAD_ENV_VAR, '') not in ('', '0'),
+    "Set %s=1 to run this; it peaks at about 15GB across the Python process "
+    "and the child JVM" % _HUGE_PAYLOAD_ENV_VAR
+)
+class TestHugePayloads(TestCase):
+    """
+    Tests for messages which are larger than 2GB.
+
+    These need several gigabytes in both processes, so they are gated on
+    `PJRMI_TEST_HUGE_PAYLOADS`. The build sets it for you when the machine has
+    the memory to spare -- see the `test` task in `python/build.gradle` -- so
+    running them by hand is only necessary on a machine which does not, or to
+    run them against a build which decided not to.
+
+    Both directions are covered. Note that Java cannot compress a payload this
+    large, since compressing needs the data as a `byte[]`, so what comes back
+    from `value_of()` arrives uncompressed even though the client asks for it
+    compressed; the format byte on the wire says which it actually is.
+    """
+
+    # Just over Integer.MAX_VALUE bytes when rendered as float64s, so that the
+    # payload cannot be described by the int32 size field which the wire format
+    # used before PJRMI_1.14.
+    _NUM_DOUBLES = (1 << 28) + 1024
+
+    # The elements which straddle the boundary between the first and second
+    # sub-arrays of the ByteList holding this message on the Java side. Those
+    # sub-arrays are 2^30 bytes and a float64 is eight of them, so the boundary
+    # falls near element 2^30/8 -- but not on it, since the array data is
+    # preceded by the value format byte, the length and the pickle header.
+    # Marking a band either side puts sentinels on both sides of the boundary
+    # wherever in there it actually lands, which a single element pitched at a
+    # computed offset would not.
+    _SEAM_FROM = (1 << 30) // 8 - 32
+    _SEAM_TO   = (1 << 30) // 8 + 32
+
+
+    def setUp(self):
+        """
+        Give each test its own connection, since the shared one has neither the
+        heap for this nor the right marshalling settings.
+        """
+        # Shared-memory argument passing would hand the array over out-of-band
+        # and so would test nothing about the wire format. Turn it off.
+        self._pjrmi = pjrmi.connect_to_child_jvm(
+            java_args=("-Xmx16g",),
+            application_args=("num_workers=2",),
+            stdin=None, stdout=None, stderr=None,
+            use_shm_arg_passing=False
+        )
+
+
+    def tearDown(self):
+        self._pjrmi.disconnect()
+        self._pjrmi = None
+        gc.collect()
+
+
+    def test_python_to_java(self):
+        """
+        Send a payload of more than 2GB from Python to Java.
+        """
+        helpers = self._pjrmi.class_for_name(
+            'com.deshaw.pjrmi.test.PJRmiTestHelpers'
+        )
+
+        array = numpy.zeros(self._NUM_DOUBLES, dtype=float64)
+        array[0]  = 1.0
+        array[-1] = 2.0
+        array[self._SEAM_FROM:self._SEAM_TO] = 4.0
+        self.assertGreater(array.nbytes, pjrmi.PJRmi._MAX_JAVA_ARRAY_SIZE)
+
+        # If the size field were still an int32 this would either be rejected
+        # outright or misframe the stream
+        self.assertEqual(helpers.doubleArrayLength(array), self._NUM_DOUBLES)
+
+        # Check the contents too, not just the length. A single write() is
+        # capped at 0x7ffff000 bytes, so this payload is split across more than
+        # one of them; data which was dropped or reordered at that boundary
+        # would still give the right length. Only the sentinels are non-zero,
+        # so the sum pins the head, the tail, and the sub-array seam which the
+        # ByteList holding this message on the Java side has in the middle of
+        # it -- the place a split-copy defect actually shows up, and one which
+        # sentinels at the two ends would step straight over.
+        self.assertEqual(helpers.doubleArraySum(array),
+                         1.0 + 2.0 + 4.0 * (self._SEAM_TO - self._SEAM_FROM))
+
+
+    def test_java_to_python(self):
+        """
+        Pull a payload of more than 2GB back from Java.
+        """
+        # Have Java allocate the array, so that getting it back is the only
+        # large message which this test sends
+        java_double_array_class = self._pjrmi.class_for_name('[D')
+        java_array = java_double_array_class(self._NUM_DOUBLES)
+        java_array[0]                     = 1.0
+        java_array[self._NUM_DOUBLES - 1] = 2.0
+        for index in range(self._SEAM_FROM, self._SEAM_TO):
+            java_array[index] = 4.0
+
+        # value_of() renders the whole array back to Python, so the response
+        # payload is the array itself. This is the path which needs the pickle
+        # to carry a 64bit length.
+        array = self._pjrmi.value_of(java_array)
+
+        self.assertEqual  (len(array),   self._NUM_DOUBLES)
+        self.assertGreater(array.nbytes, pjrmi.PJRmi._MAX_JAVA_ARRAY_SIZE)
+        self.assertEqual  (array[ 0],    1.0)
+        self.assertEqual  (array[-1],    2.0)
+        self.assertEqual  (array[ 1],    0.0)
+        self.assertTrue(
+            (array[self._SEAM_FROM:self._SEAM_TO] == 4.0).all(),
+            "the sentinels either side of the sub-array seam did not survive"
+        )

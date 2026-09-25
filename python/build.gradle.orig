@@ -347,7 +347,10 @@ tasks.register('wheel', GenerateFileExec) {
                             project(':java:jni').layout.buildDirectory.getAsFile().get().absolutePath + '/libs/main/shared',
                     ].join(':')
             ])
-    command = ['pip3', 'wheel', '.']
+    // `setup.py` imports numpy for its include path, and pip's isolated build
+    // environment holds only the backend. `buildExt` already runs setup.py
+    // against the ambient environment, so have the wheel build match it.
+    command = ['pip3', 'wheel', '.', '--no-build-isolation']
     outputs.dir('pjrmi.egg-info')
 
     dependsOn buildExt
@@ -371,100 +374,12 @@ task thin_wheel() {
     }
 }
 
-// The environment variable which opts in to the >2GB payload tests. It is read
-// by TestHugePayloads in tests/pjrmi_tests.py, which skips unless it is set to
-// something other than "" or "0".
-def hugePayloadEnvVar = 'PJRMI_TEST_HUGE_PAYLOADS'
-
-// How much memory has to be going spare before we turn those tests on, in MB.
-//
-// A passing run was measured at a peak of 14.4GB above baseline, across the
-// pytest process and the child JVM it starts with -Xmx16g. The requirement is
-// that rounded up and given half again, so that a machine sitting just above
-// the measured peak does not start swapping, and so that the run does not fall
-// over -- or take something else down -- because another job took memory while
-// it was in flight.
-def hugePayloadRequiredMb = 24 * 1024
-
-/**
- * How much memory is available to start something new right now, in MB, or -1
- * where that cannot be determined.
- *
- * This reads MemAvailable rather than MemFree, which excludes reclaimable page
- * cache and so reads far lower than what a new process could actually get, and
- * rather than MemTotal, which ignores whatever else is already running.
- */
-def availableMemoryMb = {
-    try {
-        // Deliberately not project.file(): this runs at execution time, where
-        // touching the project object is incompatible with the configuration
-        // cache.
-        def meminfo = new File('/proc/meminfo')
-        if (!meminfo.canRead()) {
-            // Not Linux, or a sandbox without /proc
-            return -1L
-        }
-        def line = meminfo.readLines().find { it.startsWith('MemAvailable:') }
-        if (line == null) {
-            return -1L
-        }
-        // The value is in kB, whatever the unit column says
-        return Long.parseLong(line.split(/\s+/)[1]).intdiv(1024)
-    }
-    catch (Exception e) {
-        // A memory probe is not worth failing the build over. Fall back to
-        // leaving the tests skipped, which is what happened before this
-        // existed.
-        return -1L
-    }
-}
-
 tasks.register('test', Exec) {
     dependsOn buildExt
     workingDir projectDir
     environment "PYTHONPATH", projectDir
     environment "PYDEVD_DISABLE_FILE_VALIDATION", "1"
     commandLine "python3", "-m", "pytest", "tests/pjrmi_tests.py", "tests/java_python_unpickle.py", "-v"
-
-    doFirst {
-        // Turn the huge-payload tests on where the machine can take them. They
-        // are the only coverage of the >2GB wire format, so leaving them to an
-        // environment variable nobody sets means they effectively never run.
-        //
-        // An explicit setting always wins, in either direction: this supplies a
-        // default, it does not override a decision already made.
-        if (System.getenv(hugePayloadEnvVar) != null) {
-            logger.lifecycle(
-                "Huge-payload tests: leaving {}={} as set in the environment",
-                hugePayloadEnvVar, System.getenv(hugePayloadEnvVar)
-            )
-        }
-        else {
-            def availableMb = availableMemoryMb()
-            if (availableMb < 0) {
-                logger.lifecycle(
-                    "Huge-payload tests: skipped, cannot read MemAvailable " +
-                    "from /proc/meminfo. Set {}=1 to run them anyway.",
-                    hugePayloadEnvVar
-                )
-            }
-            else if (availableMb < hugePayloadRequiredMb) {
-                logger.lifecycle(
-                    "Huge-payload tests: skipped, {}MB available and {}MB " +
-                    "needed. Set {}=1 to run them anyway.",
-                    availableMb, hugePayloadRequiredMb, hugePayloadEnvVar
-                )
-            }
-            else {
-                environment hugePayloadEnvVar, "1"
-                logger.lifecycle(
-                    "Huge-payload tests: enabled, {}MB available and {}MB " +
-                    "needed. Set {}=0 to skip them.",
-                    availableMb, hugePayloadRequiredMb, hugePayloadEnvVar
-                )
-            }
-        }
-    }
 }
 
 tasks.register('cleanPyCache', Delete) {

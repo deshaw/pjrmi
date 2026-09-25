@@ -35,18 +35,120 @@ public class PythonPickle
     private static final int  BATCHSIZE = 1000;
     private static final byte MARK_V    = Operations.MARK.code;
 
+    /**
+     * The pickle protocol version which we open a stream with.
+     */
+    private static final byte DEFAULT_PROTOCOL = 2;
+
+    /**
+     * The pickle protocol version which first has an opcode carrying a 64bit
+     * length, which is needed for anything longer than
+     * {@code Integer.MAX_VALUE}.
+     */
+    private static final byte LONG_LENGTH_PROTOCOL = 4;
+
+    /**
+     * Where the protocol version byte sits in the stream; it follows the
+     * {@code PROTO} opcode which opens every pickle.
+     */
+    private static final long PROTOCOL_OFFSET = 1;
+
+    /**
+     * The name of the {@link #MAX_RETAINED_CAPACITY} property.
+     */
+    public static final String MAX_RETAINED_CAPACITY_PROPERTY =
+        "com.deshaw.python.maxRetainedCapacity";
+
+    /**
+     * The largest buffer which we will keep between pickles.
+     *
+     * <p>Emptying the buffer holds on to whatever it grew to, so without this
+     * a single huge pickle would pin its space for as long as the instance
+     * lives, and instances tend to be long-lived thread-local ones.
+     *
+     * <p>Sized at a sixteenth of a 1GB heap, which is the smallest this is
+     * normally run in. A pickling thread therefore retains at most a sixteenth
+     * of such a heap, which stays far above any everyday pickle, so the common
+     * case never reallocates.
+     *
+     * <p>Override it at startup with {@code -D} and
+     * {@link #MAX_RETAINED_CAPACITY_PROPERTY}: lower it if you pickle from
+     * many threads in a small heap, raise it if your pickles are routinely
+     * larger and you would rather keep the space than regrow the buffer each
+     * time.
+     *
+     * <p>Note the {@code L} suffix on the default. Without it a value of a
+     * gigabyte or more would be computed in {@code int} arithmetic and wrap,
+     * which for {@code 4 * 1024 * 1024 * 1024} lands on exactly zero and would
+     * silently throw the buffer away on every pickle.
+     *
+     * <p>A value which is set but is not a positive number stops the process,
+     * rather than being defaulted over. Setting this is a deliberate act, so
+     * running on with a different value than was asked for would leave the
+     * process misconfigured with nothing to draw attention to it.
+     */
+    private static final long MAX_RETAINED_CAPACITY;
+
+    static {
+        final long   dflt     = 64L * 1024 * 1024;
+        final String property =
+            System.getProperty(MAX_RETAINED_CAPACITY_PROPERTY);
+        if (property == null) {
+            MAX_RETAINED_CAPACITY = dflt;
+        }
+        else {
+            final long value;
+            try {
+                value = Long.parseLong(property.trim());
+            }
+            catch (NumberFormatException e) {
+                throw new IllegalArgumentException(
+                    MAX_RETAINED_CAPACITY_PROPERTY + "=\"" + property +
+                    "\" is not a number",
+                    e
+                );
+            }
+            if (value <= 0) {
+                throw new IllegalArgumentException(
+                    MAX_RETAINED_CAPACITY_PROPERTY + "=\"" + property +
+                    "\" must be positive"
+                );
+            }
+            MAX_RETAINED_CAPACITY = value;
+        }
+    }
+
+    /**
+     * How large a buffer to start with, both for a new instance and for the
+     * replacement of one which outgrew {@link #MAX_RETAINED_CAPACITY}. Enough
+     * for an everyday pickle to be built without regrowing.
+     */
+    private static final long INITIAL_BUFFER_CAPACITY = 1024L * 1024;
+
     // ----------------------------------------------------------------------
 
     /**
      * We buffer up everything in here for dumping.
+     *
+     * <p>This is a {@link ByteList}, and not a {@link ByteArrayOutputStream},
+     * so that a pickle may be larger than {@code Integer.MAX_VALUE} bytes. It
+     * is replaced, rather than emptied, once it grows past
+     * {@link #MAX_RETAINED_CAPACITY}.
      */
-    private final ByteArrayOutputStream myStream = new ByteArrayOutputStream();
+    private ByteList myBuffer = new ByteList(INITIAL_BUFFER_CAPACITY);
 
     /**
      * Used to provide a handle on objects which we have already stored (so that
      * we don't duplicate them in the result).
      */
     private final IdentityHashMap<Object,Integer> myMemo = new IdentityHashMap<>();
+
+    /**
+     * The protocol version which the pickle being written actually needs. This
+     * starts out as the default and is raised by anything which uses a later
+     * opcode; see {@link #toPickle(Object)}.
+     */
+    private byte myProtocol = DEFAULT_PROTOCOL;
 
     // Scratch space
     private final ByteBuffer myTwoByteBuffer   = ByteBuffer.allocate(2);
@@ -57,24 +159,90 @@ public class PythonPickle
     // ----------------------------------------------------------------------
 
     /**
+     * The largest buffer which an instance keeps between pickles, in bytes.
+     *
+     * <p>This is the resolved value of
+     * {@link #MAX_RETAINED_CAPACITY_PROPERTY}.
+     *
+     * @return the size.
+     */
+    public static long getMaxRetainedCapacity()
+    {
+        return MAX_RETAINED_CAPACITY;
+    }
+
+    /**
      * Dump an object out to a given stream.
+     *
+     * <p>Unlike {@link #toByteArray(Object)} this has no size limit, since
+     * nothing is ever materialised as a single {@code byte[]}.
+     *
+     * @param o       The object to pickle.
+     * @param stream  The stream to write the pickle to.
+     *
+     * @throws IOException                   if writing to the stream failed.
+     * @throws UnsupportedOperationException if the object could not be pickled.
      */
     public void toStream(Object o, OutputStream stream)
-        throws IOException
+        throws IOException,
+               UnsupportedOperationException
     {
         // Might be better to use the stream directly, rather than staging
         // locally.
         toPickle(o);
-        myStream.writeTo(stream);
+        myBuffer.writeTo(stream);
+    }
+
+    /**
+     * Dump to a {@link ByteList}.
+     *
+     * @param o  The object to pickle.
+     *
+     * @return the pickled form of the given object. Do not mutate this
+     *         result. Subsequent calls to pickling methods on this instance
+     *         will invalidate the result.
+     *
+     * @throws UnsupportedOperationException if the object could not be pickled.
+     */
+    public ByteList toByteList(Object o)
+        throws UnsupportedOperationException
+    {
+        toPickle(o);
+        return myBuffer;
     }
 
     /**
      * Dump to a byte-array.
+     *
+     * @param o  The object to pickle.
+     *
+     * @return the pickled form of the given object. This is always a copy, so
+     *         it stays valid after later calls on this instance; use
+     *         {@link #toByteList(Object)} if you would rather not pay for the
+     *         copy and can respect that method's lifetime rule.
+     *
+     * @throws UnsupportedOperationException if the object could not be
+     *                                       pickled, or if the pickle was
+     *                                       larger than a {@code byte[]} can
+     *                                       hold; use
+     *                                       {@link #toByteList(Object)} or
+     *                                       {@link #toStream(Object,OutputStream)}
+     *                                       for one that big.
      */
     public byte[] toByteArray(Object o)
+        throws UnsupportedOperationException
     {
         toPickle(o);
-        return myStream.toByteArray();
+
+        // This method hands back an array which outlives the next pickle, so
+        // it must not be one myBuffer still holds. toArray() gives back its
+        // own sub-array when the pickle fills it exactly, and a fresh copy
+        // otherwise; only the first case still owes us one. Copying in both
+        // would mean two passes over a large pickle to no end.
+        final byte[] array = myBuffer.toArray();
+        return (array.length > 0 && array.length == myBuffer.capacity())
+               ? array.clone()
+               : array;
     }
 
     /**
@@ -149,7 +317,7 @@ public class PythonPickle
      */
     protected final void write(Operations op)
     {
-        myStream.write(op.code);
+        myBuffer.add(op.code);
     }
 
     /**
@@ -157,7 +325,7 @@ public class PythonPickle
      */
     protected final void write(byte i)
     {
-        myStream.write(i);
+        myBuffer.add(i);
     }
 
     /**
@@ -165,7 +333,7 @@ public class PythonPickle
      */
     protected final void write(char c)
     {
-        myStream.write(c);
+        myBuffer.add((byte)c);
     }
 
     /**
@@ -174,6 +342,14 @@ public class PythonPickle
     protected final void writeLittleEndianInt(final int n)
     {
         write(myFourByteBuffer.order(ByteOrder.LITTLE_ENDIAN).putInt(0, n));
+    }
+
+    /**
+     * Write out a long, in little-endian format.
+     */
+    protected final void writeLittleEndianLong(final long n)
+    {
+        write(myEightByteBuffer.order(ByteOrder.LITTLE_ENDIAN).putLong(0, n));
     }
 
     /**
@@ -189,7 +365,7 @@ public class PythonPickle
      */
     protected final void write(byte[] array)
     {
-        myStream.write(array, 0, array.length);
+        myBuffer.append(array);
     }
 
     /**
@@ -354,12 +530,12 @@ public class PythonPickle
     protected final void saveNumpyByteArray(ByteList o)
     {
         saveGlobal("numpy", "frombuffer");
-        final int n = o.size();
-        writeBinStringHeader((long) n);
+        final long n = o.size();
+        writeBinStringHeader(n);
 
-        for (int i=0; i < n; ++i) {
-            write(o.get(i));
-        }
+        // Copy it in one go. Going element by element would be billions of
+        // bounds-checked calls for the sizes this now has to handle.
+        myBuffer.addAll(o);
 
         addNumpyArrayEnding(DType.Type.INT8, o);
     }
@@ -456,22 +632,41 @@ public class PythonPickle
      */
     private void toPickle(Object o)
     {
-        myStream.reset();
+        // Give back the space taken by an outsized pickle, rather than holding
+        // on to it for the life of this instance. The replacement starts at a
+        // sensible working size, rather than at zero, so that the next pickle
+        // does not have to grow from DEFAULT_INITIAL_CAPACITY a step at a time.
+        if (myBuffer.capacity() > MAX_RETAINED_CAPACITY) {
+            myBuffer = new ByteList(INITIAL_BUFFER_CAPACITY);
+        }
+        else {
+            myBuffer.clear();
+        }
+        myProtocol = DEFAULT_PROTOCOL;
 
         // The memo is emptied at the end, and not up here with the rest of the
-        // per-pickle state, so that a finished pickle stops holding a
-        // reference to every object it saw. That makes emptying it conditional
-        // on getting to the end, which it cannot be: save() throws for an
-        // object it cannot pickle, and entries left behind by the pickle which
-        // failed would still be in the memo for the next one. That next pickle
-        // would write a back-reference to a memo entry which its own stream
-        // never wrote, and produce a pickle which only fails when someone
-        // comes to read it.
+        // per-pickle state, so that a finished pickle stops holding a reference
+        // to every object it saw. That makes emptying it conditional on getting
+        // to the end, but that won't happen if save() throws for an object it
+        // cannot pickle. If that occurs, then entries added by the current
+        // pickle would still be in the memo for the next one. Those stale
+        // entries will cause the next invocation to produce a pickle which only
+        // fails when someone comes to read it.
         try {
             write(Operations.PROTO);
-            write((byte) 2);
+            write(DEFAULT_PROTOCOL);
             save(o);
             write(Operations.STOP);
+
+            // We can only know which protocol version the pickle needs once it
+            // has been written, since that depends on the opcodes which the
+            // data turned out to require. Anything which needed a later one
+            // than we opened with will have raised it, so go back and correct
+            // the header. We keep declaring the oldest version we can so that
+            // readers which only handle the older protocol carry on working.
+            if (myProtocol != DEFAULT_PROTOCOL) {
+                myBuffer.set(PROTOCOL_OFFSET, myProtocol);
+            }
         }
         finally {
             myMemo.clear();
@@ -573,10 +768,25 @@ public class PythonPickle
 
     /**
      * Write out the header for a binary "string" of data.
+     *
+     * <p>The opcode used depends on how long the data is. Anything longer than
+     * {@code Integer.MAX_VALUE} needs {@code BINBYTES8}, which arrived in
+     * protocol 4, so writing one of those raises the protocol version that the
+     * stream declares.
+     *
+     * @param n  The number of bytes which will follow the header.
+     *
+     * @throws IllegalArgumentException if the given length was negative.
      */
-    private void writeBinStringHeader(long n)
+    private void writeBinStringHeader(final long n)
+        throws IllegalArgumentException
     {
-        if (n < 256) {
+        if (n < 0) {
+            throw new IllegalArgumentException(
+                "Negative string length: " + n
+            );
+        }
+        else if (n < 256) {
             write(Operations.SHORT_BINSTRING);
             write((byte) n);
         }
@@ -586,7 +796,16 @@ public class PythonPickle
             writeLittleEndianInt((int) n);
         }
         else {
-            throw new UnsupportedOperationException("String length of " + n + " is too large");
+            // Note that this yields a bytes object on the Python side, where
+            // BINSTRING yields whatever the unpickler's encoding says. Both
+            // give bytes for an unpickler using encoding='bytes', which is
+            // what reading these back needs; see _handle_pickle_bytes() and
+            // _read_argument() in python/pjrmi/__init__.py, which must keep
+            // passing that.
+            myProtocol = LONG_LENGTH_PROTOCOL;
+            write(Operations.BINBYTES8);
+            // Pickle protocol is always little-endian
+            writeLittleEndianLong(n);
         }
     }
 

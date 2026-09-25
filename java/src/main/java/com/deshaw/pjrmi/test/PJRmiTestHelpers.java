@@ -222,6 +222,26 @@ public class PJRmiTestHelpers
     }
 
     /**
+     * Sum the contents of a {@code double[]}.
+     *
+     * <p>This exists so that a test can check that an array arrived intact,
+     * and not merely that it arrived with the right length, without having to
+     * send it back again to look at it.
+     *
+     * @param array  The array to sum.
+     *
+     * @return the sum of its elements.
+     */
+    public static double doubleArraySum(final double[] array)
+    {
+        double sum = 0;
+        for (double d : array) {
+            sum += d;
+        }
+        return sum;
+    }
+
+    /**
      * A method which takes a double[] and returns it.
      *
      * @param array  The array.

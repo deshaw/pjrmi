@@ -29,10 +29,24 @@ import java.util.function.Function;
  * <p>This unpickler will probably require more work to handle general pickle
  * files. In particular, only operations necessary for decoding tuples, lists,
  * dictionaries, and numeric numpy arrays encoded using protocol version 2 are
- * supported.
+ * supported, together with the single protocol 4 opcode {@code BINBYTES8},
+ * which {@link PythonPickle} needs in order to write a value too long for a
+ * 32-bit length. Nothing else from protocols 3 and 4 is implemented; see
+ * {@link #BINBYTES8_PROTOCOL} for what that means for a stream which declares
+ * one of them.
  *
  * <p>Things that won't work:
  * <ul>
+ *   <li>Protocol 3 and 4 streams from CPython, though the two are turned away
+ *       at different points. A protocol 3 stream is stopped by the version
+ *       check, in an error which names the protocol. A protocol 4 stream is
+ *       let through that check -- see {@link #BINBYTES8_PROTOCOL} for why --
+ *       and then stops at the first opcode with no handler. In practice that
+ *       is {@code FRAME}, which CPython writes directly after the version
+ *       byte, so such a stream gets no further than its second opcode.
+ *       {@code MEMOIZE}, {@code SHORT_BINUNICODE}, {@code BINUNICODE8},
+ *       {@code STACK_GLOBAL}, {@code BINBYTES} and {@code SHORT_BINBYTES} are
+ *       unhandled in the same way.
  *   <li>Some protocol 0 opcodes. Specifically:
  *       <ul>
  *         <li>{@code UNICODE} has no handler, so most protocol 0 streams
@@ -61,6 +75,46 @@ import java.util.function.Function;
  */
 public class PythonUnpickle
 {
+    /**
+     * The highest pickle protocol version which we fully read.
+     */
+    private static final int MAX_FULL_PROTOCOL = 2;
+
+    /**
+     * A protocol version which we accept without implementing all of it.
+     *
+     * <p>{@link PythonPickle} declares protocol 4 when, and only when, it has
+     * emitted a {@code BINBYTES8} -- the one opcode from a later protocol which
+     * we handle. It emits that only for a value too long for a
+     * {@code BINSTRING}, which is longer than a {@code byte[]} can hold, so
+     * reading one back here always fails. Letting the stream through means it
+     * fails at the opcode, which says how large the value was, rather than at
+     * the version check, which would blame the protocol instead.
+     *
+     * <p>This is deliberately a single extra version rather than a raised
+     * ceiling, and the two versions either side of it fare differently as a
+     * result. Protocol 3 is still stopped by the version check, in an error
+     * which names the protocol. Protocol 4 is not: this exemption cannot tell
+     * one of our own streams from a genuine CPython one, since both declare
+     * the same version, so a CPython protocol 4 stream is admitted here and
+     * then stops at the first opcode we do not implement. That is
+     * {@code FRAME}, which CPython writes directly after the version byte, so
+     * it stops on the next opcode rather than deep in the stream -- but with
+     * an unknown-opcode error, which says less than the version error protocol
+     * 3 gets. Accepting that for protocol 4 is the price of reading back what
+     * {@link PythonPickle} writes; raising the ceiling further would extend it
+     * to protocol 3 for nothing in return. Add the remaining opcodes before
+     * widening this.
+     */
+    private static final int BINBYTES8_PROTOCOL = 4;
+
+    /**
+     * The most bytes which a single string in a pickle may hold. The values are
+     * read into a {@code byte[]} wrapped in a {@link ByteBuffer}, and that
+     * array is what sets the limit.
+     */
+    private static final long MAX_BYTES = Integer.MAX_VALUE - 8;
+
     /**
      * {@link ArrayList} with a bulk removal operation made public.
      */
@@ -1171,6 +1225,23 @@ public class PythonUnpickle
                     myStack.add(new BinString(readBytes(readInt32())));
                     break;
 
+                case BINBYTES8: {
+                    // A 64-bit length, which PythonPickle writes for anything
+                    // which won't fit in a BINSTRING. We can only hold what a
+                    // byte[] can, so say so plainly rather than letting the
+                    // cast silently mangle the length.
+                    final long length = readInt64();
+                    if (length < 0 || length > MAX_BYTES) {
+                        throw new MalformedPickleException(
+                            "Pickle holds a string of " + length + " bytes, " +
+                            "which is more than the " + MAX_BYTES + " which " +
+                            "this reader can hold"
+                        );
+                    }
+                    myStack.add(new BinString(readBytes((int)length)));
+                    break;
+                }
+
                 case SHORT_BINSTRING:
                     myStack.add(new BinString(readBytes(read())));
                     break;
@@ -1244,7 +1315,10 @@ public class PythonUnpickle
 
                 case PROTO:
                     int version = read();
-                    if (version < 0 || version > 2) {
+                    if (version < 0 ||
+                        (version > MAX_FULL_PROTOCOL &&
+                         version != BINBYTES8_PROTOCOL))
+                    {
                         throw new MalformedPickleException(
                             "Unsupported pickle version " + version
                         );
@@ -1361,12 +1435,28 @@ public class PythonUnpickle
     }
 
     /**
-     * Read a 32-bit integer from the stream.
+     * Read a 32-bit integer from the stream, in the little-endian order which
+     * the pickle format uses. Note that this is the opposite of the big-endian
+     * order of the PJRmi wire format.
      */
     private int readInt32()
         throws IOException
     {
         return read() + 256 * read() + 65536 * read() + 16777216 * read();
+    }
+
+    /**
+     * Read a 64-bit integer from the stream, in the little-endian order which
+     * the pickle format uses. Note that this is the opposite of the big-endian
+     * order of the PJRmi wire format.
+     */
+    private long readInt64()
+        throws IOException
+    {
+        return ((long)read()      ) + ((long)read() <<  8) +
+               ((long)read() << 16) + ((long)read() << 24) +
+               ((long)read() << 32) + ((long)read() << 40) +
+               ((long)read() << 48) + ((long)read() << 56);
     }
 
     /**

@@ -60,7 +60,8 @@ public enum Operations
     /** See Python. */ NEWTRUE        ((byte) 0x88),
     /** See Python. */ NEWFALSE       ((byte) 0x89),
     /** See Python. */ LONG1          ((byte) 0x8a),
-    /** See Python. */ LONG4          ((byte) 0x8b);
+    /** See Python. */ LONG4          ((byte) 0x8b),
+    /** See Python. */ BINBYTES8      ((byte) 0x8e);
 
     private static final Operations[] BY_CODE = new Operations[256];
     static {

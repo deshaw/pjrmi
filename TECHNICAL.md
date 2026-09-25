@@ -285,23 +285,86 @@ sub-process vs to a peer on a remote host should be latency.
 
 ### Protocol
 
-PJRmi has its own, special purpose, binary protocol. This is documented
-by the specific functions which marshall/unmarshall the calls on each side.
+PJRmi has its own, special purpose, binary protocol. The contents of a message
+are documented by the specific functions which marshall/unmarshall the calls on
+each side. Every message after the handshake is preceded by the same header
+(the handshake itself is exchanged as raw bytes, with no header); it is 21
+bytes, big-endian, with no padding:
 
-Any modications to the protocol are considered to be breaking changes and will
+| Offset | Width | Field                  |
+|--------|-------|------------------------|
+| 0      | 1     | Message type ID        |
+| 1-8    | 8     | Thread ID (`int64`)    |
+| 9-12   | 4     | Request ID (`int32`)   |
+| 13-20  | 8     | Payload size (`int64`) |
+
+The payload follows immediately after, and is the given number of bytes long.
+Since the size is an `int64`, a message may be larger than 2GB.
+
+Lengths *within* a payload are not all the same width, and anything reading one
+has to know which it is looking at; only the marshalling functions say which.
+An array's element count is an `int32`, since that is what bounds a Java array.
+An argument count is an `int16`, since no method takes anywhere near that many
+-- except in `GET_CALLBACK_HANDLE`, where it is a single byte. A pickled value
+is the one thing not bounded by a Java array, and so carries an `int64` byte
+count. (Type IDs are `int32` too, but they are small identifiers rather than
+lengths.)
+
+This header is implemented twice. On the Java side it is `HEADER_SIZE` in
+[`PJRmi.java`](java/src/main/java/com/deshaw/pjrmi/PJRmi.java), with the
+unpacking in `Connection.listen()` and the writing in `buildMessage()`. On the
+Python side it is `_STRUCT_HEADER` (the whole 21 bytes) and
+`_STRUCT_SEND_HEADER` (the trailing 20, since the type byte is sent on its
+own) in
+[`__init__.py`](python/pjrmi/__init__.py). They must be changed in lockstep.
+
+The pickle stream carries a protocol version, and it is not always the same
+one. `PythonPickle` opens every stream at protocol 2 and raises the declared
+version to 4 if, and only if, it had to emit a `BINBYTES8` -- the protocol 4
+opcode for a value whose length will not fit in 32 bits. Nothing else from
+protocol 4 is ever used, but a client reading these back needs an unpickler
+which accepts the version. CPython's does; a hand-rolled one which only expects
+protocol 2, as every pre-1.14 stream was, does not.
+
+Pickles only travel one way. The Python client never pickles -- it marshals
+arguments field by field -- so a pickled value is always Java to Python, where
+it has no cap beyond the `int64` carrying its length.
+
+What *is* bounded in the Python to Java direction is an array argument, since
+it lands in a Java array on arrival. That cap is `_MAX_JAVA_ARRAY_SIZE` in
+Python and `MAX_ARRAY_LENGTH` in `PJRmi.java`, both `Integer.MAX_VALUE - 8`,
+and the two are a lockstep pair: the Python one bounds what is sent and the
+Java one bounds what is accepted, so a disagreement between them shows up as a
+value which passes on one side and is rejected on the other. Note that it
+counts elements and not bytes, so a `float64` array reaches it at eight times
+the byte count of a `byte` one.
+
+(`PythonUnpickle.MAX_BYTES` holds the same number and is *not* part of that
+pair. `PythonUnpickle` is a standalone reader for pickles produced elsewhere
+and sits on no PJRmi path; its limit is a byte count for one string inside a
+pickle. Changing it in step with the two above would be a mistake.)
+
+A client may not get back the value format it asked for. When a value is too
+large to compress -- compression needs the data as a single Java array -- the
+server sends `RAW_PICKLE` in place of `SNAPPY_PICKLE`, and `BESTEFFORT_PICKLE`
+in place of `BESTEFFORT_SNAPPY_PICKLE`. The format byte on the wire always
+describes what actually follows it, so a client must key off what it receives
+rather than what it requested.
+
+Any modifications to the protocol are considered to be breaking changes and will
 result in the version number of PJRmi being bumped. Instances of PJRmi using
 different versions will refuse to handshake and connection attempts will fail.
-This isn't a limitation in providing backwards compatability in the protocol;
-two different versions will have distinct behaviour, which much be coherent
+This isn't a limitation in providing backwards compatibility in the protocol;
+two different versions will have distinct behaviour, which must be coherent
 between them.
 
 ### Transports
 
 The communication mechanism is captured by the `Transport` classes, on both the
-[Java](src/main/java/com/deshaw/pjrmi/Transport.java) and Python sides. The main
-functionailty which these provide is a bi-directional bytestream, which is all
-that is really needed for PJRmi to function. Additional methods support features
-like security and bulk-data passing.
+[Java](java/src/main/java/com/deshaw/pjrmi/Transport.java) and Python sides. The
+main functionality which these provide is a bi-directional bytestream, which is
+all that is really needed for PJRmi to function. Additional methods support
+features like security and bulk-data passing.
 
 ### Security
 
@@ -333,6 +396,35 @@ However, if the client and server are on the same host, then it is possible to
 use the host's `/dev/shm` to do fast memory copies of the raw binary data on
 both the Python and Java sides. This is handled by the C extension code in both
 the Java and Python sides.
+
+### Tuning properties
+
+Four Java system properties bound allocations whose right size depends on the
+machine and the workload. Each is a size in bytes, is set on the server JVM
+with `-D<name>=<value>`, and is read once at startup:
+
+- **`com.deshaw.pjrmi.maxRetainedBufferBytes`** *(64MB)* -- the largest message
+  buffer kept between messages. Three are retained per worker: the payload
+  being read, the one being built, and the one being sent.
+- **`com.deshaw.pjrmi.maxPayloadPreallocBytes`** *(256MB)* -- the most space
+  reserved for an incoming payload before its bytes have arrived, so that a
+  peer cannot spend the heap by claiming a huge size in a 21-byte header.
+- **`com.deshaw.pjrmi.maxRenderedBytes`** *(64kB)* -- how much of a payload is
+  rendered into a log message.
+- **`com.deshaw.python.maxRetainedCapacity`** *(64MB)* -- the largest pickling
+  buffer kept between pickles, per `PythonPickle` instance.
+
+The defaults are derived from a 1GB heap, the smallest PJRmi is normally run
+in. Raise them if messages are routinely larger and you would rather keep the
+space than regrow the buffers; lower them if you run many connections or many
+pickling threads in a small heap.
+
+A property which is set but cannot be honoured -- not a number, or not positive
+-- stops the process at startup with an `IllegalArgumentException` naming it,
+rather than being defaulted over. Setting one is a deliberate act, and running
+on with a value other than the one asked for is a misconfiguration nothing
+later would make obvious. Note that these are read once: setting one after
+PJRmi has started has no effect.
 
 
 ## Threading model

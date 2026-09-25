@@ -5,6 +5,7 @@ from   threading  import Thread
 from   unittest   import TestCase, skipUnless
 
 import gc
+import logging
 import numpy
 import os
 import pjrmi
@@ -138,6 +139,7 @@ def get_pjrmi():
         'java.util.concurrent.Future',
         'java.util.concurrent.TimeUnit',
         'java.util.concurrent.TimeoutException',
+        'java.util.logging.Logger',
     ])
 
     # Connect to PJRmi
@@ -2573,3 +2575,70 @@ class TestHugePayloads(TestCase):
             (array[self._SEAM_FROM:self._SEAM_TO] == 4.0).all(),
             "the sentinels either side of the sub-array seam did not survive"
         )
+
+
+class TestJavaLogHandler(TestCase):
+    """
+    Tests for the handler which echoes Python logging into a Java Logger.
+    """
+
+    def test_locking(self):
+        """
+        Handler.handle() should be able to lock the handler.
+
+        Handler.handle() wraps emit() in `with self.lock:` from Python 3.13
+        onwards, so a handler whose lock is not a context manager throws on
+        every record which it is given (Prop#356455). The Java side is stubbed
+        out so that this runs without a JVM.
+        """
+
+        class Level:
+            FINEST = FINE = INFO = WARNING = SEVERE = object()
+
+        class Rmi:
+            def class_for_name(self, classname):
+                return Level
+
+        class JavaLogger:
+            def __init__(self):
+                self.logged = []
+
+            def isLoggable(self, level):
+                return True
+
+            def log(self, level, message):
+                self.logged.append(message)
+
+        java_logger = JavaLogger()
+        handler     = pjrmi.JavaLogHandler(Rmi(), java_logger)
+
+        logger = logging.getLogger('pjrmi.tests.stubbed')
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
+        try:
+            logger.info("Testing, testing, 1 2 3")
+        finally:
+            logger.removeHandler(handler)
+
+        # emit() swallows everything which the Java side throws, so the record
+        # arriving is what says the handler got as far as calling it
+        self.assertEqual(len(java_logger.logged), 1)
+        self.assertIn("Testing, testing, 1 2 3", java_logger.logged[0])
+
+
+    def test_logging(self):
+        """
+        Logging a record through the handler should not throw.
+        """
+
+        Logger  = get_pjrmi().class_for_name('java.util.logging.Logger')
+        handler = pjrmi.JavaLogHandler(get_pjrmi(),
+                                       Logger.getLogger('pjrmi.tests'))
+
+        logger = logging.getLogger('pjrmi.tests')
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
+        try:
+            logger.info("Testing, testing, 1 2 3")
+        finally:
+            logger.removeHandler(handler)

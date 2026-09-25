@@ -7758,9 +7758,6 @@ class JavaLogHandler(logging.Handler):
         # Ensure the base class is configured
         logging.Handler.__init__(self)
 
-        # We don't need a lock for sending stuff to Java
-        self.lock = None
-
         Level = rmi.class_for_name('java.util.logging.Level')
 
         self._java_logger = java_logger
@@ -7773,14 +7770,6 @@ class JavaLogHandler(logging.Handler):
             (logging.WARNING, Level.WARNING),
             (logging.ERROR,   Level.SEVERE)
         )
-
-
-    def createLock(self):
-        """
-        No locking is required for us.
-        """
-
-        return None
 
 
     def emit(self, record: logging.LogRecord) -> None:

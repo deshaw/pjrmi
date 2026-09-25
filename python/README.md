@@ -818,7 +818,7 @@ this.
 
 ### Requirements
 
-PJRmi uses features in Java11 and later, and Python 3.6 and later.
+PJRmi uses features in Java11 and later, and Python 3.10 and later.
 
 
 ## History

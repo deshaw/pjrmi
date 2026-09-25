@@ -54,6 +54,11 @@ setup(
     version     =version,
     description ='PJRmi, RMI between Python and Java',
     url         ="https://github.com/deshaw/pjrmi",
+
+    # pjrmi uses match statements, so anything older than this fails at import
+    # with a SyntaxError. Saying so here gets pip to refuse the install instead.
+    python_requires='>=3.10',
+
     packages    =['pjrmi'],
     package_dir ={'pjrmi': 'pjrmi'},
     package_data={'pjrmi': ["lib/**"]},

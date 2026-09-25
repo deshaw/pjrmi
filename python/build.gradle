@@ -3,6 +3,196 @@ plugins {
     id 'base'
 }
 
+// Everything which we build below is specific to the version and platform of
+// the Python which the build will run under; that's the `python3` on the PATH,
+// which is what setup.py's shebang resolves to. `pip3` is a separate console
+// script with its own interpreter, which we check against this one below.
+//
+// Ask that interpreter about itself. It reports these as `key=value` lines:
+//   o buildLibDir, the directory which setup.py's build_ext puts results in
+//   o extSuffix, the filename suffix of a compiled extension module
+//   o wheelTag, the wheel's compatibility tag
+//   o version, the bare X.Y version, used for the pip3 cross-check
+//   o prefix, where the interpreter lives, used for the same
+//   o userSite, whether a --user install is possible
+//
+// For example:
+//   buildLibDir=lib.linux-x86_64-cpython-311
+//   extSuffix=.cpython-311-x86_64-linux-gnu.so
+//   wheelTag=cp311-cp311-linux_x86_64
+//
+// These are derived the same way that setuptools and wheel derive them, but
+// using only the standard library so that we don't depend on either of them
+// being importable when the build is configured.
+def pythonTagScript = '''
+import os
+import site
+import sys
+import sysconfig
+
+# The module uses match statements, so an older interpreter cannot import it.
+# We have the version to hand here, so this is the place to check it.
+if sys.version_info < (3, 10):
+    raise SystemExit(
+        "PJRmi needs Python 3.10 or later, but this python3 is %d.%d" %
+        sys.version_info[:2]
+    )
+
+soabi      = sysconfig.get_config_var("SOABI") or ""
+platform   = sysconfig.get_platform()
+cache_tag  = sys.implementation.cache_tag
+ext_suffix = sysconfig.get_config_var("EXT_SUFFIX")
+
+# A CPython which can build extensions always sets these. Check anyway, and
+# fail here naming the values we got, since every filename below is built from
+# them.
+if not platform or not cache_tag or not ext_suffix:
+    raise SystemExit(
+        "Cannot name the build products: platform=%r, cache_tag=%r, "
+        "EXT_SUFFIX=%r" % (platform, cache_tag, ext_suffix)
+    )
+
+py_tag   = "cp%d%d" % sys.version_info[:2]
+abi_tag  = ("cp" + soabi.split("-")[1]) if soabi.startswith("cpython-") else py_tag
+plat_tag = platform.replace("-", "_").replace(".", "_")
+
+# setuptools keeps a debug build's results in a directory of their own
+pydebug  = "-pydebug" if hasattr(sys, "gettotalrefcount") else ""
+
+# Emitted as key=value so that the Gradle side reads them by name and adding
+# one here does not disturb the others.
+print("buildLibDir=lib.%s-%s%s" % (platform, cache_tag, pydebug))
+print("extSuffix=%s" % ext_suffix)
+print("wheelTag=%s-%s-%s" % (py_tag, abi_tag, plat_tag))
+print("version=%d.%d" % sys.version_info[:2])
+
+# Where this interpreter lives, for the pip3 cross-check. Symlinks are resolved
+# because a site install is usually reached through a versionless alias.
+print("prefix=%s" % os.path.realpath(sys.prefix))
+
+# Whether a --user install is possible. This is the flag which pip itself
+# checks, and it is off inside a virtualenv. Note that sys.prefix against
+# sys.base_prefix is not a usable stand-in: a site install can legitimately
+# have them differ.
+print("userSite=%s" % ("yes" if site.ENABLE_USER_SITE else "no"))
+'''
+
+def pythonTagsExec = providers.exec {
+    commandLine 'python3', '-c', pythonTagScript
+    ignoreExitValue = true
+}
+
+// We check the exit code ourselves (hence the ignoreExitValue above) so that we
+// can put the interpreter's own stderr into the error which we throw.
+def pythonTagsResult
+try {
+    pythonTagsResult = pythonTagsExec.result.get()
+}
+catch (Exception e) {
+    throw new GradleException("Failed to run `python3`; is it on the PATH?", e)
+}
+
+if (pythonTagsResult.exitValue != 0) {
+    throw new GradleException(
+        "Failed to determine the Python build tags; `python3` exited " +
+        "${pythonTagsResult.exitValue}:\n" +
+        pythonTagsExec.standardError.asText.get()
+    )
+}
+
+def pythonTags = pythonTagsExec.standardOutput.asText.get().trim().readLines()
+                     .collectEntries { line ->
+                         def kv = line.split('=', 2)
+                         [(kv[0]): (kv.size() > 1 ? kv[1] : '')]
+                     }
+
+def missingTags = ['buildLibDir', 'extSuffix', 'wheelTag',
+                   'version', 'prefix', 'userSite'].findAll {
+                       !pythonTags[it]
+                   }
+if (missingTags) {
+    throw new GradleException(
+        "python3 did not report ${missingTags}; got ${pythonTags}"
+    )
+}
+
+// The build directory name, extension suffix, and wheel tag, for the Python
+// which we are building against, plus its version, where it lives, and whether
+// it can take a --user install.
+def pythonBuildLibDir  = pythonTags.buildLibDir
+def pythonExtSuffix    = pythonTags.extSuffix
+def pythonWheelTag     = pythonTags.wheelTag
+def pythonVersion      = pythonTags.version
+def pythonPrefix       = pythonTags.prefix
+def pythonHasUserSite  = (pythonTags.userSite == 'yes')
+
+// `pip3` is a console script with its own interpreter baked into its shebang, so
+// it need not be the `python3` which gave us the tags above. The `wheel` task
+// names its output from those tags but has pip3 create the file, and `develop`
+// installs into whichever interpreter pip3 belongs to, so the two have to be
+// the same Python.
+//
+// Only those two tasks care, so this runs from their doFirst. A build which
+// touches no Python task then needs no pip3 at all.
+def checkPipMatchesPython = {
+    def pipVersionExec = providers.exec {
+        commandLine 'pip3', '--version'
+        ignoreExitValue = true
+    }
+
+    def pipVersionResult
+    try {
+        pipVersionResult = pipVersionExec.result.get()
+    }
+    catch (Exception e) {
+        throw new GradleException("Failed to run `pip3`; is it on the PATH?", e)
+    }
+
+    if (pipVersionResult.exitValue != 0) {
+        throw new GradleException(
+            "Failed to ask `pip3` which Python it runs under; it exited " +
+            "${pipVersionResult.exitValue}:\n" +
+            pipVersionExec.standardError.asText.get()
+        )
+    }
+
+    // `pip X.Y from <dir> (python A.B)`
+    def pipVersionText  = pipVersionExec.standardOutput.asText.get().trim()
+    def pipVersionMatch = (pipVersionText =~ /from (.*) \(python (\d+\.\d+)\)/)
+
+    if (!pipVersionMatch.find()) {
+        throw new GradleException(
+            "Could not read the interpreter out of `pip3 --version`: ${pipVersionText}"
+        )
+    }
+
+    def pipDir           = new File(pipVersionMatch.group(1)).canonicalPath
+    def pipPythonVersion = pipVersionMatch.group(2)
+
+    if (pipPythonVersion != pythonVersion) {
+        throw new GradleException(
+            "`python3` is Python ${pythonVersion} but `pip3` runs under Python " +
+            "${pipPythonVersion}. The wheel and develop tasks would build against " +
+            "one and install to the other. Put a matching pip3 first on the PATH, " +
+            "or run gradle with a python3 which matches pip3."
+        )
+    }
+
+    // Matching versions are not enough. Two installations of the same version
+    // have their own site-packages, so a wheel built against one can still be
+    // installed into the other; this is the usual shape when a virtualenv is
+    // active but its pip3 is not first on the PATH.
+    if (pipDir != pythonPrefix && !pipDir.startsWith(pythonPrefix + File.separator)) {
+        throw new GradleException(
+            "`python3` and `pip3` are both Python ${pythonVersion} but they " +
+            "belong to different installations: python3 is under " +
+            "${pythonPrefix} while pip3 is at ${pipDir}. The extension would " +
+            "be built for one and installed into the other. Put the matching " +
+            "pip3 first on the PATH."
+        )
+    }
+}
+
 // Define custom configurations to manage dependencies on other projects.
 // Appropriate tasks from projects declared in the `dependencies` block would be
 // automatically executed when the configuration is resolved (in `copyArtifacts`).
@@ -112,7 +302,7 @@ abstract class GenerateFileExec extends DefaultTask {
 }
 
 tasks.register('buildExt', GenerateFileExec) {
-    target = project.layout.buildDirectory.file('lib.linux-x86_64-cpython-311/pjrmi/extension.cpython-311-x86_64-linux-gnu.so')
+    target = project.layout.buildDirectory.file("${pythonBuildLibDir}/pjrmi/extension${pythonExtSuffix}")
     environmentVariables = project.objects.mapProperty(String, Object)
             .value([
                     'PJRMI_VERSION': pjrmiVersion,
@@ -133,12 +323,20 @@ tasks.register('develop', Exec) {
     dependsOn buildExt
     environment "PJRMI_VERSION", pjrmiVersion
     environment "JAVA_HOME", System.properties['java.home']
-    commandLine "pip3", "install", "--user", "-e", projectDir
+
+    // pip refuses --user where there is no user site-packages, which is the
+    // case inside a virtualenv; installing into the virtualenv itself is what
+    // is wanted there. Elsewhere --user saves us from needing to be root.
+    commandLine(["pip3", "install"] +
+                (pythonHasUserSite ? ["--user"] : []) +
+                ["-e", projectDir.toString()])
+
+    doFirst { checkPipMatchesPython() }
 }
 
 
 tasks.register('wheel', GenerateFileExec) {
-    target = file("pjrmi-${pjrmiVersion}-cp311-cp311-linux_x86_64.whl")
+    target = file("pjrmi-${pjrmiVersion}-${pythonWheelTag}.whl")
     environmentVariables = project.objects.mapProperty(String, Object)
             .value([
                     'PJRMI_VERSION': pjrmiVersion,
@@ -153,6 +351,8 @@ tasks.register('wheel', GenerateFileExec) {
     outputs.dir('pjrmi.egg-info')
 
     dependsOn buildExt
+
+    doFirst { checkPipMatchesPython() }
 }
 
 task thin_wheel() {

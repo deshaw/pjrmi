@@ -6937,6 +6937,14 @@ public abstract class PJRmi
                 // read it. We use the incoming object, which is a deconstructed
                 // {@link JniPJRmi$ArrayHandle}, to read it.
 
+                // This won't work if JniPJRmi isn't working
+                if (!JniPJRmi.isAvailable()) {
+                    throw new UnsupportedOperationException(
+                        "Unable to read shared-memory data " +
+                        "since JNI is not available"
+                    );
+                }
+
                 // First, we read the filename as a String
                 final int countString = bytes.getInt(offset);
                 offset += Integer.BYTES;
@@ -8221,6 +8229,15 @@ public abstract class PJRmi
                 renderObject(threadId, reqId, buf, valueFormat, object, null);
             }
             else if (valueFormat == PythonValueFormat.SHMDATA) {
+                // This won't work if JniPJRmi isn't working; the client asking
+                // for the SHM value may not know this is the case
+                if (!JniPJRmi.isAvailable()) {
+                    throw new UnsupportedOperationException(
+                        "Unable to write shared-memory data " +
+                        "since JNI is not available"
+                    );
+                }
+
                 // Here's where we'll store the information from the write
                 final JniPJRmi.ArrayHandle arrayInfo;
 

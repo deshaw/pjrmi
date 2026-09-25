@@ -121,6 +121,23 @@ public class PythonUnpickle
         implements Global
     {
         /**
+         * The name of the method.
+         */
+        private final String myMethod;
+
+        /**
+         * CTOR
+         *
+         * @param module The module which this instance is registered under;
+         *               numpy renamed it from {@code numpy.core.multiarray} to
+         *               {@code numpy._core.multiarray} in numpy 2.
+         */
+        public NumpyCoreMultiarrayReconstruct(final String module)
+        {
+            myMethod = module + "._reconstruct()";
+        }
+
+        /**
          * {@inheritDoc}
          */
         @Override
@@ -138,7 +155,7 @@ public class PythonUnpickle
         @Override
         public String toString()
         {
-            return "numpy.core.multiarray._reconstruct()";
+            return myMethod;
         }
     }
 
@@ -162,8 +179,8 @@ public class PythonUnpickle
             }
             catch (ClassCastException e) {
                 throw new MalformedPickleException(
-                    "Invalid arguments passed to numpy.core.multiarray scalar: " +
-                        "expecting 2-tuple (dtype, data), got " + c
+                    "Invalid arguments passed to numpy.frombuffer: " +
+                    "expecting 2-tuple (data, dtype), got " + c
                 );
             }
         }
@@ -192,6 +209,23 @@ public class PythonUnpickle
         private static final int[] SCALAR_ARRAY_SHAPE = { 1 };
 
         /**
+         * The name of the method.
+         */
+        private final String myMethod;
+
+        /**
+         * CTOR
+         *
+         * @param module The module which this instance is registered under;
+         *               numpy renamed it from {@code numpy.core.multiarray} to
+         *               {@code numpy._core.multiarray} in numpy 2.
+         */
+        public NumpyCoreMultiarrayScalar(final String module)
+        {
+            myMethod = module + ".scalar()";
+        }
+
+        /**
          * {@inheritDoc}
          */
         @Override
@@ -202,7 +236,7 @@ public class PythonUnpickle
             final List tuple = (List) c;
             if (tuple.size() != 2) {
                 throw new MalformedPickleException(
-                    "Invalid arguments passed to numpy.core.multiarray scalar: " +
+                    "Invalid arguments passed to " + myMethod + ": " +
                         "expecting 2-tuple (dtype, data), got " + c
                 );
             }
@@ -237,7 +271,7 @@ public class PythonUnpickle
         @Override
         public String toString()
         {
-            return "numpy.core.multiarray.scalar()";
+            return myMethod;
         }
     }
 
@@ -599,14 +633,20 @@ public class PythonUnpickle
     private static final Map<String,Map<String,Global>> GLOBALS = new HashMap<>();
     static
     {
-        // Breaking the 80col convention for readability
-        registerGlobal("numpy.core.multiarray", "_reconstruct", new NumpyCoreMultiarrayReconstruct());
-        registerGlobal("numpy.core.multiarray", "scalar",       new NumpyCoreMultiarrayScalar());
-        registerGlobal("numpy",                 "ndarray",      new NDArrayType());
-        registerGlobal("numpy",                 "dtype",        new DTypeFactory());
-        registerGlobal("numpy",                 "frombuffer",   new NumpyFrombuffer());
-        registerGlobal("_codecs",               "encode",       new Encoder());
-        registerGlobal("__builtin__",           "bytes",        new BytesPlaceholder());
+        // Handles on duplicate strings
+        final String multiarray1 = "numpy.core.multiarray";
+        final String multiarray2 = "numpy._core.multiarray";
+
+        // Breaking the 80col convention for readability (in theory)
+        registerGlobal(multiarray2,   "_reconstruct", new NumpyCoreMultiarrayReconstruct(multiarray2));
+        registerGlobal(multiarray2,   "scalar",       new NumpyCoreMultiarrayScalar     (multiarray2));
+        registerGlobal(multiarray1,   "_reconstruct", new NumpyCoreMultiarrayReconstruct(multiarray1));
+        registerGlobal(multiarray1,   "scalar",       new NumpyCoreMultiarrayScalar     (multiarray1));
+        registerGlobal("numpy",       "ndarray",      new NDArrayType());
+        registerGlobal("numpy",       "dtype",        new DTypeFactory());
+        registerGlobal("numpy",       "frombuffer",   new NumpyFrombuffer());
+        registerGlobal("_codecs",     "encode",       new Encoder());
+        registerGlobal("__builtin__", "bytes",        new BytesPlaceholder());
     }
 
     // ----------------------------------------------------------------------

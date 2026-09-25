@@ -57,8 +57,13 @@ class TestJavaPythonUnpickle(TestCase):
                 [32768], # A list containing a BININT2, unsigned matters.
                 list(numpy.arange(131072)) # A long list of numpy.int64.
         ]:
+            # As of NumPy 2 a numpy scalar reprs as np.int64(0) rather than 0,
+            # so we stringify a plain-int copy of the list to compare against
+            # what Java renders. Otherwise the expected string reads:
+            #   [np.int64(0), np.int64(1), np.int64(2), ...]
             resulting_list = send_object_to_java(test_list)
-            self.assertTrue(str(test_list) == resulting_list.toString())
+            self.assertEqual(str(list(map(int, test_list))),
+                             resulting_list.toString())
 
 
     def test_numpy_array_integer(self):

@@ -6,6 +6,7 @@ import com.deshaw.python.PythonPickle;
 import com.deshaw.python.PythonUnpickle;
 
 import java.lang.reflect.Array;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +33,7 @@ public class PickleTest
     private static final Object[] OBJECTS = {
         null,
         true, false,
-        -100.0f, 0.0f, 100.0f
+        -100.0f, 0.0f, 100.0f,
         -1000.0, 0.0, 1000.0,
         -10000000, 10000000,
         -10000000000L, 10000000000L,
@@ -81,7 +82,50 @@ public class PickleTest
         doInOut(map);
     }
 
+    /**
+     * {@code numpy.frombuffer} takes the data and the descriptor, and nothing
+     * else. The complaint names the global that was called and states the
+     * order the two are expected in.
+     */
+    @Test
+    public void testFrombufferRejectsBadArguments()
+        throws Exception
+    {
+        // The argument is not a tuple at all:
+        //   PROTO 2; GLOBAL numpy frombuffer; BININT1 1; REDUCE; STOP
+        assertMalformed("\u0080\u0002" + "cnumpy\nfrombuffer\n" +
+                        "K\u0001" + "R" + ".");
+
+        // The argument is a tuple of the wrong size:
+        //   PROTO 2; GLOBAL numpy frombuffer; BININT1 1; TUPLE1; REDUCE; STOP
+        assertMalformed("\u0080\u0002" + "cnumpy\nfrombuffer\n" +
+                        "K\u0001" + "\u0085" + "R" + ".");
+    }
+
     // ----------------------------------------------------------------------
+
+    /**
+     * Assert that a pickle stream, given as a string in which each character
+     * stands for one byte, is rejected with the complaint that
+     * {@code numpy.frombuffer} was passed something other than a
+     * {@code (data, dtype)} pair.
+     */
+    private void assertMalformed(final String stream)
+    {
+        final byte[] pickle = stream.getBytes(StandardCharsets.ISO_8859_1);
+        final MalformedPickleException e = Assertions.assertThrows(
+            MalformedPickleException.class,
+            () -> PythonUnpickle.loadPickle(pickle),
+            "Should have been rejected"
+        );
+        Assertions.assertTrue(
+            e.getMessage() != null &&
+            e.getMessage().contains("Invalid arguments passed to " +
+                                    "numpy.frombuffer: " +
+                                    "expecting 2-tuple (data, dtype)"),
+            "Wrong complaint: " + e.getMessage()
+        );
+    }
 
     /**
      * Actually test some pickling.

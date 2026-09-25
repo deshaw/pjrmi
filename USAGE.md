@@ -7,14 +7,27 @@ You will need [Gradle](https://gradle.org/) to build PJRmi. Different Linux
 distributions will also need dependent packages to be installed. The specific
 versions in the below examples should be adjusted where appropriate.
 
+PJRmi needs Python 3.10 or later. The build uses whichever `python3` comes
+first on your `PATH`; where a distribution's default is older than that (RHEL8
+ships 3.6 and Ubuntu 20.04 ships 3.8) install a newer one and put it first,
+together with its matching `numpy`, `pip` and the rest.
+
+`python3` and `pip3` must belong to the same Python. The build checks this and
+stops if they disagree, since it compiles the extension against `python3` and
+then has `pip3` package and install it.
+
+The wheel is built with pip's build isolation turned off, so `setuptools`,
+`wheel` and `numpy` need to be installed for that Python rather than being
+fetched while the build runs.
+
 On Ubuntu you will want some of the following packages:
 ```bash
-sudo apt install build-essential g++ openjdk-11-jdk-headless python3-numpy py3c-dev python3-pip python3-snappy python3-dev libpython3-dev python3-pytest python3-plumbum
+sudo apt install build-essential g++ openjdk-11-jdk-headless python3-numpy py3c-dev python3-pip python3-setuptools python3-wheel python3-snappy python3-dev libpython3-dev python3-pytest python3-plumbum
 ```
 
 On RHEL8 you will want some of the following packages:
 ```bash
-sudo yum install gcc-toolset-12-gcc-c++ java-11-openjdk java-11-openjdk-devel python3-numpy python3-pip py3c-devel python3-pytest python3-wheel snappy-devel
+sudo yum install gcc-toolset-12-gcc-c++ java-11-openjdk java-11-openjdk-devel python3-numpy python3-pip python3-setuptools py3c-devel python3-pytest python3-wheel snappy-devel
 pip3 install python-snappy plumbum
 ```
 
@@ -25,11 +38,30 @@ done with the following command:
 
 ```bash
 $ ./gradlew develop
-$ python -c 'import pjrmi;print(pjrmi.PJRMI_VERSION)' // Smoke test
+$ python3 -c 'import pjrmi;print(pjrmi.PJRMI_VERSION)'  # Smoke test
 ```
 
 This may fail if the PJRmi wheel is already installed globally. If that is the
 case then see below about using the wheel explicitly.
+
+### Working in a virtualenv
+
+Optionally, you may want to activate the virtualenv before invoking Gradle, so
+that the build picks up a different version of `python3` and `pip3`:
+
+```bash
+$ python3 -m venv /path/to/venv
+$ . /path/to/venv/bin/activate
+$ pip install numpy setuptools wheel pytest plumbum
+$ ./gradlew develop
+```
+
+`develop` installs into the active virtualenv; outside of one it installs into
+your user site-packages instead.
+
+The Gradle daemon is disabled for this project. A daemon outlives the shell
+which started it and keeps handing out the environment it first saw, which is
+the wrong `python3` once you activate or deactivate a virtualenv.
 
 
 ## Build wheel
@@ -55,7 +87,7 @@ $ mkdir /tmp/mypythonlib
 $ cd /tmp/mypythonlib
 $ unzip /path/to/pjrmi/python/pjrmi-blah-blah.whl
 [...]
-$ PYTHONPATH=/tmp/mypythonlib python -c 'import pjrmi;print(pjrmi.PJRMI_VERSION)'
+$ PYTHONPATH=/tmp/mypythonlib python3 -c 'import pjrmi;print(pjrmi.PJRMI_VERSION)'
 1.23.4
 ```
 
@@ -90,8 +122,8 @@ Finally, you can embed a PJRmi server in a Java process and connect it remotely
 via an *unsecured* and *unauthenticated* TCP connection. The `PJRmi.java` code
 has an example of this in its main method:
 
-    user@host1:~$ java -Djava.library.path=`python -c 'import pjrmi; print(str(pjrmi.get_config()["libpath"]))'` \
-                       -classpath `python -c 'import pjrmi; print(str(pjrmi.get_config()["classpath"]))'`        \
+    user@host1:~$ java -Djava.library.path=`python3 -c 'import pjrmi; print(str(pjrmi.get_config()["libpath"]))'` \
+                       -classpath `python3 -c 'import pjrmi; print(str(pjrmi.get_config()["classpath"]))'`        \
                            com.deshaw.pjrmi.PJRmi
     INFO: PJRmi:Socket[65432] Listening for connections with Socket[65432]
     [...]

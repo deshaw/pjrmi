@@ -16,6 +16,7 @@ import os
 import pickle
 import random
 import re
+import shutil
 import signal
 import ssl
 import snappy
@@ -76,6 +77,15 @@ _STRUCT_DOUBLE      = struct.Struct('!d')
 _STRUCT_CHAR        = struct.Struct('!H')    # Java char is unsigned 16-bit
 _STRUCT_HEADER      = struct.Struct('!cqii') # msg_type, thread_id, request_id, payload_size
 _STRUCT_SEND_HEADER = struct.Struct('!qii')  # thread_id, request_id, payload_size
+
+# Every byte value, pre-rendered. _format_int8() is on the serialization hot
+# path and indexing this is cheaper than formatting the value on each call.
+_INT8_BYTES = tuple(bytes((i,)) for i in range(256))
+
+# The major version of the NumPy which we are running against. Some of NumPy's
+# semantics differ between 1 and 2, and this cannot change while we are running,
+# so we determine it just the once.
+_NUMPY_MAJOR_VERSION = int(numpy.__version__.split('.')[0])
 
 class PJRmi:
     """
@@ -2739,7 +2749,7 @@ public class TestInjectSource {
         return self._format_int32(len(payload)) + payload
 
 
-    def _format_float(self, value: float) -> bytes:
+    def _format_float(self, value: Union[float,numpy.floating]) -> bytes:
         """
         Format a float as 4 raw bytes.
         """
@@ -2747,7 +2757,7 @@ public class TestInjectSource {
         return _STRUCT_FLOAT.pack(value)
 
 
-    def _format_double(self, value: float) -> bytes:
+    def _format_double(self, value: Union[float,numpy.floating]) -> bytes:
         """
         Format a double as 8 raw bytes.
         """
@@ -2755,7 +2765,7 @@ public class TestInjectSource {
         return _STRUCT_DOUBLE.pack(value)
 
 
-    def _format_int64(self, value: int) -> bytes:
+    def _format_int64(self, value: Union[int,numpy.integer]) -> bytes:
         """
         Format a 64-bit int as raw bytes.
         """
@@ -2763,7 +2773,7 @@ public class TestInjectSource {
         return _STRUCT_INT64.pack(value)
 
 
-    def _format_int32(self, value: int) -> bytes:
+    def _format_int32(self, value: Union[int,numpy.integer]) -> bytes:
         """
         Format a 32-bit int as raw bytes.
         """
@@ -2771,7 +2781,7 @@ public class TestInjectSource {
         return _STRUCT_INT32.pack(value)
 
 
-    def _format_int16(self, value: int) -> bytes:
+    def _format_int16(self, value: Union[int,numpy.integer]) -> bytes:
         """
         Format a 16-bit int as raw bytes.
         """
@@ -2779,12 +2789,24 @@ public class TestInjectSource {
         return _STRUCT_INT16.pack(value)
 
 
-    def _format_int8(self, value: int) -> bytes:
+    def _format_int8(self, value: Union[int,numpy.integer]) -> bytes:
         """
         Format an 8-bit int as raw bytes.
+
+        The accepted range is -128..255: this formats both signed bytes and
+        unsigned ones. Only the low 8 bits go on the wire, and the receiver
+        decides which of the two it is reading.
         """
 
-        return (b"%c" % (value & 0xff))
+        # The wide range is why this does not use _STRUCT_INT8 like its
+        # siblings do; '!b' rejects anything above 127.
+        #
+        # We need to explicitly cast to an int here before we mask off the value
+        # since, as of NumPy 2 (NEP 50), the 0xff is converted to the other
+        # operand's dtype; masking a numpy.int8 with it then tries to build an
+        # int8(255), which is out of bounds for a signed byte. It's the 0xff
+        # which fails to convert, so this happens for every int8 value
+        return _INT8_BYTES[int(value) & 0xff]
 
 
     def _format_boolean(self, value: bool) -> bytes:
@@ -2792,7 +2814,9 @@ public class TestInjectSource {
         Format a boolean as a byte.
         """
 
-        return (b"%c" % (1 if value else 0))
+        # These two are interned, so this is cheaper than formatting. It
+        # matters because arrays are sent an element at a time.
+        return b'\x01' if value else b'\x00'
 
 
     def _format_array(self,
@@ -3307,7 +3331,12 @@ public class TestInjectSource {
                 elif isinstance(value, float):
                     # NaNs become doubles since a specially crafted float64 NaN
                     # cannot always be losslessly converted to a float32 NaN.
-                    if numpy.float32(value) == value and not numpy.isnan(value):
+                    #
+                    # As of NumPy 2 (NEP 50) comparing a float32 with a Python
+                    # float demotes the float to float32, so the float() cast is
+                    # what holds this comparison in float64.
+                    as_float32 = float(numpy.float32(value))
+                    if as_float32 == value and not numpy.isnan(value):
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Float) +
                                 self._format_float(strict_number(numpy.float32, value)))
@@ -3400,17 +3429,21 @@ public class TestInjectSource {
             # Marshalling to a Number type?
             elif type_id == self._type_id_Number:
                 if isinstance(value, int):
-                    if numpy.int8(value) == value:
+                    # The same type boundaries as for a boxed integer above. We
+                    # test the bounds directly since, as of NumPy 2, handing an
+                    # out-of-range Python int to a scalar constructor raises an
+                    # OverflowError.
+                    if  -128 <= value < 128:
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Byte) +
                                 self._format_int8(strict_number(numpy.int8, value)))
 
-                    elif numpy.int16(value) == value:
+                    elif -32768 <= value < 32768:
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Short) +
                                 self._format_int16(strict_number(numpy.int16, value)))
 
-                    elif numpy.int32(value) == value:
+                    elif -2147483648 <= value < 2147483648:
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Integer) +
                                 self._format_int32(strict_number(numpy.int32, value)))
@@ -3423,7 +3456,12 @@ public class TestInjectSource {
                 elif isinstance(value, float):
                     # NaNs become doubles since a specially crafted float64 NaN
                     # cannot always be losslessly converted to a float32 NaN.
-                    if numpy.float32(value) == value and not numpy.isnan(value):
+                    #
+                    # As of NumPy 2 (NEP 50) comparing a float32 with a Python
+                    # float demotes the float to float32, so the float() cast is
+                    # what holds this comparison in float64.
+                    as_float32 = float(numpy.float32(value))
+                    if as_float32 == value and not numpy.isnan(value):
                         return (self._ARGUMENT_VALUE +
                                 self._format_int32(self._type_id_Float) +
                                 self._format_float(strict_number(numpy.float32, value)))
@@ -3594,8 +3632,7 @@ public class TestInjectSource {
                     return (self._ARGUMENT_VALUE +
                             self._format_int32(type_id) +
                             self._format_int32(len(value)) +
-                            b''.join(self._format_int8(el)
-                                     for el in value.encode('ASCII')))
+                            value.encode('ASCII'))
                 else:
                     # Anything else we attempt to convert into a list of 8bit
                     # integers (bytes)
@@ -5392,7 +5429,22 @@ public class TestInjectSource {
                     case _:
                         raise ValueError("Unhandled dtype: '%s'" % (dtype,))
 
-            def __array__(self_, dtype: numpy.dtype = None):
+            def __array__(self_, dtype: numpy.dtype = None, copy: bool = None):
+                # Under NumPy 2 the copy argument has three meanings: True says
+                # we must copy, None says copy if we need to, and False says the
+                # caller requires a view and we should raise if we can't hand
+                # one back. Materialising a remote cube pulls the data over the
+                # wire, so False is a request which we can only refuse.
+                #
+                # Under NumPy 1 the same argument is just a preference, and a
+                # caller passing False is content with a copy if that's all we
+                # have, so we give them one.
+                if copy is False and _NUMPY_MAJOR_VERSION >= 2:
+                    raise ValueError(
+                        "Cannot avoid a copy when materialising a remote "
+                        "Hypercube; use numpy.asarray() if a copy is acceptable"
+                    )
+
                 # Do this by best-effort assuming that it's one which we can
                 # cast and pickle but, if we encounter an error, then just go
                 # with doing it "by hand".
@@ -6783,10 +6835,15 @@ class UnixFifoTransport:
         :param stderr:           the stderr file, or None to delete the handle.
         """
 
+        # We launch the sub-process below with posix_spawn(), which does not
+        # fork the interpreter. Python warns about fork() in a multi-threaded
+        # process, and we are one, so a fork-and-exec gets us a warning which
+        # does not apply to us: our child execs immediately.
+
         classpath = tuple(classpath) + (_PJRMI_FATJAR,)
 
         # Sanity check to make sure that any environment value is a dict. We
-        # require this when we exec below.
+        # require this so that we can merge it into the child's environment.
         if environment:
             environment = dict(environment)
         else:
@@ -6832,18 +6889,18 @@ class UnixFifoTransport:
         # Any file-handles which we need to close when done
         self._filehandles = []
 
-        # How to handle a file action
+        # How to handle a file action, as a posix_spawn() file_actions entry
         def add_file_action(handle, fileno, file_actions):
             if handle is None:
-                file_actions.append(lambda: os.close(fileno))
+                file_actions.append((os.POSIX_SPAWN_CLOSE, fileno))
             elif isinstance(handle, int):
-                file_actions.append(lambda: os.dup2(handle, fileno))
+                file_actions.append((os.POSIX_SPAWN_DUP2, handle, fileno))
             elif isinstance(handle, io.IOBase):
-                file_actions.append(lambda: os.dup2(handle.fileno(), fileno))
+                file_actions.append((os.POSIX_SPAWN_DUP2, handle.fileno(), fileno))
             elif isinstance(handle, str):
                 fh = open(handle, 'ab')
                 self._filehandles.append(fh)
-                file_actions.append(lambda: os.dup2(fh.fileno(), fileno))
+                file_actions.append((os.POSIX_SPAWN_DUP2, fh.fileno(), fileno))
             else:
                 raise TypeError("'%s' %s was not a file handle or number" %
                                 (handle, type(handle)))
@@ -6878,48 +6935,45 @@ class UnixFifoTransport:
                tuple(java_args) +
                application_args)
 
-        # And spawn it
-        pid = os.fork()
-        if pid == 0:
-            # We are the child. Execution will not escape this if block since we
-            # do an exec() below.
+        # The environment which the child will get. This also determines where
+        # we look up JAVA_HOME from, if we need to.
+        env = dict(os.environ)
+        env.update(environment)
+        java_home = env.get('JAVA_HOME')
 
-            # Handle the file actions
-            for action in file_actions:
-                action()
-
-            # Any environment to inherit? This will also determine where to look
-            # up JAVA_HOME from, if we need to.
-            if environment:
-                env = dict(os.environ)
-                env.update(environment)
-                java_home = env.get('JAVA_HOME')
+        # Respect JAVA_HOME for looking up the executable location, if it's in
+        # the environment and we don't have a specific executable given
+        if java_executable is None:
+            if java_home is not None:
+                java_executable = os.path.join(java_home, 'bin', 'java')
             else:
-                env = None
-                java_home = os.environ.get('JAVA_HOME')
+                java_executable = 'java'
 
-            # Respect JAVA_HOME for looking up the executable location, if it's
-            # in the environment and we don't have a specific executable given
-            if java_executable is None:
-                if java_home is not None:
-                    java_executable = os.path.join(java_home, 'bin', 'java')
-                else:
-                    java_executable = 'java'
-
-            # Use any given environment
-            if env is not None:
-                # And exec into the desired process with the new environment
-                os.execlpe(java_executable, *(cmd + (env,)))
+        # The FIFOs and their directory are removed only by disconnect(), and
+        # nothing calls that for a connection which was never established, so
+        # we tidy them up here if we don't make it as far as a live child.
+        try:
+            # posix_spawn() requires a full path to execute, not a name to find
+            # in the $PATH, so we handle that aspect ourselves
+            if os.path.dirname(java_executable):
+                java_path = java_executable
             else:
-                # No environment, just exec directly
-                os.execlp(java_executable, *cmd)
+                java_path = shutil.which(java_executable, path=env.get('PATH'))
+                if java_path is None:
+                    raise FileNotFoundError(
+                        "Could not find '%s' on the PATH" % (java_executable,)
+                    )
 
-            # Since we have exec()'d above, this line is never reached
-            assert False, "Never reached"
+            # And spawn it; any exec failure is raised here
+            pid = os.posix_spawn(java_path, cmd, env, file_actions=file_actions)
 
-        # We are the parent. Remember the details of the child, so we can
-        # canonically look it up later. Be a little paranoid about this, since
-        # we don't want this weirdly croaking if the child immediately dies.
+        except BaseException:
+            self._discard_fifos()
+            raise
+
+        # Remember the details of the child, so we can canonically look it up
+        # later. Be a little paranoid about this, since we don't want this
+        # weirdly croaking if the child immediately dies.
         self._pid = pid
         try:
             self._pid_time = Process(pid).create_time()
@@ -6958,6 +7012,34 @@ class UnixFifoTransport:
             # We have timed out trying to connect to our Java subprocess.
             self.disconnect()
             raise RuntimeError("Timed out connecting to Java subprocess")
+
+
+    def _discard_fifos(self) -> None:
+        """
+        Close and remove the FIFOs, and anything opened for redirection, for a
+        connection which never came into being.
+
+        This is best effort; it is called while unwinding out of __init__() and
+        must not mask the error which sent us here. Note that it deliberately
+        does not go via disconnect(), which expects a live child.
+        """
+
+        for handle in [self._to_fifo] + self._filehandles:
+            try:
+                handle.close()
+            except Exception:
+                pass
+
+        for filename in (self._to_fifoname, self._from_fifoname):
+            try:
+                os.remove(filename)
+            except Exception:
+                pass
+
+        try:
+            os.rmdir(self._tmpdir)
+        except Exception:
+            pass
 
 
     def __str__(self) -> str:

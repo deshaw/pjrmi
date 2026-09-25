@@ -8,11 +8,13 @@ import gc
 import numpy
 import os
 import pjrmi
+import shutil
 import signal
 import subprocess
 import sys
 import tempfile
 import time
+import warnings
 import weakref
 
 
@@ -110,6 +112,7 @@ def get_pjrmi():
         'com.deshaw.pjrmi.test.PJRmiTestHelpers$OverriddenMethodsBase',
         'com.deshaw.pjrmi.test.PJRmiTestHelpers$OverriddenMethodsDerived',
         'com.deshaw.pjrmi.test.PJRmiTestHelpers$PrecedenceMethods',
+        'com.deshaw.python.MalformedPickleException',
         'com.deshaw.python.NumpyArray',
         'com.deshaw.python.PythonUnpickle',
         'java.lang.Class',
@@ -139,12 +142,12 @@ def get_pjrmi():
 
     # Connect to PJRmi
     _pjrmi_connection = pjrmi.connect_to_child_jvm(
-        # We need around least 3Gb of heap for these tests but we give it a bit
+        # We need around least 4Gb of heap for these tests but we give it a bit
         # of headroom just in case. Some systems with a smaller memory footprint
         # will have a smaller default heap size. It's safe to set the maximum
         # value to higher number than the available memory, since the JVM will
         # only allocate what it needs to.
-        java_args=("-Xmx4g",),
+        java_args=("-Xmx8g",),
         # Turning class blocking on but allowing class injection does reduce
         # the fidelity of these tests compared to production but it's at least
         # better than not having class blocking.
@@ -232,6 +235,20 @@ class TestPJRmi(TestCase):
         v1    = 123
         v2, i = get_pjrmi()._read_int8(get_pjrmi()._format_int8(v1), 0)
         self.assertEqual(v1, v2)
+
+        # NumPy scalars must round-trip too. As of NumPy 2 the masking in
+        # _format_int8() raises for any numpy.int8 unless it's cast first.
+        v1    = numpy.int8(-1)
+        v2, i = get_pjrmi()._read_int8(get_pjrmi()._format_int8(v1), 0)
+        self.assertEqual(v1, v2)
+
+        v1    = numpy.int8(-128)
+        v2, i = get_pjrmi()._read_int8(get_pjrmi()._format_int8(v1), 0)
+        self.assertEqual(v1, v2)
+
+        # And an unsigned byte goes out as its low 8 bits, since _format_int8()
+        # serves both signednesses and leaves the choice to the receiver
+        self.assertEqual(b'\xc8', get_pjrmi()._format_int8(200))
 
         v1    = 1234
         v2, i = get_pjrmi()._read_int16(get_pjrmi()._format_int16(v1), 0)
@@ -523,12 +540,13 @@ class TestPJRmi(TestCase):
 
         c      = get_pjrmi()
         Object = c.class_for_name('java.lang.Object')
+        Number = c.class_for_name('java.lang.Number')
 
-        def encoded_type_id(value):
+        def encoded_type_id(value, klass=Object):
             """
             Return the Java type ID encoded in the marshalled bytes for value.
             """
-            result = c._format_by_class(Object, value)
+            result = c._format_by_class(klass, value)
             return struct.unpack('!i', result[1:5])[0]
 
         # Byte range edges
@@ -546,6 +564,61 @@ class TestPJRmi(TestCase):
         # Just outside the Short range -> Integer
         self.assertEqual(c._type_id_Integer, encoded_type_id( 32768))
         self.assertEqual(c._type_id_Integer, encoded_type_id(-32769))
+
+        # The same boundaries hold when marshalling to Number, which has its
+        # own copy of the ladder. As of NumPy 2 an out-of-range Python int
+        # raises from a scalar constructor, so anything above 127 used to
+        # blow up here rather than stepping down to the next type.
+        self.assertEqual(c._type_id_Byte,    encoded_type_id( 127,        Number))
+        self.assertEqual(c._type_id_Byte,    encoded_type_id(-128,        Number))
+        self.assertEqual(c._type_id_Short,   encoded_type_id( 128,        Number))
+        self.assertEqual(c._type_id_Short,   encoded_type_id(-129,        Number))
+        self.assertEqual(c._type_id_Short,   encoded_type_id( 32767,      Number))
+        self.assertEqual(c._type_id_Integer, encoded_type_id( 32768,      Number))
+        self.assertEqual(c._type_id_Integer, encoded_type_id(-32769,      Number))
+        self.assertEqual(c._type_id_Long,    encoded_type_id( 2147483648, Number))
+
+
+    def test_float_marshalling_ranges(self):
+        """
+        Ensure that Python floats are marshalled to the most restrictive Java
+        type that can represent them without loss of precision.
+
+        A value which survives a round trip through float32 becomes a
+        java.lang.Float; anything else becomes a java.lang.Double.
+        """
+        import struct
+
+        c      = get_pjrmi()
+        Object = c.class_for_name('java.lang.Object')
+        Number = c.class_for_name('java.lang.Number')
+
+        def encoded_type_id(value, klass):
+            """
+            Return the Java type ID encoded in the marshalled bytes for value.
+            """
+            result = c._format_by_class(klass, value)
+            return struct.unpack('!i', result[1:5])[0]
+
+        # Exactly representable as a float32, so Float. As of NumPy 2 (NEP 50)
+        # a float32-vs-float comparison is done in float32, which made every
+        # one of the Double cases below look exactly representable.
+        for klass in (Object, Number):
+            self.assertEqual(c._type_id_Float,  encoded_type_id( 0.0,   klass))
+            self.assertEqual(c._type_id_Float,  encoded_type_id( 1.0,   klass))
+            self.assertEqual(c._type_id_Float,  encoded_type_id( 1.5,   klass))
+            self.assertEqual(c._type_id_Float,  encoded_type_id(-2.25,  klass))
+
+            # Not exactly representable as a float32, so Double
+            self.assertEqual(c._type_id_Double, encoded_type_id( 0.1,   klass))
+            self.assertEqual(c._type_id_Double, encoded_type_id( 1e300, klass))
+            self.assertEqual(c._type_id_Double,
+                             encoded_type_id(3.141592653589793, klass))
+
+            # NaN is always sent as a double, since a float64 NaN cannot always
+            # be losslessly narrowed to a float32 one
+            self.assertEqual(c._type_id_Double,
+                             encoded_type_id(float('nan'), klass))
 
 
     def test_instanceof(self):
@@ -763,6 +836,71 @@ class TestPJRmi(TestCase):
             pm.f(o, o, o)
         self.assertTrue(
             str(e.exception).startswith('Could not find a method matching'))
+
+
+    def test_child_stdio_redirection(self):
+        """
+        Test redirecting the child JVM's stdio to filenames and to file
+        descriptors.
+
+        The spawn code turns each handle into a posix_spawn() file action, with
+        a different action per handle type. The other tests only ever pass None,
+        so this covers the filename and descriptor forms.
+        """
+
+        # Write strings of known (and different) contents to stdout and stderr
+        # so that we can verify the redirection.
+        #
+        # Note that, upon launch, the JVM will print a bunch of log messages out
+        # (to stderr) so we only need to check that these are in the output
+        # files somewhere.
+        out_string = 'This is stdout'
+        err_string = 'This, however, is stderr'
+
+        tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmpdir, ignore_errors=True)
+
+        out_path = os.path.join(tmpdir, 'out.txt')
+        err_path = os.path.join(tmpdir, 'err.txt')
+
+        # Filenames, which the spawn code opens and dup2()s
+        conn = pjrmi.connect_to_child_jvm(stdin =None,
+                                          stdout=out_path,
+                                          stderr=err_path)
+        try:
+            # Write out the strings
+            System = conn.class_for_name('java.lang.System')
+            System.out.print(out_string)
+            System.err.print(err_string)
+            System.out.flush()
+            System.err.flush()
+
+        finally:
+            conn.disconnect()
+
+        # Check that they both got what we expect
+        with open(out_path, 'r') as fh:
+            self.assertIn(out_string, fh.read())
+        with open(err_path, 'r') as fh:
+            self.assertIn(err_string, fh.read())
+
+        # And now a file descriptor, which is dup2()'d directly
+        fd_path = os.path.join(tmpdir, 'fd.txt')
+        with open(fd_path, 'ab') as fh:
+            conn = pjrmi.connect_to_child_jvm(stdin =None,
+                                              stdout=None,
+                                              stderr=fh.fileno())
+            try:
+                # Write out the strings
+                System = conn.class_for_name('java.lang.System')
+                System.err.print(err_string)
+                System.err.flush()
+            finally:
+                conn.disconnect()
+
+        # Check that it got what we expect
+        with open(fd_path, 'r') as fh:
+            self.assertIn(err_string, fh.read())
 
 
     def test_connection_is_freed(self):
@@ -1757,6 +1895,44 @@ public class TestNameMangling {
                          test_type.value)
         self.assertEqual(tuple(HashSet(test_type)),
                          tuple((test_type.value,)))
+
+
+    def test_hypercube_array_copy_kwarg(self):
+        """
+        Make sure that a Hypercube's __array__() honours NumPy's copy argument.
+
+        Materialising a cube always pulls its data over the wire, so a caller
+        which requires a view has to be told that it cannot have one.
+        """
+        CubeMath = get_pjrmi().class_for_name('com.deshaw.hypercube.CubeMath')
+
+        nda  = numpy.arange(6, dtype='float64')
+        cube = CubeMath.copy(nda)
+
+        # The unset case and the two permissive settings all produce the data
+        for kwargs in ({}, {'copy': None}, {'copy': True}):
+            self.assertTrue(numpy.all(nda == cube.__array__(**kwargs)),
+                            f'mismatch for {kwargs}')
+
+        # What copy=False means depends on the NumPy version. Under 2 it says
+        # the caller requires a view, which we cannot give, so we refuse; under
+        # 1 it is only a preference and a copy is an acceptable answer. Check
+        # both the protocol method and the call a user actually writes.
+        if pjrmi._NUMPY_MAJOR_VERSION >= 2:
+            with self.assertRaises(ValueError):
+                cube.__array__(copy=False)
+            with self.assertRaises(ValueError):
+                numpy.array(cube, copy=False)
+        else:
+            self.assertTrue(numpy.all(nda == cube.__array__(copy=False)))
+            self.assertTrue(numpy.all(nda == numpy.array(cube, copy=False)))
+
+        # And the plain conversions still work, without tripping the NumPy 2
+        # deprecation warning about __array__() not taking a copy argument
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', DeprecationWarning)
+            self.assertTrue(numpy.all(nda == numpy.asarray(cube)))
+            self.assertTrue(numpy.all(nda == numpy.array(cube)))
 
 
     def test_hypercubes(self):

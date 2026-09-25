@@ -115,7 +115,14 @@ static bool error_check_for_get(JNIEnv* env, jstring filename,
         return false;
     }
 
-    if (strlen(env->GetStringUTFChars(filename, NULL)) == 0) {
+    const char* fname = env->GetStringUTFChars(filename, NULL);
+    if (fname == NULL) {
+        // GetStringUTFChars returns NULL only on OOM; JNI sets a pending exception
+        return false;
+    }
+    const bool empty = (strlen(fname) == 0);
+    env->ReleaseStringUTFChars(filename, fname);
+    if (empty) {
         throw_java_exception(
             env,
             "java/lang/IllegalArgumentException",
@@ -237,7 +244,7 @@ static void pjrmi_array_to_shm(JNIEnv* env,
 
     // Calculate the size, in bytes, of the array we are writing.
     // We rely on the caller to check these elements.
-    const uint64_t array_bytes = num_elems * elem_size;
+    const uint64_t array_bytes = (uint64_t)num_elems * elem_size;
 
     // Write the data to memory
     std::string returned_filename;
@@ -301,11 +308,14 @@ static void* pjrmi_array_from_shm(JNIEnv* env,
         return NULL;
     }
 
-    // Get the pointer from memory
+    // Get the pointer from memory; release the JNI string on all paths
     try {
-        return des::pjrmi::mmap_bytes_from_shm(file, array_bytes, type);
+        void* result = des::pjrmi::mmap_bytes_from_shm(file, array_bytes, type);
+        env->ReleaseStringUTFChars(filename, file);
+        return result;
     }
     catch (des::pjrmi::exception::io& e) {
+        env->ReleaseStringUTFChars(filename, file);
         pjrmi_exception_handle(env, e);
         return NULL;
     }
@@ -337,6 +347,7 @@ static void pjrmi_array_from_shm_cleanup(JNIEnv* env,
             "java/io/IOException",
             "Given filename is null"
         );
+        return;
     }
 
     try {
@@ -345,6 +356,7 @@ static void pjrmi_array_from_shm_cleanup(JNIEnv* env,
     catch (des::pjrmi::exception::io& e) {
         pjrmi_exception_handle(env, e);
     }
+    env->ReleaseStringUTFChars(filename, file);
 }
 
 // ------------------------------------------------------------------------- //
@@ -671,7 +683,7 @@ JNIEXPORT void JNICALL Java_com_deshaw_pjrmi_JniPJRmi_nativeGetDoubleArray
         return;
     }
     // We specify double here because its type is not overly ambiguous
-    const uint64_t array_bytes = num_elems * sizeof(double);
+    const uint64_t array_bytes = (uint64_t)num_elems * sizeof(double);
     void* data = pjrmi_array_from_shm(env,
                                       filename,
                                       array_bytes,

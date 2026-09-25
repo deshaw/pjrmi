@@ -107,6 +107,11 @@ private:
     jobject _provider;
 
     /**
+     * The PipedPJRmi instance running in the JVM.
+     */
+    jobject _pjrmi;
+
+    /**
      * How we ask for a connection.
      */
     jmethodID _new_connection;
@@ -140,6 +145,8 @@ PJRmiPipe::PJRmiPipe(const std::vector<std::string>& classpath,
     noexcept(false) :
     _jvm(NULL),
     _env(NULL),
+    _provider(NULL),
+    _pjrmi(NULL),
     _pipe(NULL),
     _read(NULL),
     _write(NULL)
@@ -184,8 +191,10 @@ PJRmiPipe::PJRmiPipe(const std::vector<std::string>& classpath,
     vm_args.options            = jvm_options;
     vm_args.ignoreUnrecognized = 1;
 
-    // Construct a VM
+    // Construct a VM; free the options array immediately after -- the JVM copies
+    // what it needs during JNI_CreateJavaVM and the array is not referenced again.
     jint res = JNI_CreateJavaVM(&_jvm, (void **)&_env, &vm_args);
+    delete[] jvm_options;
     if (res != JNI_OK) {
         std::stringstream err;
         err << "Failed to create Java VM: ";
@@ -277,17 +286,16 @@ PJRmiPipe::PJRmiPipe(const std::vector<std::string>& classpath,
     check_exception("constructing PipedProvider instance");
     assert(_provider != NULL);
 
-    // And the PipedPJRmi which we'll talk to. We create a Global Reference to
-    // this guy but then forget about it. We should probably clean it up in the
-    // DTOR...
-    jobject pjrmi = _env->NewGlobalRef(
-                        _env->NewObject(PipedPJRmi, pjrmi_ctor, _provider, pjrmi_args)
-                    );
+    // And the PipedPJRmi which we'll talk to. Store as a Global Reference so
+    // it can be released in the destructor.
+    _pjrmi = _env->NewGlobalRef(
+                 _env->NewObject(PipedPJRmi, pjrmi_ctor, _provider, pjrmi_args)
+             );
     check_exception("constructing PipedPJRmi instance");
-    assert(pjrmi != NULL);
+    assert(_pjrmi != NULL);
 
     // Start the PJRmi instance
-    _env->CallVoidMethod(pjrmi, pjrmi_start);
+    _env->CallVoidMethod(_pjrmi, pjrmi_start);
 }
 
 /**
@@ -313,8 +321,8 @@ void PJRmiPipe::disconnect()
         throw std::runtime_error("Not connected");
     }
 
-    _pipe = NULL;
     _env->DeleteGlobalRef(_pipe);
+    _pipe = NULL;
 }
 
 /**
@@ -322,6 +330,18 @@ void PJRmiPipe::disconnect()
  */
 PJRmiPipe::~PJRmiPipe()
 {
+    if (_pipe != NULL) {
+        _env->DeleteGlobalRef(_pipe);
+        _pipe = NULL;
+    }
+    if (_pjrmi != NULL) {
+        _env->DeleteGlobalRef(_pjrmi);
+        _pjrmi = NULL;
+    }
+    if (_provider != NULL) {
+        _env->DeleteGlobalRef(_provider);
+        _provider = NULL;
+    }
     _jvm->DestroyJavaVM();
 }
 
@@ -577,7 +597,7 @@ static PyObject* _read(PyObject* /*self*/, PyObject* args)
 
     try {
         // Read into here
-        char result[count+1];
+        std::vector<char> result(count + 1);
 
         // Read in the amount we want to read, or up until the EOF marker
         Py_ssize_t len;
@@ -595,7 +615,7 @@ static PyObject* _read(PyObject* /*self*/, PyObject* args)
         result[len] = '\0';
 
         // And hand back the Pythonified version
-        return PyBytes_FromStringAndSize(result, len);
+        return PyBytes_FromStringAndSize(result.data(), len);
     }
     catch (std::exception& e) {
         std::stringstream err;

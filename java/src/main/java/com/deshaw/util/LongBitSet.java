@@ -7,6 +7,7 @@ import java.util.BitSet;
  * Like a {@link BitSet} but with {@code long} indices and simpler.
  */
 public class LongBitSet
+    implements Cloneable
 {
     /**
      * Words for an empty bitset.
@@ -151,13 +152,17 @@ public class LongBitSet
     }
 
     /**
-     * {@inheritDoc}
+     * Returns a deep copy of this bitset. The returned instance shares no state
+     * with this one; mutating either leaves the other unchanged.
      */
     @Override
     public Object clone()
     {
         try {
             final LongBitSet result = (LongBitSet)super.clone();
+            // super.clone() shallow-copies myBitSets; clone the array itself so
+            // the original and the copy do not share the same backing array.
+            result.myBitSets = result.myBitSets.clone();
             for (int i=0; i < result.myBitSets.length; i++) {
                 result.myBitSets[i] = (BitSet)result.myBitSets[i].clone();
             }

@@ -5801,6 +5801,15 @@ public abstract class PJRmi
                         );
                     }
 
+                    // Reject negative payload sizes before any allocation or
+                    // loop; a negative size misaligns the stream for all
+                    // subsequent messages.
+                    if (size < 0) {
+                        throw new IOException(
+                            "Invalid payload size from peer: " + size
+                        );
+                    }
+
                     // Now read the payload. We keep reading until we believe
                     // that we got everything we care about. The payload might
                     // be split over several packets etc.
@@ -6549,6 +6558,41 @@ public abstract class PJRmi
         }
 
         /**
+         * Read a peer-supplied length, or element count, from the wire.
+         *
+         * <p>The value is read as a big-endian 32-bit signed integer
+         * ({@code int32}), which is the width the wire format uses for all
+         * lengths and counts; a length sent as any other width must not be read
+         * with this method. The value read is of size {@link Integer#BYTES}
+         * which the caller will need to account for in subsequent reads.
+         *
+         * <p>A negative value means that the peer sent us something malformed.
+         * We turn it into an {@link IOException} here so that it is immediately
+         * reported as the protocol error.
+         *
+         * @param bytes  The buffer to read the length from.
+         * @param offset The offset of the {@code int32} to read.
+         * @param what   What the length describes, for the error message.
+         *
+         * @return the length, which is guaranteed to be non-negative.
+         *
+         * @throws IOException if the peer gave us a negative length.
+         */
+        private int readLength(final ByteList bytes,
+                               final int      offset,
+                               final String   what)
+            throws IOException
+        {
+            final int length = bytes.getInt(offset);
+            if (length < 0) {
+                throw new IOException(
+                    "Invalid " + what + " from peer: " + length
+                );
+            }
+            return length;
+        }
+
+        /**
          * Read an Object from an input stream along with its type information.
          */
         private ReadObjectResult readObject(final ByteList bytes, int offset)
@@ -6640,7 +6684,7 @@ public abstract class PJRmi
                 {
                     // Strings, char[]s, chars are sent over as UTF-16 strings
                     // and handled appropriately
-                    final int count = bytes.getInt(offset);
+                    final int count = readLength(bytes, offset, "string length");
                     offset += Integer.BYTES;
                     final byte[] buffer = getByteArray(count);
                     for (int i=0; i < count; i++) {
@@ -6672,7 +6716,8 @@ public abstract class PJRmi
                     }
                 }
                 else if (typeDesc.getName().equals("[Z")) {
-                    final boolean[] array = new boolean[bytes.getInt(offset)];
+                    final int       len   = readLength(bytes, offset, "array length");
+                    final boolean[] array = new boolean[len];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
                         array[i] = bytes.getBoolean(offset++);
@@ -6680,7 +6725,8 @@ public abstract class PJRmi
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[B")) {
-                    final byte[] array = new byte[bytes.getInt(offset)];
+                    final int    len   = readLength(bytes, offset, "array length");
+                    final byte[] array = new byte[len];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
                         array[i] = bytes.get(offset++);
@@ -6688,7 +6734,8 @@ public abstract class PJRmi
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[D")) {
-                    final double[] array = new double[bytes.getInt(offset)];
+                    final int      len   = readLength(bytes, offset, "array length");
+                    final double[] array = new double[len];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
                         array[i] = bytes.getDouble(offset);
@@ -6697,7 +6744,8 @@ public abstract class PJRmi
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[F")) {
-                    final float[] array = new float[bytes.getInt(offset)];
+                    final int     len   = readLength(bytes, offset, "array length");
+                    final float[] array = new float[len];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
                         array[i] = bytes.getFloat(offset);
@@ -6706,7 +6754,8 @@ public abstract class PJRmi
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[I")) {
-                    final int[] array = new int[bytes.getInt(offset)];
+                    final int   len   = readLength(bytes, offset, "array length");
+                    final int[] array = new int[len];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
                         array[i] = bytes.getInt(offset);
@@ -6715,7 +6764,8 @@ public abstract class PJRmi
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[J")) {
-                    final long[] array = new long[bytes.getInt(offset)];
+                    final int    len   = readLength(bytes, offset, "array length");
+                    final long[] array = new long[len];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
                         array[i] = bytes.getLong(offset);
@@ -6724,7 +6774,8 @@ public abstract class PJRmi
                     result = array;
                 }
                 else if (typeDesc.getName().equals("[S")) {
-                    final short[] array = new short[bytes.getInt(offset)];
+                    final int     len   = readLength(bytes, offset, "array length");
+                    final short[] array = new short[len];
                     offset += Integer.BYTES;
                     for (int i=0; i < array.length; i++) {
                         array[i] = bytes.getShort(offset);
@@ -6734,7 +6785,7 @@ public abstract class PJRmi
                 }
                 else if (typeDesc.getName().startsWith("[")) {
                     // An array of <something>s with a known length
-                    final int length = bytes.getInt(offset);
+                    final int length = readLength(bytes, offset, "array length");
                     offset += Integer.BYTES;
 
                     // Create an array of the right type by reflection, and
@@ -6749,7 +6800,7 @@ public abstract class PJRmi
                 }
                 else if (typeDesc.getName().equals("java.util.Map")) {
                     // How many entries
-                    final int count = bytes.getInt(offset);
+                    final int count = readLength(bytes, offset, "map size");
                     offset += Integer.BYTES;
 
                     // Create and populate
@@ -6768,7 +6819,7 @@ public abstract class PJRmi
                     result = map;
                 }
                 else if (typeDesc.getName().equals("java.util.Set")) {
-                    final int count = bytes.getInt(offset);
+                    final int count = readLength(bytes, offset, "set size");
                     offset += Integer.BYTES;
 
                     final Set<Object> set = new HashSet<>(count);
@@ -6783,7 +6834,7 @@ public abstract class PJRmi
                          typeDesc.getName().equals("java.util.Collection") ||
                          typeDesc.getName().equals("java.util.List"))
                 {
-                    final int count = bytes.getInt(offset);
+                    final int count = readLength(bytes, offset, "collection size");
                     offset += Integer.BYTES;
 
                     final List<Object> list = new ArrayList<>(count);
@@ -6835,7 +6886,7 @@ public abstract class PJRmi
                     offset = ror.offset;
                     final Object shape = ror.object;
                     final boolean readonly = bytes.getBoolean(offset++);
-                    final int count = bytes.getInt(offset);
+                    final int count = readLength(bytes, offset, "filename length");
                     offset += Integer.BYTES;
                     final byte[] buffer = getByteArray(count);
                     for (int i=0; i < count; i++) {
@@ -6946,7 +6997,7 @@ public abstract class PJRmi
                 }
 
                 // First, we read the filename as a String
-                final int countString = bytes.getInt(offset);
+                final int countString = readLength(bytes, offset, "filename length");
                 offset += Integer.BYTES;
                 final byte[] bufferString = getByteArray(countString);
                 for (int i=0; i < countString; i++) {
@@ -6967,7 +7018,7 @@ public abstract class PJRmi
                 }
 
                 // Read in the array type
-                final int countChar = bytes.getInt(offset);
+                final int countChar = readLength(bytes, offset, "array type length");
                 offset += Integer.BYTES;
                 final byte[] bufferChar = getByteArray(countChar);
                 for (int i=0; i < countChar; i++) {
@@ -7889,7 +7940,7 @@ public abstract class PJRmi
             }
 
             final int typeId = payload.getInt(0);
-            final int length = payload.getInt(4);
+            final int length = readLength(payload, 4, "array length");
 
             // Known type?
             final TypeDescription klass  = myTypeMapping.getDescription(typeId);
@@ -9352,6 +9403,13 @@ public abstract class PJRmi
     private static final int MAX_CALL_DEPTH = 128;
 
     /**
+     * Maximum total byte length of the argv block sent by a client during
+     * handshake. 1 MiB is far more than any legitimate script name and PID
+     * string needs; anything larger is treated as a protocol error.
+     */
+    private static final int MAX_HANDSHAKE_ARGV_BYTES = 1 << 20;
+
+    /**
      * The global XOR value to use then creating thread IDs. This mimics the
      * code on the Python side.
      */
@@ -10108,6 +10166,10 @@ public abstract class PJRmi
                            (Byte.toUnsignedInt((byte)is.read()) << 16) |
                            (Byte.toUnsignedInt((byte)is.read()) <<  8) |
                            (Byte.toUnsignedInt((byte)is.read())      ));
+        if (count < 0 || count > MAX_HANDSHAKE_ARGV_BYTES) {
+            transport.close();
+            throw new IOException("Invalid client argv length: " + count);
+        }
         final byte[] buffer = new byte[count];
         for (int i=0; i < count; i++) {
             buffer[i] = (byte)is.read();

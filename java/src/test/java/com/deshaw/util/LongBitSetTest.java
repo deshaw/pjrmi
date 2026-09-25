@@ -58,4 +58,30 @@ public class LongBitSetTest
         assertThrows(IndexOutOfBoundsException.class,
                      () -> (new LongBitSet(0)).get(Long.MAX_VALUE));
     }
+
+    /**
+     * Test that a clone shares no state with the original.
+     */
+    @Test
+    public void testCloneIsIndependent()
+    {
+        final LongBitSet original = new LongBitSet(64);
+        original.set(0, true);
+
+        final LongBitSet copy = (LongBitSet)original.clone();
+
+        // The copy carries the original's state over
+        assertTrue(copy.get(0));
+
+        // But mutating either must not show up in the other. Indices 0, 1 and
+        // 2 all live in the same column, so no array growth happens here and
+        // any sharing of the backing array or of a BitSet shows up directly.
+        copy.set(1, true);
+        assertFalse(original.get(1));
+        original.set(2, true);
+        assertFalse(copy.get(2));
+
+        assertEquals(2L, original.cardinality());
+        assertEquals(2L, copy.cardinality());
+    }
 }

@@ -29,7 +29,7 @@ namespace des {
 namespace pjrmi {
 
     // Header bytes, used to check file "health" when reading and writing the
-    // mmaped file.
+    // mmap'd file.
     static const char HEADER_BYTES[] = "SHMARRY";
 
     /**
@@ -110,7 +110,7 @@ namespace pjrmi {
         }
 
         // Append time in microseconds to guarantee uniqueness of filename
-        long time = tv.tv_sec;
+        int64_t time = tv.tv_sec;
         time *= 1000000;
         time += tv.tv_usec;
 
@@ -298,7 +298,17 @@ namespace pjrmi {
 
         // Check the size of the allocated file
         struct stat buffer;
-        fstat(fd, &buffer);
+        if (fstat(fd, &buffer) == -1) {
+            errnum = errno;
+            close(fd);
+            unlink(file);
+            throw exception::io(
+                format_error(
+                    "write_bytes_to_shm(): Could not check file size with fstat()",
+                    errnum
+                ).c_str()
+            );
+        }
         if ((size_t)buffer.st_size != bytes_to_write) {
             errnum = errno;
             close(fd);
@@ -324,7 +334,7 @@ namespace pjrmi {
     }
 
     /**
-     * Open and write (using the given function pointer) to a mmaped file,
+     * Open and write (using the given function pointer) to a mmap'd file,
      * unlinking the file if an error occurs.
      *
      * To guarantee that we are reading the correct type of array from a "safe"
@@ -339,7 +349,7 @@ namespace pjrmi {
      * @param array_bytes       The number of bytes in the array.
      * @param type              The type of the array.
      *
-     * @return                  The name of the file where the data was mmaped.
+     * @return                  The name of the file where the data was mmap'd.
      *
      * @throws illegal_argument If the generated filename is empty.
      * @throws io               If there is an error in opening, mmaping, or
@@ -421,7 +431,17 @@ namespace pjrmi {
 
         // Check the size of the allocated file
         struct stat buffer;
-        fstat(fd, &buffer);
+        if (fstat(fd, &buffer) == -1) {
+            errnum = errno;
+            close(fd);
+            unlink(file);
+            throw exception::io(
+                format_error(
+                    "write_bytes_to_shm(): Could not check file size with fstat()",
+                    errnum
+                ).c_str()
+            );
+        }
         if ((size_t)buffer.st_size != bytes_to_write + 1) {
             errnum = errno;
             close(fd);
@@ -434,8 +454,8 @@ namespace pjrmi {
             );
         }
 
-        // Now the file is ready to be mmapped.
-        // We pass MAP_SHARED to both read and write mmaps() for efficiency.
+        // Now the file is ready to be mmap'd.
+        // We pass MAP_SHARED to both read and write mmap() for efficiency.
         void* addr = mmap(NULL, bytes_to_write,
                           PROT_READ | PROT_WRITE, MAP_SHARED,
                           fd, 0);
@@ -472,8 +492,16 @@ namespace pjrmi {
         // Move the pointer to our address accordingly
         file_addr++;
 
-        // Copy the data in
-        lambda(file_addr);
+        // Copy the data in; if the lambda throws, munmap before propagating so
+        // the mapping is not leaked (fd is already closed at this point).
+        try {
+            lambda(file_addr);
+        }
+        catch (...) {
+            munmap(addr, bytes_to_write);
+            unlink(file);
+            throw;
+        }
 
         // Clean up by un-mapping the file
         if (munmap(addr, bytes_to_write) == -1) {
@@ -481,7 +509,7 @@ namespace pjrmi {
             unlink(file);
             throw exception::io(
                 format_error(
-                    "write_bytes_to_shm(): Error in munmaping the file",
+                    "write_bytes_to_shm(): Error in munmap'ng the file",
                      errnum
                 ).c_str()
             );
@@ -492,7 +520,7 @@ namespace pjrmi {
     }
 
     /**
-     * Open a mmaped file and return a pointer to the start of the array in the
+     * Open a mmap'd file and return a pointer to the start of the array in the
      * file (after HEADER_BYTES and ArrayType have been read).
      *
      * To guarantee that we are reading the correct type of array from a "safe"
@@ -501,12 +529,16 @@ namespace pjrmi {
      *  char    : ArrayType
      *  void*   : Array contents
      *
-     * @param file               The name of the mmaped file.
+     * @param file               The name of the mmap'd file.
      * @param array_bytes        The number of bytes we expect in the file.
      * @param type               The type of the array we expect in the file.
      *
+     * @return                   A pointer to the first byte of array data in
+     *                           the mapping. The caller must release it by
+     *                           passing it to munmap_bytes_from_shm().
+     *
      * @throws io                If there is an error in opening, mmaping, or
-     *                           writing the file.
+     *                           reading the file.
      */
     void* mmap_bytes_from_shm(const char* file,
                               const size_t array_bytes,
@@ -537,18 +569,33 @@ namespace pjrmi {
 
         // Check the size of the file
         struct stat s;
-        fstat(fd, & s);
-
-        // If size is smaller than the beginning bytes HEADER_BYTES<ArrayType>
-        // we're probably in trouble.
-        if ((size_t)s.st_size < (sizeof(HEADER_BYTES) + 1)) {
+        if (fstat(fd, &s) == -1) {
+            int errnum = errno;
             close(fd);
             throw exception::io(
-                "mmap_bytes_from_shm(): File size is insufficient for reading"
+                format_error(
+                    "mmap_bytes_from_shm(): Could not check file size with fstat()",
+                    errnum
+                ).c_str()
             );
         }
 
-        // Now the file is ready to be mmapped.
+        // The file must hold the HEADER_BYTES<ArrayType> preamble and all of
+        // the array contents. Checking only the preamble is not enough: mmap()
+        // will happily map beyond the end of the file and we would then take a
+        // SIGBUS, which the caller cannot catch, when we touched those pages.
+        if ((size_t)s.st_size < bytes_to_read) {
+            close(fd);
+            std::string msg =
+                "mmap_bytes_from_shm(): File size is insufficient; got ";
+            msg += std::to_string((size_t)s.st_size);
+            msg += " bytes but was expecting at least ";
+            msg += std::to_string(bytes_to_read);
+            msg += " bytes";
+            throw exception::io(msg.c_str());
+        }
+
+        // Now the file is ready to be mmap'd.
         // We pass MAP_SHARED to both read and write mmap()s for efficiency.
         uint8_t* addr = (uint8_t*)mmap(NULL, bytes_to_read,
                                        PROT_READ, MAP_SHARED,
@@ -573,16 +620,17 @@ namespace pjrmi {
         // First, we check that this file is meant for this purpose.
         // Are the first bytes of the file the header bytes?
         if (strncmp((const char*)addr, HEADER_BYTES, sizeof(HEADER_BYTES)) != 0) {
-            unlink(file);
-
-            // For printing out the unmatching bytes
+            // Copy the bytes before munmap'ng since addr is invalid after munmap
             std::string wrong_bytes((const char*)addr, (const char*)addr + sizeof(HEADER_BYTES));
-            std::string message = "mmap_bytes_from_shm(): The magic bytes in this file: " +
-                                  wrong_bytes;
-            message            += " do not match the expected magic bytes: " +
-            message            += HEADER_BYTES;
-            message            += " in file " +
-            message            += file;
+            munmap(addr, bytes_to_read);
+            unlink(file);
+            std::string message =
+                "mmap_bytes_from_shm(): The magic bytes in this file: ";
+            message += wrong_bytes;
+            message += " do not match the expected magic bytes: ";
+            message += HEADER_BYTES;
+            message += " in file ";
+            message += file;
 
             throw exception::io(message.c_str());
         }
@@ -593,15 +641,17 @@ namespace pjrmi {
         // Next, we check that the array is the same type as we are expecting
         const char file_array_type = *((char*)addr);
         if (file_array_type != (char)type) {
+            munmap(addr - sizeof(HEADER_BYTES), bytes_to_read);
             unlink(file);
 
             // For printing out the unmatching bytes
-            std::string message = "mmap_bytes_from_shm(): The read type is: " +
-                                  (char)file_array_type;
-            message            += " but the expected type is " +
-                                  (char)type;
-            message            += " in file " +
-            message            += file;
+            std::string message =
+                "mmap_bytes_from_shm(): The read type is: ";
+            message += file_array_type;
+            message += " but the expected type is ";
+            message += (char)type;
+            message += " in file ";
+            message += file;
 
             throw exception::io(message.c_str());
         }
@@ -614,16 +664,15 @@ namespace pjrmi {
     }
 
     /**
-     * Given a pointer to the start of an array in a mmaped file, munmaps the
+     * Given a pointer to the start of an array in a mmap'd file, munmaps the
      * file and unlinks it.
      *
-     * @param file               The name of the mmaped file.
+     * @param file               The name of the mmap'd file.
      * @param array_bytes        The number of bytes we expect in the file.
      * @param type               The type of the array we expect in the file.
-     * @param addr               The pointer in the mmaped file.
+     * @param addr               The pointer in the mmap'd file.
      *
-     * @throws io                If there is an error in opening, mmaping, or
-     *                           writing the file.
+     * @throws io                If there is an error munmap'ng the file.
      */
     void munmap_bytes_from_shm(const char* file,
                                const size_t array_bytes,
@@ -634,7 +683,7 @@ namespace pjrmi {
         uint8_t* file_addr = (uint8_t*)addr;
 
         // Since we're given the pointer to the beginning of an array in the
-        // mmaped file, we need to go back to the beginning of the file. As
+        // mmap'd file, we need to go back to the beginning of the file. As
         // we are doing operations on a "safe" file, this just means we need to
         // subtract the size of HEADER_BYTES plus the ArrayType.
         file_addr -= (sizeof(HEADER_BYTES) + sizeof(type));
@@ -652,7 +701,7 @@ namespace pjrmi {
             unlink(file);
             throw exception::io(
                 format_error(
-                    "munmap_bytes_from_shm(): Error in munmaping the file",
+                    "munmap_bytes_from_shm(): Error in munmap'ng the file",
                      errnum
                 ).c_str()
             );
@@ -663,7 +712,7 @@ namespace pjrmi {
     }
 
     /**
-     * Open and read from mmaped file, unlinking the file afterwards. This
+     * Open and read from mmap'd file, unlinking the file afterwards. This
      * function will allocated space in memory for the file data.
      *
      * To guarantee that we are reading the correct type of array from a "safe"
@@ -672,12 +721,17 @@ namespace pjrmi {
      *  char    : ArrayType
      *  void*   : Array contents
      *
-     * @param file               The name of the mmaped file.
+     * @param file               The name of the mmap'd file.
      * @param array_bytes        The number of bytes we expect in the file.
      * @param type               The type of the array we expect in the file.
      *
+     * @return                   A malloc()-allocated buffer of array_bytes bytes
+     *                           containing a copy of the array data from the
+     *                           file. The caller owns this buffer and must
+     *                           release it with free() when done.
+     *
      * @throws io                If there is an error in opening, mmaping, or
-     *                           writing the file.
+     *                           reading the file.
      */
     void* read_bytes_from_shm(const char* file,
                               const size_t array_bytes,

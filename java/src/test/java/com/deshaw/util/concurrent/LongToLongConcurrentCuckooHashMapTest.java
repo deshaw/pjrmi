@@ -1,5 +1,6 @@
 package com.deshaw.util.concurrent;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -9,6 +10,9 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -183,5 +187,102 @@ public class LongToLongConcurrentCuckooHashMapTest
         }
         itr.reset();
         assertFalse(itr.hasNext());
+    }
+
+    /**
+     * Test that storing the map's NULL as a value is rejected, and that the
+     * rejection leaves the bucket free for a later put.
+     */
+    @Test
+    public void testNullValueRejected()
+    {
+        // Careful: the map's own NULL sentinel is Long.MIN_VALUE, which is not
+        // the same as this class's nullValue constant above.
+        final long mapNull = LongToLongConcurrentCuckooHashMap.NULL;
+
+        // Rejecting the put must also release the bucket which was claimed for
+        // it. Without that release the reads below do not fail, they spin for
+        // ever, so the timeout is what turns the bug into a test failure.
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+            final LongToLongConcurrentCuckooHashMap map =
+                new LongToLongConcurrentCuckooHashMap();
+
+            // The keys must be absent. For a key which is already present
+            // putIfAbsent() takes the overwrite path and never reaches the
+            // guard, which would make this test vacuous.
+            assertThrows(IllegalArgumentException.class,
+                         () -> map.putIfAbsent(1L, mapNull, NULL));
+            assertThrows(IllegalArgumentException.class,
+                         () -> map.computeIfAbsent(2L, k -> mapNull));
+
+            // Neither key should have been stored, and both buckets should
+            // still be usable
+            assertEquals(NULL, map.get(1L, NULL));
+            assertEquals(NULL, map.get(2L, NULL));
+            map.put(1L, 7L);
+            map.put(2L, 8L);
+            assertEquals(7L, map.get(1L, NULL));
+            assertEquals(8L, map.get(2L, NULL));
+        });
+    }
+
+    /**
+     * Test that a value factory which throws leaves the bucket free, rather
+     * than claimed with no value in it.
+     */
+    @Test
+    public void testThrowingValueFactoryReleasesBucket()
+    {
+        // As above, the spin is unbounded without the fix, so this needs the
+        // timeout to fail rather than hang.
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+            final LongToLongConcurrentCuckooHashMap map =
+                new LongToLongConcurrentCuckooHashMap();
+
+            assertThrows(IllegalStateException.class,
+                         () -> map.computeIfAbsent(1L, k -> {
+                             throw new IllegalStateException("Factory failed");
+                         }));
+
+            // The bucket must have been given back
+            assertEquals(NULL, map.get(1L, NULL));
+            map.put(1L, 7L);
+            assertEquals(7L, map.get(1L, NULL));
+        });
+    }
+
+    /**
+     * Test that iterators are pooled per thread.
+     */
+    @Test
+    public void testIteratorIsPooled()
+    {
+        final LongToLongConcurrentCuckooHashMap map =
+            new LongToLongConcurrentCuckooHashMap();
+        map.put(0L, 1L);
+
+        // close() hands the instance back to the thread-local pool, so the
+        // next acquire on this thread must give back the very same object.
+        // Identity is the only thing which distinguishes a working pool from a
+        // dead one; both iterate identically.
+        final LongToLongConcurrentCuckooHashMap.Iterator first  = map.iterator();
+        first.close();
+        final LongToLongConcurrentCuckooHashMap.Iterator second = map.iterator();
+        assertSame(first, second);
+
+        // Put it back so that we leave the pool as we found it
+        second.close();
+    }
+
+    /**
+     * Test that the callback methods reject a null callback.
+     */
+    @Test
+    public void testNullCallbackRejected()
+    {
+        final LongToLongConcurrentCuckooHashMap map =
+            new LongToLongConcurrentCuckooHashMap();
+        assertThrows(IllegalArgumentException.class, () -> map.onKeys  (null));
+        assertThrows(IllegalArgumentException.class, () -> map.onValues(null));
     }
 }

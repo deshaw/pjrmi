@@ -19,7 +19,7 @@ import java.util.function.LongUnaryOperator;
  *
  * <p>Users should be aware that rehashing the table is a garbagy and time
  * consuming operation. As such, it is advised that a good initial size is
- * chosen if rehashing is to be avoided. A good rule of thumb is seems to be
+ * chosen if rehashing is to be avoided. A good rule of thumb seems to be
  * around 1.5x the likely number of unique keys. The capacity will be rounded up
  * to a prime strictly larger than the next power of 2 after capacity.
  */
@@ -27,7 +27,7 @@ public class LongToLongConcurrentCuckooHashMap
 {
     // The way cuckoo hashing works is that each key may occupy one of N
     // buckets. (For this implementation, N=2.) If a put operation fails for a
-    // key then the entry in one of those buckets will bumped to its alternative
+    // key then the entry in one of those buckets will be bumped to its alternative
     // location; if that bucket is full then its contents are bumped; and so
     // forth.
 
@@ -54,7 +54,7 @@ public class LongToLongConcurrentCuckooHashMap
     //   NULL |  NULL | Bucket is free
     //  !NULL |  NULL | Bucket claimed but not okay to read
     //  !NULL | !NULL | Bucket full and okay to read
-    //   NULL | !NULL | INVALIDATE STATE!
+    //   NULL | !NULL | INVALID STATE!
     //
     // Where NULL is a special value which acts as a semaphore.
     //
@@ -73,7 +73,7 @@ public class LongToLongConcurrentCuckooHashMap
     //  7. A KEY must never have a valid value in both of its locations at the
     //     same time.
 
-    // Here and some examples of various operations ("N" is NULL):
+    // Here are some examples of various operations ("N" is NULL):
     //
     //   Put:       KEY | VAL | REV
     //              ----+-----+----
@@ -323,11 +323,13 @@ public class LongToLongConcurrentCuckooHashMap
 
                     // Being touched?
                     if (val == NULL) {
+                        Thread.onSpinWait();
                         continue;
                     }
 
                     // Good read?
                     if (myBuckets.get(ridx) != rev) {
+                        Thread.onSpinWait();
                         continue;
                     }
 
@@ -482,14 +484,14 @@ public class LongToLongConcurrentCuckooHashMap
      */
     public LongToLongConcurrentCuckooHashMap(int capacity)
     {
-        // Create the buckets and populate with that values which we require for
+        // Create the buckets and populate with the values which we require for
         // the invariants to hold etc. We can't create an array of more than
         // MAX_INT in size so cap at that.
         myBuckets.set(create(Math.min(Integer.MAX_VALUE / 3, capacity)));
     }
 
     /**
-     * Get a value for a given key, or the NULL if it was not present.
+     * Get a value for a given key, or NULL if it was not present.
      */
     public long get(final long key)
     {
@@ -540,7 +542,7 @@ public class LongToLongConcurrentCuckooHashMap
                 // We won't check the myBuckets pointer here since we don't mind
                 // too much if we happen to be looking at "outdated" data.
                 // (Someone could have rehashed and then someone else could have
-                // mutated the new buckets.) Since we're living in an threaded
+                // mutated the new buckets.) Since we're living in a threaded
                 // world this is the sort of thing we might expect anyhow. (And
                 // not checking the pointer means less contention on it.) Also,
                 // rehashes should be rare in a perfect world.
@@ -707,7 +709,7 @@ public class LongToLongConcurrentCuckooHashMap
                 }
 
                 // If we got here then the key was not found; if things changed
-                // them it might have been move()'d under our feet. If they
+                // then it might have been move()'d under our feet. If they
                 // didn't then we really didn't find it.
                 if (buckets.get(r1idx) == r1 &&
                     buckets.get(r2idx) == r2)
@@ -920,9 +922,10 @@ public class LongToLongConcurrentCuckooHashMap
         Iterator itr = ourIterators.get();
         ourIterators.set(null);
 
-        // If we got nothing back (since someone else in this thread is using
-        // it) then create a new one
-        itr = new Iterator();
+        // If no pooled instance is available, create a new one
+        if (itr == null) {
+            itr = new Iterator();
+        }
 
         // Set it up and give it back
         for (;;) {
@@ -940,9 +943,14 @@ public class LongToLongConcurrentCuckooHashMap
      *
      * <p>See the warning in {@link #iterator()} about how iteration over the map is
      * not entirely perfect.
+     *
+     * @throws IllegalArgumentException if callback is null
      */
     public void onKeys(LongConsumer callback)
     {
+        if (callback == null) {
+            throw new IllegalArgumentException("Given a null callback");
+        }
         try (Iterator itr = iterator()) {
             while (itr.next()) {
                 callback.accept(itr.currentKey());
@@ -955,9 +963,14 @@ public class LongToLongConcurrentCuckooHashMap
      *
      * <p>See the warning in {@link #iterator()} about how iteration over the map is
      * not entirely perfect.
+     *
+     * @throws IllegalArgumentException if callback is null
      */
     public void onValues(LongConsumer callback)
     {
+        if (callback == null) {
+            throw new IllegalArgumentException("Given a null callback");
+        }
         try (Iterator itr = iterator()) {
             while (itr.next()) {
                 callback.accept(itr.currentValue());
@@ -1014,7 +1027,7 @@ public class LongToLongConcurrentCuckooHashMap
             );
         }
 
-        final long size = cap * 3;
+        final long size = (long)cap * 3;
         final AtomicLongArray buckets = new AtomicLongArray((int)size);
         for (int i=0; i < (int)size; i += 3) {
             final int keyIndex      = i;
@@ -1100,12 +1113,12 @@ public class LongToLongConcurrentCuckooHashMap
 
             // See if the revision is still good
             if (buckets.get(ridx) != curRev) {
-                // Nope, someone changed it before in between us reading the key
+                // Nope, someone changed it in between us reading the key
                 // and reading the value. Try again...
                 continue;
             }
 
-            // Okay, we go this far so everything checks out; give back the
+            // Okay, we got this far so everything checks out; give back the
             // value to denote success
             return curValue;
         }
@@ -1117,11 +1130,11 @@ public class LongToLongConcurrentCuckooHashMap
      *
      * <p>See put() for params' meaning
      */
-    public long retryingPut(final long              key,
-                            final long              value,
-                            final long              nullValue,
-                            final boolean           ifAbsent,
-                            final LongUnaryOperator factory)
+    private long retryingPut(final long              key,
+                             final long              value,
+                             final long              nullValue,
+                             final boolean           ifAbsent,
+                             final LongUnaryOperator factory)
     {
         // Sanity
         if (!ifAbsent && (key == NULL || value == NULL)) {
@@ -1199,7 +1212,7 @@ public class LongToLongConcurrentCuckooHashMap
                 }
             }
             else {
-                // Bump a "random" bucket" and try again. We choose a maximum
+                // Bump a "random" bucket and try again. We choose a maximum
                 // recursion depth which is likely to be sane according to the
                 // load factor (num empty buckets scaled down).
                 final int index = bucketIndex(buckets, hash, (((hash >> 2) ^ hash) & 0x1) == 0);
@@ -1284,11 +1297,21 @@ public class LongToLongConcurrentCuckooHashMap
 
                 // Different behaviour depending on whether we are doing put(),
                 // putIfAbsent() or computeIfAbsent().
+                final boolean computed = (ifAbsent && factory != null);
                 final long putValue, retValue;
-                if (ifAbsent && factory != null) {
+                if (computed) {
                     // computeIfAbsent() returns the current value (computed or
-                    // existing)
-                    putValue = factory.applyAsLong(key);
+                    // existing). The factory is caller-supplied code which may
+                    // throw; if it does then we must drop our claim before we
+                    // propagate, else the bucket is left in the "claimed but
+                    // not okay to read" state and readers spin on it forever.
+                    try {
+                        putValue = factory.applyAsLong(key);
+                    }
+                    catch (Throwable t) {
+                        buckets.set(k1idx, NULL);
+                        throw t;
+                    }
                     retValue = putValue;
                 }
                 else {
@@ -1296,6 +1319,18 @@ public class LongToLongConcurrentCuckooHashMap
                     // value. For an empty slot this is the same as put().
                     putValue = value;
                     retValue = NULL;
+                }
+
+                // Storing NULL would leave the bucket in that same permanently
+                // locked state (key set, value still NULL), so drop the claim
+                // and reject the call.
+                if (putValue == NULL) {
+                    buckets.set(k1idx, NULL);
+                    throw new IllegalArgumentException(
+                        (computed ? "The factory returned NULL ("
+                                  : "Cannot use NULL (") +
+                        NULL + ") as a value for key " + key
+                    );
                 }
 
                 // Do the actual put
@@ -1312,7 +1347,7 @@ public class LongToLongConcurrentCuckooHashMap
         }
 
         // We want to overwrite the existing value. We need to make sure
-        // that we don't accidently wipe out the value associated with a
+        // that we don't accidentally wipe out the value associated with a
         // different key, should it have changed under our feet. We do this
         // by trying to claim the bucket by unsetting the current value and
         // then putting in our own, checking that the key does change as we
@@ -1331,7 +1366,7 @@ public class LongToLongConcurrentCuckooHashMap
             if (buckets.get(k1idx) == key && buckets.get(r1idx) == rev1) {
                 // Successfully claimed the bucket in the right state; update
                 // the revision and set the value to release it. If we were
-                // doing a blahIfAbsent() call then we put it back to it's
+                // doing a blahIfAbsent() call then we put it back to its
                 // original value (i.e. we don't overwrite, we discard the
                 // setting value).
                 buckets.getAndIncrement(r1idx);
@@ -1455,7 +1490,7 @@ public class LongToLongConcurrentCuckooHashMap
      * @param fromIndex  The bucket to move from.
      * @param toIndex    The bucket to move to.
      * @param key        The key which we are trying to move.
-     * @param isRehash   Whether move this is happening inside a rehash() call.
+     * @param isRehash   Whether this move is happening inside a rehash() call.
      *
      * @return whether the bucket's contents were successfully moved.
      */
@@ -1545,7 +1580,7 @@ public class LongToLongConcurrentCuckooHashMap
         final int vdidx = kdidx + 1;
         final int rdidx = kdidx + 2;
 
-        // Okay, we managed to claim the destination and we know that the we
+        // Okay, we managed to claim the destination and we know that we
         // have the right value copied out. Before we release the buckets we
         // change their revision numbers, so as to keep semantics.
         buckets.getAndIncrement(rsidx);
@@ -1717,7 +1752,7 @@ public class LongToLongConcurrentCuckooHashMap
     /**
      * Print the table to stdout. Debugging only...
      */
-    public void debugDump(String prefix)
+    private void debugDump(String prefix)
     {
         AtomicLongArray buckets = null;
         for (buckets = myBuckets.get(); buckets == null; buckets = myBuckets.get());
@@ -1727,7 +1762,7 @@ public class LongToLongConcurrentCuckooHashMap
     /**
      * Print the table to stdout. Debugging only...
      */
-    public void debugDump(String prefix, AtomicLongArray buckets)
+    private void debugDump(String prefix, AtomicLongArray buckets)
     {
         for (int i=0; i < (buckets.length() / 3); i++) {
             final int k = i * 3;

@@ -78,8 +78,8 @@ _STRUCT_CHAR        = struct.Struct('!H')    # Java char is unsigned 16-bit
 _STRUCT_HEADER      = struct.Struct('!cqii') # msg_type, thread_id, request_id, payload_size
 _STRUCT_SEND_HEADER = struct.Struct('!qii')  # thread_id, request_id, payload_size
 
-# Every byte value, pre-rendered. _format_int8() is on the serialization hot
-# path and indexing this is cheaper than formatting the value on each call.
+# Every byte value, pre-rendered and indexed by that value. Looking one up is
+# cheaper than building the bytes object afresh each time one is wanted.
 _INT8_BYTES = tuple(bytes((i,)) for i in range(256))
 
 # The major version of the NumPy which we are running against. Some of NumPy's

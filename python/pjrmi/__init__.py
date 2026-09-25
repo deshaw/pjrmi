@@ -230,6 +230,10 @@ class PJRmi:
     # (inclusive). 2147483647 is 2^31-1, also known as Integer.MAX_VALUE.
     _MAX_JAVA_ARRAY_SIZE = 2147483647
 
+    # The number of pending drops queued up before we tell the Java side to drop
+    # its references.
+    _PENDING_DROPS_THRESHOLD = 100
+
     # All the instances, keyed by id()
     _INSTANCES = weakref.WeakValueDictionary()
 
@@ -1457,6 +1461,38 @@ public class TestInjectSource {
                     # Yes, so get and set
                     logger = self.get_java_logger(name)
                     logger.setLevel(level)
+
+
+    def drop_pending_references(self) -> None:
+        """
+        Send the pending object reference drops to the Java side.
+
+        This syncs the GC actions performed on the Python side so that they are
+        reflected on the Java side.
+        """
+        # Drain all the items out of the list into a new one. We know that pop()
+        # is atomic so this is safe to do with other threads calling
+        # _drop_reference() and appending the list at the same time. The below,
+        # while slow, will ensure that the list is completely emptied by us by
+        # virtue of the loop exit via the exception.
+        #
+        # In theory this could never terminate if _lots_ of objects are being
+        # continually __del__'d but since that is only called in the GC it's at
+        # least bounded by that.
+        drops = []
+        try:
+            while True:
+                drops.append(self._pending_drops.pop())
+        except IndexError:
+            pass
+
+        # We can now send the messages to the Java side
+        payload = (self._format_int32(len(drops)) +
+                   b''.join(self._format_int64(h) for h in drops))
+
+        # Send it to the server and reap the result
+        req_id = self._send(self._DROP_REFERENCES, payload)
+        self._read_result(req_id)
 
 
     def _match_method(
@@ -5686,33 +5722,8 @@ used as in a `with` conntext.
         """
         # Reached our limit? We don't care about this being a little racey with
         # _drop_reference() since it's just a trigger.
-        if len(self._pending_drops) < 100:
-            # Nope
-            return
-
-        # Drain all the items out of the list into a new one. We know that pop()
-        # is atomic so this is safe to do with other threads calling
-        # _drop_reference() and appending the list at the same time. The below,
-        # while slow, will ensure that the list is completely emptied by us by
-        # virtue of the loop exit via the exception.
-        #
-        # In theory this could never terminate if _lots_ of objects are being
-        # continually __del__'d but since that is only called in the GC it's at
-        # least bounded by that.
-        drops = []
-        try:
-            while True:
-                drops.append(self._pending_drops.pop())
-        except IndexError:
-            pass
-
-        # We can now send the messages to the Java side
-        payload = (self._format_int32(len(drops)) +
-                   b''.join(self._format_int64(h) for h in drops))
-
-        # Send it to the server and reap the result
-        req_id = self._send(self._DROP_REFERENCES, payload)
-        self._read_result(req_id)
+        if len(self._pending_drops) >= self._PENDING_DROPS_THRESHOLD:
+            self.drop_pending_references()
 
 
     def _get_field(self,

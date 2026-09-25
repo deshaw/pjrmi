@@ -377,7 +377,7 @@ public class LongArrayHypercube
             final long[] startArray = myElements[startIdx];
             final long[] endArray   = myElements[  endIdx];
             final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
             System.arraycopy(startArray, startPos,
                              dst,        dstPos,
@@ -466,7 +466,7 @@ public class LongArrayHypercube
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
 
             System.arraycopy(src,        srcPos,
@@ -604,4 +604,4 @@ public class LongArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 925f2b97b628e2c0d264d205cd8245fb)
+// [[[end]]] (checksum: d99f26a77d8b83e6e405dbb0035a9a89)

@@ -377,7 +377,7 @@ public class BooleanArrayHypercube
             final boolean[] startArray = myElements[startIdx];
             final boolean[] endArray   = myElements[  endIdx];
             final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
             System.arraycopy(startArray, startPos,
                              dst,        dstPos,
@@ -466,7 +466,7 @@ public class BooleanArrayHypercube
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
 
             System.arraycopy(src,        srcPos,
@@ -604,4 +604,4 @@ public class BooleanArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: d55d95cbba5d5fc6d92a53ebcbd814fa)
+// [[[end]]] (checksum: c1a9ef0c03ca8c980e5f633ed99cda43)

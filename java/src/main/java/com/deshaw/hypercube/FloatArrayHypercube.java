@@ -377,7 +377,7 @@ public class FloatArrayHypercube
             final float[] startArray = myElements[startIdx];
             final float[] endArray   = myElements[  endIdx];
             final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
             System.arraycopy(startArray, startPos,
                              dst,        dstPos,
@@ -466,7 +466,7 @@ public class FloatArrayHypercube
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
 
             System.arraycopy(src,        srcPos,
@@ -604,4 +604,4 @@ public class FloatArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 9c174a5ab41f0a05e3639e8cc1b57894)
+// [[[end]]] (checksum: 02056ec7a94cd7825fb05baf587797ff)

@@ -505,6 +505,125 @@ public class HypercubeTest
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     /**
+     * How many elements the array-backed cubes put into each of the sub-arrays
+     * which they chop their storage up into. A cube with more elements than
+     * this spans more than one of them.
+     */
+    private static final long SUB_ARRAY_SIZE = (1L << 30);
+
+    /**
+     * How many elements the sub-array boundary test copies at a time.
+     */
+    private static final int BOUNDARY_RUN = 20;
+
+    /**
+     * The multiplier which the sub-array boundary test hashes an index by.
+     * This is the 64-bit golden ratio constant, the same value which
+     * {@code SplittableRandom} uses for its default gamma.
+     *
+     * <p>All that's asked of it is that it be odd, since that makes
+     * multiplying by it a bijection modulo 2^64 and so keeps distinct indices
+     * distinct; how it factorises over the integers doesn't come into it. Any
+     * odd constant with its bits well spread would serve, and this one has
+     * been checked: over the indices the test touches the bits come out close
+     * to evenly split, and no run of {@link #BOUNDARY_RUN} of them matches a
+     * shifted copy of itself.
+     */
+    private static final long BOUNDARY_HASH_MULTIPLIER = 0x9E3779B97F4A7C15L;
+
+    /**
+     * Test flattening and unflattening a run of elements which straddles the
+     * boundary between two of an array-backed cube's sub-arrays.
+     *
+     * <p>Such a run has to be copied in two goes, one per sub-array, and the
+     * two of them have to be given the right lengths. Handing the first copy
+     * the length which belongs to the second one either walks off the end of
+     * the first sub-array or, when the run is mostly in the second sub-array,
+     * quietly moves the wrong elements. It happens to work when the run is
+     * split exactly down the middle, which is why we walk the split point over
+     * the whole run here rather than trying just the one place.
+     *
+     * <p>We use a {@code boolean} cube since that's the cheapest way to get
+     * more than 2^30 elements onto the heap. The flattening code comes from
+     * {@code primitive_array_hypercube.py} so all the {@code *ArrayHypercube}
+     * classes have exactly the same implementation of it.
+     *
+     * <p>That still costs a little over a gigabyte, since a {@code boolean[]}
+     * takes a byte an element and the cube allocates all of its sub-arrays up
+     * front; the test JVM is given 4Gb, so it fits. If it ever has to come
+     * down, the shared implementation is what makes that possible: a cube
+     * class written for the test, with a smaller sub-array size, would
+     * exercise the very same code.
+     */
+    @Test
+    public void testArrayHypercubeSubArrayBoundary()
+    {
+        // Just big enough to need a second sub-array
+        final BooleanHypercube cube =
+            BooleanArrayHypercube.of(SUB_ARRAY_SIZE + 1000);
+
+        // Give the elements which we'll be moving about something to tell them
+        // apart by. Everything outside this window stays false.
+        for (long i = SUB_ARRAY_SIZE - BOUNDARY_RUN,
+                  end = SUB_ARRAY_SIZE + BOUNDARY_RUN;
+             i < end;
+             i++)
+        {
+            cube.setAt(i, boundaryValue(i));
+        }
+
+        // Walk the split point over the run, so that we cover it being mostly
+        // in the first sub-array, mostly in the second, and evenly shared
+        for (int head = 1; head < BOUNDARY_RUN; head++) {
+            final long pos = SUB_ARRAY_SIZE - head;
+
+            // Copy the run out of the cube...
+            final boolean[] dst = new boolean[BOUNDARY_RUN];
+            cube.toFlattened(pos, dst, 0, BOUNDARY_RUN);
+            for (int i=0; i < BOUNDARY_RUN; i++) {
+                assertTrue(
+                    dst[i] == boundaryValue(pos + i),
+                    "Element " + i + " was wrong when flattening " +
+                    BOUNDARY_RUN + " elements from " + pos
+                );
+            }
+
+            // ...and back in again. We invert the values so that we can tell
+            // that they really did land where we asked for them.
+            final boolean[] src = new boolean[BOUNDARY_RUN];
+            for (int i=0; i < BOUNDARY_RUN; i++) {
+                src[i] = !boundaryValue(pos + i);
+            }
+            cube.fromFlattened(src, 0, pos, BOUNDARY_RUN);
+            for (int i=0; i < BOUNDARY_RUN; i++) {
+                assertTrue(
+                    cube.getAt(pos + i) == src[i],
+                    "Element " + i + " was wrong when unflattening " +
+                    BOUNDARY_RUN + " elements to " + pos
+                );
+            }
+
+            // And put the window back how it was for the next time around
+            for (int i=0; i < BOUNDARY_RUN; i++) {
+                cube.setAt(pos + i, boundaryValue(pos + i));
+            }
+        }
+    }
+
+    /**
+     * What the sub-array boundary test holds at the given index. We fold a
+     * hash down to a bit, rather than use anything with a short period, so
+     * that a run which is out by a handful of elements can't come back looking
+     * like a correct one.
+     */
+    private static boolean boundaryValue(final long index)
+    {
+        return (Long.bitCount(index * BOUNDARY_HASH_MULTIPLIER) & 1) != 0;
+    }
+
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+    /**
      * Test cubes of varying dimensions.
      */
     @Test

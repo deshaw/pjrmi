@@ -123,10 +123,15 @@ public class FloatMappedHypercube
         myMappedBuffers = new MappedByteBuffer[numBuffers];
         myBuffers       = new FloatBuffer[numBuffers];
 
+        // The last buffer might not hold a whole MAX_BUFFER_SIZE elements so we
+        // look to account for that. We compute its length as the 'tail' value,
+        // remembering that a size which is an exact multiple of MAX_BUFFER_SIZE
+        // gives us a tail of zero and a last buffer which is full, not empty.
         final long tail = (size & MAX_BUFFER_MASK);
         for (int i=0; i < numBuffers; i++) {
-            final long sz =
-                ((i+1 < numBuffers) ? MAX_BUFFER_SIZE : tail) * Float.BYTES;
+            final long count = (tail == 0 || i+1 < numBuffers) ? MAX_BUFFER_SIZE
+                                                               : tail;
+            final long sz       = count * Float.BYTES;
             final long position = (long)i * MAX_BUFFER_SIZE * Float.BYTES;
             if (LOG.isLoggable(Level.FINEST)) {
                 LOG.finest(
@@ -304,7 +309,7 @@ public class FloatMappedHypercube
             final FloatBuffer endBuffer   = myBuffers[endIdx  ];
             if (startBuffer != null && endBuffer != null) {
                 final int startPos    = (int)(srcPos & MAX_BUFFER_MASK);
-                final int startLength = length - (startBuffer.limit() - startPos);
+                final int startLength = startBuffer.limit() - startPos;
                 final int endLength   = length - startLength;
                 try {
                     startBuffer.position((int)(startPos & MAX_BUFFER_MASK));
@@ -395,7 +400,7 @@ public class FloatMappedHypercube
             final FloatBuffer startBuffer = myBuffers[startIdx];
             final FloatBuffer endBuffer   = myBuffers[endIdx  ];
             final int startPos    = (int)(dstPos & MAX_BUFFER_MASK);
-            final int startLength = length - (startBuffer.limit() - startPos);
+            final int startLength = startBuffer.limit() - startPos;
             final int endLength   = length - startLength;
             try {
                 startBuffer.position((int)(startPos & MAX_BUFFER_MASK));
@@ -490,4 +495,4 @@ public class FloatMappedHypercube
     }
 }
 
-// [[[end]]] (checksum: 0f53d0a0c6e0eee7a0b749c62609c8d7)
+// [[[end]]] (checksum: da53625615bdae6ce18593f591c4c9d6)

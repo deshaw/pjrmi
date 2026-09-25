@@ -377,7 +377,7 @@ public class DoubleArrayHypercube
             final double[] startArray = myElements[startIdx];
             final double[] endArray   = myElements[  endIdx];
             final int startPos    = (int)(srcPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
             System.arraycopy(startArray, startPos,
                              dst,        dstPos,
@@ -466,7 +466,7 @@ public class DoubleArrayHypercube
 
             // And do the copy
             final int startPos    = (int)(dstPos & MAX_ARRAY_MASK);
-            final int startLength = length - (startArray.length - startPos);
+            final int startLength = startArray.length - startPos;
             final int endLength   = length - startLength;
 
             System.arraycopy(src,        srcPos,
@@ -604,4 +604,4 @@ public class DoubleArrayHypercube
     }
 }
 
-// [[[end]]] (checksum: 512bb29aa27238e889a280a5d91483a6)
+// [[[end]]] (checksum: 848cc4f3adcaca872f5b399f169418c6)

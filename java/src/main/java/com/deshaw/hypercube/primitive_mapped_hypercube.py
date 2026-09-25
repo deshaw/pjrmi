@@ -116,10 +116,15 @@ public class {object_type}MappedHypercube
         myMappedBuffers = new MappedByteBuffer[numBuffers];
         myBuffers       = new {short_object_type}Buffer[numBuffers];
 
+        // The last buffer might not hold a whole MAX_BUFFER_SIZE elements so we
+        // look to account for that. We compute its length as the 'tail' value,
+        // remembering that a size which is an exact multiple of MAX_BUFFER_SIZE
+        // gives us a tail of zero and a last buffer which is full, not empty.
         final long tail = (size & MAX_BUFFER_MASK);
         for (int i=0; i < numBuffers; i++) {{
-            final long sz =
-                ((i+1 < numBuffers) ? MAX_BUFFER_SIZE : tail) * {object_type}.BYTES;
+            final long count = (tail == 0 || i+1 < numBuffers) ? MAX_BUFFER_SIZE
+                                                               : tail;
+            final long sz       = count * {object_type}.BYTES;
             final long position = (long)i * MAX_BUFFER_SIZE * {object_type}.BYTES;
             if (LOG.isLoggable(Level.FINEST)) {{
                 LOG.finest(
@@ -297,7 +302,7 @@ public class {object_type}MappedHypercube
             final {short_object_type}Buffer endBuffer   = myBuffers[endIdx  ];
             if (startBuffer != null && endBuffer != null) {{
                 final int startPos    = (int)(srcPos & MAX_BUFFER_MASK);
-                final int startLength = length - (startBuffer.limit() - startPos);
+                final int startLength = startBuffer.limit() - startPos;
                 final int endLength   = length - startLength;
                 try {{
                     startBuffer.position((int)(startPos & MAX_BUFFER_MASK));
@@ -388,7 +393,7 @@ public class {object_type}MappedHypercube
             final {short_object_type}Buffer startBuffer = myBuffers[startIdx];
             final {short_object_type}Buffer endBuffer   = myBuffers[endIdx  ];
             final int startPos    = (int)(dstPos & MAX_BUFFER_MASK);
-            final int startLength = length - (startBuffer.limit() - startPos);
+            final int startLength = startBuffer.limit() - startPos;
             final int endLength   = length - startLength;
             try {{
                 startBuffer.position((int)(startPos & MAX_BUFFER_MASK));

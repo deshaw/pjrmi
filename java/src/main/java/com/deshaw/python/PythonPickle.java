@@ -458,12 +458,24 @@ public class PythonPickle
     {
         myStream.reset();
 
-        write(Operations.PROTO);
-        write((byte) 2);
-        save(o);
-        write(Operations.STOP);
-
-        myMemo.clear();
+        // The memo is emptied at the end, and not up here with the rest of the
+        // per-pickle state, so that a finished pickle stops holding a
+        // reference to every object it saw. That makes emptying it conditional
+        // on getting to the end, which it cannot be: save() throws for an
+        // object it cannot pickle, and entries left behind by the pickle which
+        // failed would still be in the memo for the next one. That next pickle
+        // would write a back-reference to a memo entry which its own stream
+        // never wrote, and produce a pickle which only fails when someone
+        // comes to read it.
+        try {
+            write(Operations.PROTO);
+            write((byte) 2);
+            save(o);
+            write(Operations.STOP);
+        }
+        finally {
+            myMemo.clear();
+        }
     }
 
     /**

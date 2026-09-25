@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Unpickler for Python binary pickle files.
@@ -32,7 +33,22 @@ import java.util.Map;
  *
  * <p>Things that won't work:
  * <ul>
- *   <li>Some protocol 0 opcodes.
+ *   <li>Some protocol 0 opcodes. Specifically:
+ *       <ul>
+ *         <li>{@code UNICODE} has no handler, so most protocol 0 streams
+ *             carrying text are rejected.
+ *         <li>{@code LONG} does not accept the form CPython writes: CPython
+ *             terminates the decimal string with an {@code L}, which
+ *             {@link BigInteger} will not parse. Only the unsuffixed form is
+ *             read.
+ *         <li>{@code INT} does not recognise a boolean. Protocol 0 and 1 write
+ *             {@code True} and {@code False} as {@code I01} and {@code I00},
+ *             and both are read as a {@link Long}, not a {@link Boolean}.
+ *         <li>{@code STRING} does not unquote its argument, which is a Python
+ *             {@code repr}, so the quotes and escapes survive into the result.
+ *       </ul>
+ *   <li>Integers too wide for a {@code long}. Python integers are unbounded;
+ *       anything needing more than 64 bits is rejected rather than truncated.
  *   <li>Numpy arrays of types other than {@code int1}, ..., {@code int64},
  *       {@code float32}, and {@code float64}. That includes string arrays,
  *       recarrays, etc.
@@ -128,13 +144,16 @@ public class PythonUnpickle
         /**
          * CTOR
          *
-         * @param module The module which this instance is registered under;
-         *               numpy renamed it from {@code numpy.core.multiarray} to
-         *               {@code numpy._core.multiarray} in numpy 2.
+         * @param method The module-qualified name without trailing parentheses,
+         *               which this instance renders in {@link #toString} and
+         *               in its diagnostics. Composed by
+         *               {@link PythonUnpickle#registerGlobal} from the module
+         *               and name the instance is registered under, so the two
+         *               cannot disagree.
          */
-        public NumpyCoreMultiarrayReconstruct(final String module)
+        public NumpyCoreMultiarrayReconstruct(final String method)
         {
-            myMethod = module + "._reconstruct()";
+            myMethod = method + "()";
         }
 
         /**
@@ -216,13 +235,16 @@ public class PythonUnpickle
         /**
          * CTOR
          *
-         * @param module The module which this instance is registered under;
-         *               numpy renamed it from {@code numpy.core.multiarray} to
-         *               {@code numpy._core.multiarray} in numpy 2.
+         * @param method The module-qualified name without trailing parentheses,
+         *               which this instance renders in {@link #toString} and
+         *               in its diagnostics. Composed by
+         *               {@link PythonUnpickle#registerGlobal} from the module
+         *               and name the instance is registered under, so the two
+         *               cannot disagree.
          */
-        public NumpyCoreMultiarrayScalar(final String module)
+        public NumpyCoreMultiarrayScalar(final String method)
         {
-            myMethod = module + ".scalar()";
+            myMethod = method + "()";
         }
 
         /**
@@ -297,7 +319,7 @@ public class PythonUnpickle
         @Override
         public String toString()
         {
-            return "numpy.core.multiarray.ndarray";
+            return "numpy.ndarray";
         }
     }
 
@@ -321,6 +343,12 @@ public class PythonUnpickle
             }
 
             final List t = (List) c;
+            if (t.isEmpty()) {
+                throw new MalformedPickleException(
+                    "Expected at least 1 argument to dtype, but got none"
+                );
+            }
+
             final String dtype = String.valueOf(t.get(0));
             return new UnpickleableDType(dtype);
         }
@@ -608,16 +636,31 @@ public class PythonUnpickle
          */
         @Override
         public void setState(Object state)
+            throws MalformedPickleException
         {
-            // The __reduce__() method returns a 3-tuple consisting of (callable object,
-            // args, state), where the callable object is numpy.core.multiarray.dtype and
-            // args is (typestring, 0, 1) unless the data-type inherits from void (or
-            // is user-defined) in which case args is (typeobj, 0, 1).
-            // The state is an 8-tuple with (version, endian, self.subdtype, self.names,
-            // self.fields, self.itemsize, self.alignment, self.flags).
-            // The self.itemsize and self.alignment entries are both -1 if the data-type
-            // object is built-in and not flexible (because they are fixed on creation).
-            // The setstate method takes the saved state and updates the data-type.
+            // The __reduce__() method returns a 3-tuple consisting of
+            //     (callable object, args, state)
+            // where the callable object is numpy.core.multiarray.dtype
+            // and args is (typestring, 0, 1) unless the data-type inherits from
+            // void (or is user-defined) in which case args is (typeobj, 0, 1).
+            // The state is an 8-tuple with (version, endian, self.subdtype,
+            // self.names, self.fields, self.itemsize, self.alignment,
+            // self.flags), with a 9th entry, self.metadata, appended when the
+            // data-type carries any. The self.itemsize and self.alignment
+            // entries are both -1 if the data-type object is built-in and not
+            // flexible (because they are fixed on creation). The setstate
+            // method takes the saved state and updates the data-type.
+            //
+            // Only the endianness is of interest to us, and the length of the
+            // state depends on the pickle version which wrote it, so we require
+            // just the entries which we go on to read.
+            if (!(state instanceof List) || ((List) state).size() < 2) {
+                throw new MalformedPickleException(
+                    "Invalid state passed to dtype.__setstate__: " +
+                    "expecting a tuple of at least 2 elements, got " + state
+                );
+            }
+
             String endianness = String.valueOf(((List) state).get(1));
             setEndianness(endianness.equals(">"));
         }
@@ -633,15 +676,15 @@ public class PythonUnpickle
     private static final Map<String,Map<String,Global>> GLOBALS = new HashMap<>();
     static
     {
-        // Handles on duplicate strings
-        final String multiarray1 = "numpy.core.multiarray";
-        final String multiarray2 = "numpy._core.multiarray";
+        // 'core ' is different in numpy versions 1 and 2
+        final String np1Multiarray = "numpy.core.multiarray";
+        final String np2Multiarray = "numpy._core.multiarray";
 
-        // Breaking the 80col convention for readability (in theory)
-        registerGlobal(multiarray2,   "_reconstruct", new NumpyCoreMultiarrayReconstruct(multiarray2));
-        registerGlobal(multiarray2,   "scalar",       new NumpyCoreMultiarrayScalar     (multiarray2));
-        registerGlobal(multiarray1,   "_reconstruct", new NumpyCoreMultiarrayReconstruct(multiarray1));
-        registerGlobal(multiarray1,   "scalar",       new NumpyCoreMultiarrayScalar     (multiarray1));
+        // We break the 80col rule here for "readability"
+        registerGlobal(np2Multiarray, "_reconstruct", NumpyCoreMultiarrayReconstruct::new);
+        registerGlobal(np2Multiarray, "scalar",       NumpyCoreMultiarrayScalar     ::new);
+        registerGlobal(np1Multiarray, "_reconstruct", NumpyCoreMultiarrayReconstruct::new);
+        registerGlobal(np1Multiarray, "scalar",       NumpyCoreMultiarrayScalar     ::new);
         registerGlobal("numpy",       "ndarray",      new NDArrayType());
         registerGlobal("numpy",       "dtype",        new DTypeFactory());
         registerGlobal("numpy",       "frombuffer",   new NumpyFrombuffer());
@@ -723,10 +766,29 @@ public class PythonUnpickle
      */
     private static void registerGlobal(String module, String name, Global f)
     {
-        GLOBALS.computeIfAbsent(
-            module,
-            k -> new HashMap<>()
-        ).put(name, f);
+        GLOBALS.computeIfAbsent(module, k -> new HashMap<>())
+               .put(name, f);
+    }
+
+    /**
+     * Register a global whose rendered name follows the module and name it is
+     * registered under.
+     *
+     * <p>The factory is handed the module-qualified name, without trailing
+     * parentheses, composed from the two strings the global is filed under.
+     * That leaves the registry as the only place either half is stated, so a
+     * global cannot report itself as something other than what it is reached
+     * through.
+     *
+     * @param module  The Python module the global lives in.
+     * @param name    The global's name within that module.
+     * @param factory Builds the global from its rendered name.
+     */
+    private static void registerGlobal(final String module,
+                                       final String name,
+                                       final Function<String,Global> factory)
+    {
+        registerGlobal(module, name, factory.apply(module + "." + name));
     }
 
     /**
@@ -815,6 +877,13 @@ public class PythonUnpickle
             byte code = (byte)read();
             try {
                 Operations op = Operations.valueOf(code);
+                if (op == null) {
+                    // Not every byte value is an opcode. Catch it here rather
+                    // than letting the switch below dereference the null.
+                    throw new MalformedPickleException(
+                        "Unknown opcode 0x" + Integer.toHexString(code & 0xff)
+                    );
+                }
                 switch (op) {
                 case STOP:
                     if (myStack.size() != 1) {
@@ -903,15 +972,29 @@ public class PythonUnpickle
                     break;
 
                 case LONG1: {
+                    // Python writes the fewest bytes which hold the value in
+                    // two's complement, little-endian, so anything from zero
+                    // to eight bytes arrives here; a length of zero is the
+                    // value zero. More than eight means an integer too wide
+                    // for a Java long.
                     int c = (int)(read() & 0xff);
-                    if (c != 8) {
+                    if (c > 8) {
                         throw new MalformedPickleException(
-                            "Unsupported LONG1 size " + c
+                            "Unsupported LONG1 size " + c + ": " +
+                            "integers wider than 64 bits are not supported"
                         );
                     }
-                    long a = ((long) readInt32() & 0xffffffffL);
-                    long b = ((long) readInt32() & 0xffffffffL);
-                    myStack.add(a + (b << 32));
+                    long value = 0;
+                    for (int i = 0; i < c; i++) {
+                        value |= ((long) read()) << (8 * i);
+                    }
+                    if (c > 0 && c < 8) {
+                        // Propagate the sign bit of the last byte read up
+                        // through the unwritten high bytes
+                        final int shift = 64 - 8 * c;
+                        value = (value << shift) >> shift;
+                    }
+                    myStack.add(value);
                 }   break;
 
                 case BININT:
@@ -934,6 +1017,12 @@ public class PythonUnpickle
 
                 case DICT: {
                     int k = marker();
+                    if (((myStack.size() - k - 1) & 1) != 0) {
+                        throw new MalformedPickleException(
+                            "Odd number of items for DICT: " +
+                            (myStack.size() - k - 1)
+                        );
+                    }
                     Map dict = new Dict();
                     for (int idx = k + 1; idx < myStack.size(); idx += 2) {
                         dict.put(keyType(myStack.get(idx)), myStack.get(idx + 1));
@@ -969,6 +1058,13 @@ public class PythonUnpickle
                     if (!(top instanceof Dict)) {
                         throw new MalformedPickleException(
                             "Not a dict on top of the stack in SETITEMS: " + top
+                        );
+                    }
+
+                    if (((myStack.size() - k - 1) & 1) != 0) {
+                        throw new MalformedPickleException(
+                            "Odd number of items for SETITEMS: " +
+                            (myStack.size() - k - 1)
                         );
                     }
 
@@ -1102,6 +1198,13 @@ public class PythonUnpickle
                             " to REDUCE is not a function"
                         );
                     }
+                    if (args == null) {
+                        // The NONE opcode puts a real null on the stack, so
+                        // guard here rather than in each Global
+                        throw new MalformedPickleException(
+                            "Null argument tuple passed to " + func
+                        );
+                    }
                     myStack.add(((Global) func).call(args));
                     break;
 
@@ -1114,6 +1217,14 @@ public class PythonUnpickle
                             ((inst == null) ? "<null>"
                                             : "of type " + inst.getClass()) +
                             " to BUILD is not an instance"
+                        );
+                    }
+                    if (state == null) {
+                        // The NONE opcode puts a real null on the stack, so
+                        // guard here rather than in each Instance
+                        throw new MalformedPickleException(
+                            "Null state passed to __setstate__() on " +
+                            inst.getClass()
                         );
                     }
                     ((Instance) inst).setState(state);
@@ -1185,7 +1296,9 @@ public class PythonUnpickle
             }
             catch (IllegalArgumentException e) {
                 throw new MalformedPickleException(
-                    "Could not handle opcode " + (int)code
+                    "Could not handle opcode " + Operations.valueOf(code) +
+                    ": " + e.getMessage(),
+                    e
                 );
             }
             catch (ClassCastException e) {
@@ -1261,18 +1374,34 @@ public class PythonUnpickle
      * a byte buffer.
      */
     private ByteBuffer readBytes(int length)
+        throws IOException,
+               MalformedPickleException
+    {
+        if (length < 0) {
+            throw new MalformedPickleException(
+                "Negative length in the stream: " + length
+            );
+        }
+
+        // Grow the buffer as the data arrives rather than allocating the
+        // declared length up front. The length is whatever the stream said,
+        // so a corrupt or hostile one can name far more bytes than exist;
+        // reading incrementally turns that into an EOFException instead of
+        // an attempt to reserve gigabytes.
+        return ByteBuffer.wrap(readNBytes(length));
+    }
+
+    /**
+     * Read exactly the given number of bytes, or fail.
+     */
+    private byte[] readNBytes(int length)
         throws IOException
     {
-        ByteBuffer buf = ByteBuffer.allocate(length);
-        for (int read = 0; read < length;) {
-            int bytesRead = myFp.read(buf.array(), read, length - read);
-            if (bytesRead == -1) {
-                throw new EOFException();
-            }
-            read += bytesRead;
+        final byte[] ret = myFp.readNBytes(length);
+        if (length != ret.length) {
+            throw new EOFException();
         }
-        buf.limit(length);
-        return buf;
+        return ret;
     }
 
     /**

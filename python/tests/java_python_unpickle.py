@@ -66,6 +66,31 @@ class TestJavaPythonUnpickle(TestCase):
                              resulting_list.toString())
 
 
+    def test_wide_integers(self):
+        """
+        Test Java's unpickling of integers which are too big for a BININT.
+        """
+        # Python writes these as a LONG1, using the fewest bytes which hold
+        # the value, so each of these arrives with a different byte count and
+        # the ones with a high bit set in their top byte are negative.
+        for value in (2**31, -2**31 - 1,
+                      2**39, -2**39,
+                      2**47, -2**47,
+                      2**63 - 1, -2**63):
+            self.assertEqual(str(value), str(send_object_to_java(value)))
+
+
+    def test_integer_too_wide_is_refused(self):
+        """
+        Test that Java refuses an integer which will not fit in a long.
+
+        Python integers are unbounded, so this is reachable from any peer.
+        """
+        with self.assertRaises(Exception) as context:
+            send_object_to_java(2**80)
+        self.assertIn("Unsupported LONG1 size", str(context.exception))
+
+
     def test_numpy_array_integer(self):
         """
         Test Java's unpickling of various numpy arrays of integers.

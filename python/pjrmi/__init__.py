@@ -964,7 +964,8 @@ class PJRmi:
     def value_of(self,
                  obj        : _JavaObject,
                  compress   : bool = True,
-                 best_effort: bool = False) -> Any:
+                 best_effort: bool = False,
+                 materialize: bool = False) -> Any:
         """
         Get a Python copy of the given Java object of the given object, if
         supported.
@@ -1002,6 +1003,15 @@ class PJRmi:
         :param best_effort: Boolean to indicate whether to do a "best-effort"
                             attempt, meaning some Java objects might not be
                             fully converted.
+        :param materialize: Boolean to force the returned value to own its
+                            memory. When a native array is transferred via
+                            shared memory it is handed back as a copy-on-write
+                            view onto the shared pages, which is cheap and lazy
+                            but keeps those pages resident for the lifetime of
+                            the array. Setting this to ``True`` copies the data
+                            into a standalone array instead, which is the right
+                            choice when retaining many such arrays or when an
+                            array which owns its memory is required.
         """
 
         # Null breeds null
@@ -1078,8 +1088,13 @@ class PJRmi:
 
         req_id = self._send(self._GET_VALUE_OF, payload)
 
-        # Read the result and give it back
-        return self._read_result(req_id)
+        # Read the result and give it back. A shared-memory array comes back as
+        # a copy-on-write view onto the shared pages; if the caller wants to own
+        # the memory then we copy it out into a standalone array.
+        result = self._read_result(req_id)
+        if materialize and isinstance(result, numpy.ndarray):
+            return result.copy()
+        return result
 
 
     def collect(self,

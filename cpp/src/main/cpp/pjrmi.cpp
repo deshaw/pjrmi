@@ -32,6 +32,32 @@ namespace pjrmi {
     // mmaped file.
     static const char HEADER_BYTES[] = "SHMARRY";
 
+    // The file format version, written directly after the ArrayType char and
+    // checked on read. The on-disk layout (notably ARRAY_DATA_OFFSET) is not
+    // covered by the PJRmi protocol handshake, which only compares the major
+    // and minor version. Bumping this whenever the layout changes lets a reader
+    // reject a file written by an incompatible peer with a clear error rather
+    // than silently misreading it.
+    static const uint8_t FORMAT_VERSION = 1;
+
+    // Byte offsets within the file. The ArrayType char and the format version
+    // sit directly after the header; the array contents follow at an aligned
+    // offset.
+    static const size_t TYPE_OFFSET           = sizeof(HEADER_BYTES);
+    static const size_t FORMAT_VERSION_OFFSET = TYPE_OFFSET + sizeof(char);
+
+    // The array contents live at this byte offset within the file, past the
+    // header, the ArrayType char and the format version. It is a multiple of
+    // the largest primitive type's alignment; since mmap() hands back a page-
+    // aligned base address, this makes the mapped array contents aligned too,
+    // so an array returned to numpy as a direct mapping is suitably aligned for
+    // any type.
+    static const size_t ARRAY_DATA_OFFSET = 64;
+
+    // The data must start past the header, the ArrayType char and the version.
+    static_assert(ARRAY_DATA_OFFSET > FORMAT_VERSION_OFFSET,
+                  "ARRAY_DATA_OFFSET must leave room for the file header");
+
     /**
      * Given a character, returns the corresponding ArrayType
      */
@@ -249,10 +275,10 @@ namespace pjrmi {
         // The below C functions want the filename as a c string
         const char* file = generated_filename.c_str();
 
-        // Total number of bytes we need to write,
-        // as we are writing HEADER_BYTES<ArrayType> before the array contents
-        const size_t bytes_to_write = array_bytes + sizeof(HEADER_BYTES)
-                                                  + sizeof(ArrayType);
+        // Total number of bytes we need to write. The array contents start at
+        // ARRAY_DATA_OFFSET, past the HEADER_BYTES and ArrayType char, so that
+        // the contents land on an aligned boundary within the mapped file.
+        const size_t bytes_to_write = ARRAY_DATA_OFFSET + array_bytes;
 
         int fd = -1;
         try {
@@ -268,12 +294,42 @@ namespace pjrmi {
             throw exception::out_of_memory(e.what());
         }
 
-        // Write the HEADER_BYTES, the type of the array, and the data to the
-        // file. We explicitly create a variable for the type as write() takes
-        // a void pointer.
+        // Size the file up front so that the padding between the header and the
+        // aligned data offset is present and zeroed, regardless of array_bytes.
+        if (ftruncate(fd, bytes_to_write) == -1) {
+            int errnum = errno;
+            close(fd);
+            unlink(file);
+            throw exception::io(
+                format_error(
+                    "write_bytes_to_shm(): Could not size file with ftruncate()",
+                     errnum
+                ).c_str()
+            );
+        }
+
+        // Write the HEADER_BYTES, the type of the array and the format version.
+        // We explicitly create variables for these as write() takes a void
+        // pointer.
         write(fd, HEADER_BYTES, sizeof(HEADER_BYTES));
-        char casted_type = char(type);
+        const char casted_type = char(type);
         write(fd, &casted_type, sizeof(casted_type));
+        const uint8_t version = FORMAT_VERSION;
+        write(fd, &version, sizeof(version));
+
+        // Seek to the aligned data offset, leaving the intervening padding
+        // bytes as the zeroes written by ftruncate() above.
+        if (lseek(fd, ARRAY_DATA_OFFSET, SEEK_SET) == -1) {
+            int errnum = errno;
+            close(fd);
+            unlink(file);
+            throw exception::io(
+                format_error(
+                    "write_bytes_to_shm(): Could not seek to data offset",
+                     errnum
+                ).c_str()
+            );
+        }
 
         // Write it out. This might possibly need multiple calls if array_bytes
         // is larger than can be represented by an int.
@@ -363,10 +419,10 @@ namespace pjrmi {
         // The below C functions want the filename as a c string
         const char* file = generated_filename.c_str();
 
-        // Total number of bytes we need to write,
-        // as we are writing HEADER_BYTES<ArrayType> before the array contents
-        const size_t bytes_to_write = array_bytes + sizeof(HEADER_BYTES)
-                                                  + sizeof(ArrayType);
+        // Total number of bytes we need to write. The array contents start at
+        // ARRAY_DATA_OFFSET, past the HEADER_BYTES and ArrayType char, so that
+        // the contents land on an aligned boundary within the mapped file.
+        const size_t bytes_to_write = ARRAY_DATA_OFFSET + array_bytes;
 
         int fd = -1;
         try {
@@ -385,35 +441,15 @@ namespace pjrmi {
         // For saving the errno when we print errors
         int errnum;
 
-        // Stretch the file size to equal the number of bytes we need to write
-        if (lseek(fd, bytes_to_write, SEEK_SET) == -1) {
+        // Size the file to exactly the bytes we need. ftruncate() zero-fills,
+        // which also gives us the padding between the header and the data.
+        if (ftruncate(fd, bytes_to_write) == -1) {
             errnum = errno;
             close(fd);
             unlink(file);
             throw exception::io(
                 format_error(
-                    "write_bytes_to_shm(): Could not stretch file with lseek()",
-                     errnum
-                ).c_str()
-            );
-        }
-
-        // Something needs to be written at the end of the file to
-        // have the file actually have the new size.
-        // Just writing an empty string at the current file position will do.
-        //
-        // Note:
-        //  - The current position in the file is at the end of the stretched
-        //    file due to the call to lseek().
-        //  - An empty string is actually a single '\0' character, so a zero-
-        //    byte will be written at the last byte of the file.
-        if (write(fd, "", 1) != 1) {
-            errnum = errno;
-            close(fd);
-            unlink(file);
-            throw exception::io(
-                format_error(
-                    "write_bytes_to_shm(): Could not write empty char",
+                    "write_bytes_to_shm(): Could not size file with ftruncate()",
                      errnum
                 ).c_str()
             );
@@ -422,7 +458,7 @@ namespace pjrmi {
         // Check the size of the allocated file
         struct stat buffer;
         fstat(fd, &buffer);
-        if ((size_t)buffer.st_size != bytes_to_write + 1) {
+        if ((size_t)buffer.st_size != bytes_to_write) {
             errnum = errno;
             close(fd);
             unlink(file);
@@ -462,18 +498,14 @@ namespace pjrmi {
         // First, we write the HEADER_BYTES to the file.
         memcpy(file_addr, HEADER_BYTES, sizeof(HEADER_BYTES));
 
-        // Move the pointer to our address accordingly
-        file_addr += sizeof(HEADER_BYTES);
+        // We also write the type of the array and the format version, directly
+        // after the header.
+        file_addr[TYPE_OFFSET]           = char(type);
+        file_addr[FORMAT_VERSION_OFFSET] = FORMAT_VERSION;
 
-        // We also write the type of the array
-        const char char_type = char(type);
-        *file_addr = char_type;
-
-        // Move the pointer to our address accordingly
-        file_addr++;
-
-        // Copy the data in
-        lambda(file_addr);
+        // Copy the data in at the aligned data offset, past the header, type,
+        // version and padding bytes.
+        lambda(file_addr + ARRAY_DATA_OFFSET);
 
         // Clean up by un-mapping the file
         if (munmap(addr, bytes_to_write) == -1) {
@@ -508,109 +540,189 @@ namespace pjrmi {
      * @throws io                If there is an error in opening, mmaping, or
      *                           writing the file.
      */
+    namespace {
+        /**
+         * Shared implementation for the shm mapping functions. Opens, maps and
+         * validates a "safe" shm file, returning a pointer to the start of its
+         * array contents. The HEADER_BYTES and ArrayType header is verified and
+         * skipped over before returning.
+         *
+         * @param who                 The caller's name, for error messages.
+         * @param file                The name of the mmaped file.
+         * @param array_bytes         The number of array bytes in the file.
+         * @param type                The expected array type.
+         * @param mmap_prot           The protection to pass to mmap() (e.g.
+         *                            PROT_READ or PROT_READ | PROT_WRITE).
+         * @param mmap_flags          The flags to pass to mmap() (e.g.
+         *                            MAP_SHARED or MAP_PRIVATE).
+         * @param unlink_on_success   Whether to unlink the file once mapped.
+         *                            The mapping remains valid afterwards.
+         */
+        void* open_and_map_shm(const char* who,
+                               const char* file,
+                               const size_t array_bytes,
+                               const ArrayType type,
+                               const int mmap_prot,
+                               const int mmap_flags,
+                               const bool unlink_on_success)
+        {
+            // Make sure we have a nonempty and non-NULL filename
+            if (file == NULL || *file == '\0') {
+                throw exception::io(
+                    (std::string(who) + "(): Empty filename received").c_str()
+                );
+            }
+
+            // Total number of bytes we need to read. The array contents start
+            // at ARRAY_DATA_OFFSET, past the HEADER_BYTES, ArrayType char and
+            // alignment padding.
+            const size_t bytes_to_read = ARRAY_DATA_OFFSET + array_bytes;
+
+            // Open a file for reading
+            int fd = open(file, O_RDWR);
+            if (fd == -1) {
+                throw exception::io(
+                    format_error(
+                        (std::string(who) +
+                         "(): Could not open file for reading").c_str(),
+                        errno
+                    ).c_str()
+                );
+            }
+
+            // Check the size of the file. It must be large enough to hold the
+            // header, type char, padding and the full array contents, else the
+            // mapping would extend past end-of-file and touching it would fault.
+            struct stat s;
+            fstat(fd, & s);
+            if ((size_t)s.st_size < bytes_to_read) {
+                close(fd);
+                throw exception::io(
+                    (std::string(who) +
+                     "(): File size is insufficient for reading").c_str()
+                );
+            }
+
+            // Now the file is ready to be mmapped.
+            uint8_t* addr = (uint8_t*)mmap(NULL, bytes_to_read,
+                                           mmap_prot, mmap_flags,
+                                           fd, 0);
+            if (addr == MAP_FAILED) {
+                // Save a copy of the errno as close/unlink will overwrite it
+                int errnum = errno;
+
+                close(fd);
+                unlink(file);
+                throw exception::io(
+                    format_error(
+                        (std::string(who) + "(): Error in mmaping the file").c_str(),
+                        errnum
+                    ).c_str()
+                );
+            }
+
+            // Clean up; mmap() is still valid on a closed file
+            close(fd);
+
+            // First, we check that this file is meant for this purpose.
+            // Are the first bytes of the file the header bytes?
+            if (strncmp((const char*)addr, HEADER_BYTES, sizeof(HEADER_BYTES)) != 0) {
+                unlink(file);
+
+                // For printing out the unmatching bytes
+                std::string wrong_bytes((const char*)addr, (const char*)addr + sizeof(HEADER_BYTES));
+                std::string message = std::string(who) +
+                    "(): The magic bytes in this file: " + wrong_bytes;
+                message            += " do not match the expected magic bytes: " +
+                message            += HEADER_BYTES;
+                message            += " in file " +
+                message            += file;
+
+                throw exception::io(message.c_str());
+            }
+
+            // Next, we check that the array is the same type as we are
+            // expecting. The type char sits directly after the header.
+            const char file_array_type = (char)addr[TYPE_OFFSET];
+            if (file_array_type != (char)type) {
+                unlink(file);
+
+                // For printing out the unmatching bytes
+                std::string message = std::string(who) +
+                    "(): The read type is: " + (char)file_array_type;
+                message            += " but the expected type is " +
+                                      (char)type;
+                message            += " in file " +
+                message            += file;
+
+                throw exception::io(message.c_str());
+            }
+
+            // Then we check the format version. This guards against a peer
+            // built with an incompatible on-disk layout, which the PJRmi
+            // handshake does not catch as it only checks the major and minor
+            // version.
+            const uint8_t file_version = addr[FORMAT_VERSION_OFFSET];
+            if (file_version != FORMAT_VERSION) {
+                unlink(file);
+                throw exception::io(
+                    (std::string(who) + "(): The file format version is " +
+                     std::to_string((int)file_version) +
+                     " but this build expects version " +
+                     std::to_string((int)FORMAT_VERSION) +
+                     "; the writer and reader are incompatible").c_str()
+                );
+            }
+
+            // The header checked out, so the file is ours to claim. Drop it
+            // from the filesystem now if asked; the mapping outlives the link.
+            if (unlink_on_success) {
+                unlink(file);
+            }
+
+            // The array contents begin at the aligned data offset.
+            return addr + ARRAY_DATA_OFFSET;
+        }
+    } // anonymous namespace
+
     void* mmap_bytes_from_shm(const char* file,
                               const size_t array_bytes,
                               const ArrayType type)
     {
-        // Make sure we have a nonempty and non-NULL filename
-        if (file == NULL || *file == '\0') {
-            throw exception::io(
-                "mmap_bytes_from_shm(): Empty filename received"
-            );
-        }
+        return open_and_map_shm("mmap_bytes_from_shm",
+                                file, array_bytes, type,
+                                PROT_READ, MAP_SHARED,
+                                /*unlink_on_success=*/false);
+    }
 
-        // Total number of bytes we need to read, as we are reading
-        // HEADER_BYTES and the ArrayType char before the array contents.
-        const size_t bytes_to_read = array_bytes + sizeof(HEADER_BYTES)
-                                                 + sizeof(type);
+    void* map_bytes_from_shm(const char* file,
+                             const size_t array_bytes,
+                             const ArrayType type)
+    {
+        return open_and_map_shm("map_bytes_from_shm",
+                                file, array_bytes, type,
+                                PROT_READ | PROT_WRITE, MAP_PRIVATE,
+                                /*unlink_on_success=*/true);
+    }
 
-        // Open a file for reading
-        int fd = open(file, O_RDWR);
-        if (fd == -1) {
+    void unmap_shm_array(void* array,
+                         const size_t array_bytes,
+                         const ArrayType type)
+    {
+        (void)type; // The data offset is fixed, so the type is not needed here.
+
+        // Rewind from the array contents to the start of the mapping, past the
+        // header, type char and alignment padding which precede them.
+        uint8_t* base = (uint8_t*)array - ARRAY_DATA_OFFSET;
+        const size_t mapped_bytes = ARRAY_DATA_OFFSET + array_bytes;
+        if (munmap(base, mapped_bytes) == -1) {
             throw exception::io(
                 format_error(
-                    "mmap_bytes_from_shm(): Could not open file for reading",
-                     errno
+                    "unmap_shm_array(): Error in munmaping the array",
+                    errno
                 ).c_str()
             );
         }
-
-        // Check the size of the file
-        struct stat s;
-        fstat(fd, & s);
-
-        // If size is smaller than the beginning bytes HEADER_BYTES<ArrayType>
-        // we're probably in trouble.
-        if ((size_t)s.st_size < (sizeof(HEADER_BYTES) + 1)) {
-            close(fd);
-            throw exception::io(
-                "mmap_bytes_from_shm(): File size is insufficient for reading"
-            );
-        }
-
-        // Now the file is ready to be mmapped.
-        // We pass MAP_SHARED to both read and write mmap()s for efficiency.
-        uint8_t* addr = (uint8_t*)mmap(NULL, bytes_to_read,
-                                       PROT_READ, MAP_SHARED,
-                                       fd, 0);
-        if (addr == MAP_FAILED) {
-            // Save a copy of the errno as close/unlink will overwrite it
-            int errnum = errno;
-
-            close(fd);
-            unlink(file);
-            throw exception::io(
-                format_error(
-                    "mmap_bytes_from_shm(): Error in mmaping the file",
-                     errnum
-                ).c_str()
-            );
-        }
-
-        // Clean up; mmap() is still valid on a closed file
-        close(fd);
-
-        // First, we check that this file is meant for this purpose.
-        // Are the first bytes of the file the header bytes?
-        if (strncmp((const char*)addr, HEADER_BYTES, sizeof(HEADER_BYTES)) != 0) {
-            unlink(file);
-
-            // For printing out the unmatching bytes
-            std::string wrong_bytes((const char*)addr, (const char*)addr + sizeof(HEADER_BYTES));
-            std::string message = "mmap_bytes_from_shm(): The magic bytes in this file: " +
-                                  wrong_bytes;
-            message            += " do not match the expected magic bytes: " +
-            message            += HEADER_BYTES;
-            message            += " in file " +
-            message            += file;
-
-            throw exception::io(message.c_str());
-        }
-
-        // Move the pointer to our address accordingly
-        addr += sizeof(HEADER_BYTES);
-
-        // Next, we check that the array is the same type as we are expecting
-        const char file_array_type = *((char*)addr);
-        if (file_array_type != (char)type) {
-            unlink(file);
-
-            // For printing out the unmatching bytes
-            std::string message = "mmap_bytes_from_shm(): The read type is: " +
-                                  (char)file_array_type;
-            message            += " but the expected type is " +
-                                  (char)type;
-            message            += " in file " +
-            message            += file;
-
-            throw exception::io(message.c_str());
-        }
-
-        // Move the pointer to our address accordingly -- it now points to the
-        // start of the array.
-        addr++;
-
-        return addr;
     }
 
     /**
@@ -630,19 +742,19 @@ namespace pjrmi {
                                const ArrayType type,
                                void* addr)
     {
+        (void)type; // The data offset is fixed, so the type is not needed here.
+
         // We need to do pointer arithmetic on the addr pointer, so we retype it
         uint8_t* file_addr = (uint8_t*)addr;
 
         // Since we're given the pointer to the beginning of an array in the
-        // mmaped file, we need to go back to the beginning of the file. As
-        // we are doing operations on a "safe" file, this just means we need to
-        // subtract the size of HEADER_BYTES plus the ArrayType.
-        file_addr -= (sizeof(HEADER_BYTES) + sizeof(type));
+        // mmaped file, we need to go back to the beginning of the file. The
+        // contents start at the fixed, aligned data offset.
+        file_addr -= ARRAY_DATA_OFFSET;
 
-        // Total number of bytes of relevant information in the file (with the
-        // HEADER_BYTES and the ArrayType char before the array contents).
-        const size_t file_bytes = array_bytes + sizeof(HEADER_BYTES)
-                                              + sizeof(type);
+        // Total number of bytes of relevant information in the file (the array
+        // contents plus the preceding header, type char and padding).
+        const size_t file_bytes = ARRAY_DATA_OFFSET + array_bytes;
 
         // Here's what we actually came to do
         if (munmap(file_addr, file_bytes) == -1) {

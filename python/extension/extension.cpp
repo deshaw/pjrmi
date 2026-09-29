@@ -763,6 +763,34 @@ static PyObject* _write_array(PyObject* /*self*/, PyObject* args)
 /*
  * Read a given number of bytes from the pipe
  */
+// Bookkeeping for an array which is backed by a live shm mapping rather than
+// by malloc'd memory. It is attached to the ndarray as its base object so that
+// the mapping is released exactly when the array is garbage collected.
+struct ShmMapping
+{
+    void*               array;
+    size_t              array_bytes;
+    des::pjrmi::ArrayType type;
+};
+
+static void _shm_mapping_destructor(PyObject* capsule)
+{
+    ShmMapping* mapping =
+        (ShmMapping*)PyCapsule_GetPointer(capsule, "pjrmi.ShmMapping");
+    if (mapping != NULL) {
+        try {
+            des::pjrmi::unmap_shm_array(mapping->array,
+                                        mapping->array_bytes,
+                                        mapping->type);
+        }
+        catch (const des::pjrmi::exception::io&) {
+            // Nothing useful to do while tearing down; leaking a mapping is
+            // preferable to raising from a destructor.
+        }
+        delete mapping;
+    }
+}
+
 static const char* _read_array_doc =
 "read_array(count)\n"
 "\n"
@@ -848,10 +876,12 @@ static PyObject* _read_array(PyObject* /*self*/, PyObject* args)
     }
 
     try {
-        // Read from memory-mapped file
-        void* data = des::pjrmi::read_bytes_from_shm(filename,
-                                                     array_bytes,
-                                                     pjrmi_type);
+        // Map the file copy-on-write instead of copying it out. The pages
+        // fault in on demand, so slicing or reducing a large array only ever
+        // touches the pages it reads, and we save a full memcpy of the payload.
+        void* data = des::pjrmi::map_bytes_from_shm(filename,
+                                                    array_bytes,
+                                                    pjrmi_type);
 
         // Currently we can only handle 1-dimensional arrays
         long dims[1] = {num_elems};
@@ -861,10 +891,35 @@ static PyObject* _read_array(PyObject* /*self*/, PyObject* args)
                                                      dims,
                                                      numpy_type,
                                                      data);
+        if (result == NULL) {
+            des::pjrmi::unmap_shm_array(data, array_bytes, pjrmi_type);
+            return NULL;
+        }
 
-        // This enables numpy to free the memory allocated in result when the
-        // array is garbage collected.
-        PyArray_ENABLEFLAGS((PyArrayObject *)result, NPY_ARRAY_OWNDATA);
+        // Tie the mapping's lifetime to the array: when the array is garbage
+        // collected its base capsule is freed, which unmaps the pages. The
+        // capsule owns the mapping, so its destructor is the single place that
+        // releases it from here on.
+        ShmMapping* mapping = new ShmMapping{data, (size_t)array_bytes, pjrmi_type};
+        PyObject* capsule = PyCapsule_New(mapping,
+                                          "pjrmi.ShmMapping",
+                                          _shm_mapping_destructor);
+        if (capsule == NULL) {
+            // The capsule was not created, so it does not own the mapping yet;
+            // release it ourselves.
+            des::pjrmi::unmap_shm_array(data, array_bytes, pjrmi_type);
+            delete mapping;
+            Py_DECREF(result);
+            return NULL;
+        }
+
+        // PyArray_SetBaseObject steals our reference to the capsule on both
+        // success and failure, so we must not DECREF it afterwards. On failure
+        // the capsule is destroyed by numpy, which unmaps via the destructor.
+        if (PyArray_SetBaseObject((PyArrayObject*)result, capsule) < 0) {
+            Py_DECREF(result);
+            return NULL;
+        }
 
         // Hand back the array
         return result;

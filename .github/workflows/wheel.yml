@@ -32,7 +32,7 @@ jobs:
         run: |
           ./gradlew :python:thin_wheel
     
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         # See https://github.com/actions/upload-artifact#readme
         with:
           name: wheel
